@@ -27,7 +27,7 @@ export default function NavBar({
               <Leaf className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-lg font-semibold">PureNature</div>
+              <div className="text-lg font-semibold">Farmers Republic</div>
               <div className="text-xs text-stone-400">organic & natural</div>
             </div>
           </div>

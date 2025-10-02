@@ -1,36 +1,132 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🌿 PureNature — Organic E-Commerce
 
-## Getting Started
+PureNature is a **modern e-commerce web app** built with [Next.js 14](https://nextjs.org/), [TypeScript](https://www.typescriptlang.org/), and [Tailwind CSS](https://tailwindcss.com/).  
+It’s designed for selling **organic and natural products**, with a mobile-first UI, bottom navigation, and modular components.
 
-First, run the development server:
+---
+
+## ✨ Features
+- 📱 **Mobile-first design** with a bottom navigation bar for a native-app feel  
+- 🛒 **Cart drawer & wishlist** with persistent state (localStorage ready)  
+- 🔎 **Search & category filter** with debounced input  
+- 🖼️ **Optimized images** via Next.js `next/image`  
+- ⚡ **Modular architecture** — reusable components (`NavBar`, `BottomNav`, `ProductCard`, etc.)  
+- 🎨 **Modern UI** with Tailwind, responsive layouts, hover animations  
+- 🔗 **TypeScript types** for products, categories, cart logic  
+- ♻️ **Clean separation** of concerns:
+  - `/app` → routes and pages  
+  - `/components` → shared UI  
+  - `/shared` → data & interfaces  
+  - `/lib` → utilities  
+
+---
+
+## 📂 Project Structure
+```bash
+farmers-republic/
+├── app/
+│   ├── page.tsx          # Home page
+│   ├── icons/page.tsx    # Icon explorer route
+│   └── layout.tsx        # Root layout
+│
+├── components/
+│   ├── NavBar.tsx
+│   ├── BottomNav.tsx
+│   ├── ProductCard.tsx
+│   └── CartDrawer.tsx (planned)
+│
+├── shared/
+│   ├── data/
+│   │   ├── product.ts    # Product seed data
+│   │   └── category.ts   # Category seed data
+│   └── interfaces/
+│       └── general.ts    # Product & Category types
+│
+├── lib/
+│   └── utils.ts          # cx(), helpers
+│
+├── public/               # Static assets
+├── package.json
+├── tsconfig.json
+└── next.config.js        # Unsplash images allowed
+````
+
+---
+
+## 🚀 Getting Started
+
+### 1️⃣ Clone & install
+
+```bash
+git clone https://github.com/your-username/farmers-republic.git
+cd farmers-republic
+npm install
+```
+
+### 2️⃣ Run the dev server
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Now visit [http://localhost:3000](http://localhost:3000) 🎉
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3️⃣ Build for production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm run start
+```
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## ⚙️ Configuration
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+* **Images**: Make sure `next.config.js` allows Unsplash (or your own CDN):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```js
+const nextConfig = {
+  images: {
+    domains: ["images.unsplash.com"],
+  },
+};
+module.exports = nextConfig;
+```
 
-## Deploy on Vercel
+* **Products & Categories**: Edit `shared/data/product.ts` and `shared/data/category.ts` to update your catalog.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ Tech Stack
+
+* [Next.js 14](https://nextjs.org/) — App Router, server components, API routes
+* [TypeScript](https://www.typescriptlang.org/) — type safety
+* [Tailwind CSS](https://tailwindcss.com/) — styling
+* [lucide-react](https://lucide.dev/) — beautiful icons
+* [next/image](https://nextjs.org/docs/app/building-your-application/optimizing/images) — optimized images
+
+---
+
+## 🌱 Roadmap
+
+* ✅ Core UI (home, navbar, bottom nav, product cards)
+* 🔲 Cart context with persistence
+* 🔲 Product detail modal & quick view
+* 🔲 Checkout flow
+* 🔲 Backend API integration (Django, Node, or Commerce API)
+* 🔲 Authentication (sign-in / profile tab)
+
+---
+
+## 🤝 Contributing
+
+PRs are welcome! Fork the repo and submit a pull request 🚀
+
+---
+
+## 📄 License
+
+MIT © 2025 [Your Name]
+
+
+
