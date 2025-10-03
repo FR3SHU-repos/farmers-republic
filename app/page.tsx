@@ -69,46 +69,7 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
       <main>
-        {/* Hero */}
-        <section className="relative bg-gradient-to-r from-green-50 to-emerald-50 py-12 sm:py-16">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-            <div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-extrabold leading-tight">
-                Natural Living, <span className="text-green-600">Naturally Pure</span>
-              </h1>
-              <p className="mt-3 text-stone-600 max-w-lg">
-                Curated organic & natural goods — transparent sourcing, sustainable packaging, and small-batch producers.
-              </p>
-
-              <div className="mt-5 flex flex-col sm:flex-row gap-3">
-                <a
-                  href="#shop"
-                  className="w-full sm:w-auto inline-block bg-green-600 text-white px-6 py-3 rounded-full font-semibold hover:bg-green-700 transition-colors text-center"
-                >
-                  Shop Now
-                </a>
-                <a
-                  href="#about"
-                  className="w-full sm:w-auto inline-block border border-stone-200 px-6 py-3 rounded-full hover:border-green-600 hover:text-green-600 transition-colors text-center"
-                >
-                  Learn More
-                </a>
-              </div>
-            </div>
-
-            <div className="rounded-2xl overflow-hidden shadow-xl bg-white">
-              <div className="relative w-full h-64 sm:h-80 md:h-96">
-                <Image
-                  src="https://images.unsplash.com/photo-1556742044-3c52d6e88c62?w=1400&q=80&auto=format&fit=crop"
-                  alt="Assortment of natural products"
-                  fill
-                  className="object-cover"
-                  sizes="(min-width:1024px) 50vw, 100vw"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
+        
 
         {/* Categories */}
         <section className="py-8">

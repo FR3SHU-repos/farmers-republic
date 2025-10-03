@@ -1,46 +1,94 @@
 "use client";
 import React from "react";
-import { Leaf, Heart, ShoppingCart, Search, Menu, X } from "lucide-react";
-import { cx } from "@/shared/lib/utils";
+import { Leaf, Heart, ShoppingCart, Search } from "lucide-react";
+import Link from "next/link";
+
 
 export default function NavBar({
   cartCount = 0,
   onOpenCart,
-  onToggleMenu,
-  menuOpen,
   query,
   setQuery,
 }: {
   cartCount?: number;
   onOpenCart: () => void;
-  onToggleMenu: () => void;
-  menuOpen: boolean;
   query: string;
   setQuery: (s: string) => void;
 }) {
   return (
-    <header className="bg-white shadow sticky top-0 z-40">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-green-600 text-white flex items-center justify-center font-bold">
+    <>
+      {/* Mobile Header */}
+      <header className="md:hidden fixed top-0 mb-40 left-0 right-0 bg-white shadow z-40 px-4 py-2 flex items-center justify-between">
+        {/* Logo */}
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center">
+            <Leaf className="w-5 h-5" />
+          </div>
+          <Link href="/">
+          <span className="font-semibold text-stone-700 text-sm">
+            Farmers Republic
+          </span>
+          </Link>
+          
+        </div>
+
+        {/* Search */}
+        <div className="flex items-center gap-2 bg-stone-100 rounded-full px-3 py-1 flex-1 ml-4">
+          <Search className="w-4 h-4 text-stone-500" />
+          <input
+            aria-label="Search products"
+            className="bg-transparent outline-none text-sm w-full"
+            placeholder="Search..."
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {query && (
+            <button
+              aria-label="Clear search"
+              onClick={() => setQuery("")}
+              className="text-xs text-stone-500"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Desktop / Tablet Nav */}
+      <header className="hidden md:block fixed top-4 mb-60 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-4xl">
+        <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-full px-6 py-3 flex items-center justify-between border border-stone-200">
+          {/* Logo */}
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center">
               <Leaf className="w-5 h-5" />
             </div>
-            <div>
-              <div className="text-lg font-semibold">Farmers Republic</div>
-              <div className="text-xs text-stone-400">organic & natural</div>
-            </div>
+            <Link href="/">
+            <span className="font-semibold text-stone-700">
+              Farmers Republic
+            </span>
+            </Link>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8">
-            <a className="hover:text-green-600 transition-colors" href="#shop">Shop</a>
-            <a className="hover:text-green-600 transition-colors" href="#about">About</a>
-            <a className="hover:text-green-600 transition-colors" href="#blog">Blog</a>
-            <a className="hover:text-green-600 transition-colors" href="#contact">Contact</a>
+          {/* Links */}
+          <nav className="flex items-center gap-6 text-sm font-medium">
+            <a className="hover:text-green-600 transition-colors" href="#shop">
+              Shop
+            </a>
+            <a className="hover:text-green-600 transition-colors" href="#about">
+              About
+            </a>
+            <a className="hover:text-green-600 transition-colors" href="#blog">
+              Blog
+            </a>
+            <a className="hover:text-green-600 transition-colors" href="#contact">
+              Contact
+            </a>
           </nav>
 
-          <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-2 bg-stone-100 rounded-full px-3 py-1">
+          {/* Actions */}
+          <div className="flex items-center gap-3">
+            {/* Search input */}
+            <div className="hidden lg:flex items-center gap-2 bg-stone-100 rounded-full px-3 py-1">
               <Search className="w-4 h-4 text-stone-500" />
               <input
                 aria-label="Search products"
@@ -50,35 +98,42 @@ export default function NavBar({
                 onChange={(e) => setQuery(e.target.value)}
               />
               {query && (
-                <button aria-label="Clear search" onClick={() => setQuery("")} className="text-xs text-stone-500">
-                  Clear
+                <button
+                  aria-label="Clear search"
+                  onClick={() => setQuery("")}
+                  className="text-xs text-stone-500"
+                >
+                  ✕
                 </button>
               )}
             </div>
 
-            <button aria-label="Wishlist" className="p-2 rounded-full hover:bg-stone-100">
+            {/* Wishlist */}
+            <button
+              aria-label="Wishlist"
+              className="p-2 rounded-full hover:bg-stone-100"
+            >
               <Heart className="w-5 h-5" />
             </button>
 
+            {/* Cart */}
             <div className="relative">
-              <button aria-label="Open cart" onClick={onOpenCart} className="p-2 rounded-full hover:bg-stone-100">
+              <button
+                aria-label="Open cart"
+                onClick={onOpenCart}
+                className="p-2 rounded-full hover:bg-stone-100"
+              >
                 <ShoppingCart className="w-5 h-5" />
               </button>
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs rounded-full w-5 h-5 inline-flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {cartCount}
                 </span>
               )}
             </div>
-
-            <div className="md:hidden">
-              <button aria-label={menuOpen ? "Close menu" : "Open menu"} onClick={onToggleMenu} className="p-2 rounded-full hover:bg-stone-100">
-                {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
-            </div>
           </div>
         </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }

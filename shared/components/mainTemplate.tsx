@@ -4,7 +4,6 @@
 import React, { useEffect, useState } from "react";
 import NavBar from "@/shared/components/templates/navbar";
 import BottomNav from "@/shared/components/templates/bottomNav";
-import Image from "next/image";
 import { cx } from "@/shared/lib/utils";
 
 /**
@@ -62,17 +61,17 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           setCartOpen(true);
           setActiveTab("cart");
         }}
-        onToggleMenu={() => setMenuOpen((s) => !s)}
-        menuOpen={menuOpen}
         query={""}
         setQuery={() => {}}
       />
 
       {/* Page content */}
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pt-16 md:pt-28">{children}</main>
 
       {/* Footer */}
-      <footer className="bg-stone-800 text-stone-300 py-8 mt-8">
+      {/* Footer - hidden on mobile, visible on md+ */}
+<footer className="hidden md:block bg-stone-800 text-stone-300 py-8 mt-8">
+
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-6">
           <div>
             <div className="flex items-center gap-2 mb-3">
