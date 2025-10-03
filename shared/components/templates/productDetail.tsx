@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Heart, Star, ShoppingCart } from "lucide-react";
 import { cx } from "@/shared/lib/utils";
 import type { ProductDetail } from "@/shared/interfaces/general";
+import Link from "next/link";
 
 
 function Rating({ value, count }: { value: number; count?: number }) {
@@ -122,7 +123,10 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
                 )}
               </div>
               <div>
-                <div className="font-medium">{product.farmer.name}</div>
+                <Link href={`/farmers/f1`} className="hover:underline">
+                  <div className="font-medium">{product.farmer.name}</div>
+                </Link>
+                
                 <div className="text-sm text-stone-500">{product.farmer.farmName || ""}</div>
                 <div className="text-sm text-stone-500 mt-1">📍 {product.farmer.location}</div>
                 {product.farmer.phone && <div className="text-sm mt-1">📞 {product.farmer.phone}</div>}
