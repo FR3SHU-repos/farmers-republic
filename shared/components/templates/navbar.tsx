@@ -71,18 +71,18 @@ export default function NavBar({
 
           {/* Links */}
           <nav className="flex items-center gap-6 text-sm font-medium">
-            <a className="hover:text-green-600 transition-colors" href="#shop">
+            <Link className="hover:text-green-600 transition-colors" href="#shop">
               Shop
-            </a>
-            <a className="hover:text-green-600 transition-colors" href="#about">
-              About
-            </a>
-            <a className="hover:text-green-600 transition-colors" href="#blog">
+            </Link>
+            <Link className="hover:text-green-600 transition-colors" href="/fpos">
+              FPOs
+            </Link>
+            <Link className="hover:text-green-600 transition-colors" href="#blog">
               Blog
-            </a>
-            <a className="hover:text-green-600 transition-colors" href="#contact">
+            </Link>
+            <Link className="hover:text-green-600 transition-colors" href="#contact">
               Contact
-            </a>
+            </Link>
           </nav>
 
           {/* Actions */}
