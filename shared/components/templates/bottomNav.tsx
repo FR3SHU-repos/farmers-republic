@@ -23,8 +23,8 @@ export default function BottomNav({
   const { user: currentUser } = useUser();
 
   const goProfile = () => {
-    if (currentUser?.id) router.push("/dashboard");
-    else router.push("/auth/login");
+    if (currentUser?.id) router.push("/profile");
+    else router.push("/login");
   };
 
   return (

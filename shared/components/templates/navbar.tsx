@@ -28,7 +28,7 @@ export default function NavBar({
   const { user: currentUser, logout } = useUser();
 
   const goProfileOrLogin = () => {
-    if (currentUser?.id) router.push("/dashboard"); // or /profile
+    if (currentUser?.id) router.push("/profile"); // or /profile
     else router.push("/login");
   };
 
@@ -88,21 +88,14 @@ export default function NavBar({
 
           {/* Links */}
           <nav className="flex items-center gap-6 text-sm font-medium">
-            <Link className="hover:text-green-600 transition-colors" href="#shop">
-              Shop
+            <Link className="hover:text-green-600 transition-colors" href="/farmers">
+              Farmers
             </Link>
             <Link className="hover:text-green-600 transition-colors" href="/fpos">
               FPOs
             </Link>
-            <Link className="hover:text-green-600 transition-colors" href="#blog">
-              Blog
-            </Link>
-            <Link
-              className="hover:text-green-600 transition-colors"
-              href="#contact"
-            >
-              Contact
-            </Link>
+            
+            
           </nav>
 
           {/* Actions */}
@@ -175,17 +168,12 @@ export default function NavBar({
               </button>
             ) : (
               <div className="flex items-center gap-2">
-                <Link
-                  href="/login"
-                  className="text-sm text-stone-700 hover:text-green-600"
-                >
-                  Login
-                </Link>
+                
                 <Link
                   href="/login"
                   className="ml-2 text-sm font-semibold bg-green-600 text-white px-3 py-1 rounded-full"
                 >
-                  Register
+                  Login
                 </Link>
               </div>
             )}
