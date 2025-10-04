@@ -1,0 +1,255 @@
+// app/farmers/profile/page.tsx
+
+// app/farmer/profile/page.tsx
+"use client";
+import React, { useState } from "react";
+import toast from "react-hot-toast";
+import { supabase } from "@/shared/lib/supabase/client";
+import { useRouter } from "next/navigation";
+
+type FormState = {
+  id?: string;
+  name: string;
+  farmName?: string;
+  farmArea?: string;
+  crops: string;
+  products: string;
+  fpo?: string;
+  swadeshiPercent?: number;
+  place?: string;
+  phone?: string;
+  about?: string;
+  established?: string;
+  certifications?: string;
+};
+
+export default function FarmerProfilePage() {
+  const router = useRouter();
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    farmName: "",
+    farmArea: "",
+    crops: "",
+    products: "",
+    fpo: "",
+    swadeshiPercent: 0,
+    place: "",
+    phone: "",
+    about: "",
+    established: "",
+    certifications: "",
+  });
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+  };
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0] ?? null;
+    if (f && f.size > 6 * 1024 * 1024) {
+      toast.error("File too large (max 6MB)");
+      return;
+    }
+    setFile(f);
+  };
+
+  // Upload file to Supabase and return { publicUrl, path }
+  const uploadToSupabase = async (userIdForPath = "anon") => {
+    if (!file) return null;
+    setUploading(true);
+    try {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+      const safeName = `${userIdForPath}/${Date.now()}.${ext}`;
+      const filePath = `avatars/${safeName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(filePath, file, { cacheControl: "3600", upsert: true, metadata: { uploaded_at: new Date().toISOString() } });
+
+      if (uploadError) throw uploadError;
+
+      const { data: publicData } = supabase.storage.from("avatars").getPublicUrl(filePath);
+      return { publicUrl: publicData.publicUrl, filePath };
+    } catch (err: any) {
+      console.error("Supabase upload error:", err);
+      toast.error(err?.message || "Upload failed");
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleCreate = async () => {
+    setSaving(true);
+    try {
+      // 1) upload image if present
+      let photoPayload: { avatar?: string; photoPath?: string } = {};
+      if (file) {
+        const res = await uploadToSupabase(form.id || "new");
+        if (!res) throw new Error("Image upload failed");
+        photoPayload.avatar = res.publicUrl;
+        photoPayload.photoPath = res.filePath;
+      }
+
+      // 2) prepare payload
+      const payload = {
+        name: form.name,
+        farmName: form.farmName,
+        farmArea: form.farmArea,
+        crops: form.crops ? form.crops.split(",").map(s => s.trim()) : [],
+        products: form.products ? form.products.split(",").map((p, i) => ({ id: `p${i+1}`, name: p.trim() })) : [],
+        fpo: form.fpo || null,
+        swadeshiPercent: form.swadeshiPercent,
+        place: form.place,
+        phone: form.phone,
+        about: form.about,
+        established: form.established,
+        certifications: form.certifications ? form.certifications.split(",").map(s=>s.trim()) : [],
+        ...photoPayload,
+      };
+
+      const res = await fetch("/api/v1/farmers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to create farmer");
+      }
+
+      toast.success("Farmer created");
+      // optional: route to farmer detail / listing
+      router.push("/"); // or `/farmer/${data.data.id}`
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Save failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!form.id) return handleCreate();
+    setSaving(true);
+    try {
+      let photoPayload: any = {};
+      if (file) {
+        const res = await uploadToSupabase(form.id);
+        if (!res) throw new Error("Image upload failed");
+        photoPayload.avatar = res.publicUrl;
+        photoPayload.photoPath = res.filePath;
+      }
+
+      const payload = {
+        name: form.name,
+        farmName: form.farmName,
+        farmArea: form.farmArea,
+        crops: form.crops ? form.crops.split(",").map(s => s.trim()) : [],
+        products: form.products ? form.products.split(",").map((p, i) => ({ id: `p${i+1}`, name: p.trim() })) : [],
+        fpo: form.fpo || null,
+        swadeshiPercent: form.swadeshiPercent,
+        place: form.place,
+        phone: form.phone,
+        about: form.about,
+        established: form.established,
+        certifications: form.certifications ? form.certifications.split(",").map(s=>s.trim()) : [],
+        ...photoPayload,
+      };
+
+      const res = await fetch(`/api/v1/farmers/${form.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.message || "Failed to update farmer");
+
+      toast.success("Farmer updated");
+      router.push("/"); // or stay on page
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err?.message || "Update failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen p-6 bg-green-50">
+      <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow">
+        <h1 className="text-xl font-semibold text-green-700 mb-4">Farmer Profile</h1>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-1">
+            <label className="block text-sm text-gray-600">Avatar</label>
+            <div className="mt-2">
+              {file ? (
+                <img src={URL.createObjectURL(file)} alt="preview" className="w-36 h-36 rounded-full object-cover" />
+              ) : (
+                <div className="w-36 h-36 rounded-full bg-stone-100 flex items-center justify-center text-xl">No image</div>
+              )}
+            </div>
+            <input className="mt-3" type="file" accept="image/*" onChange={handleFile} />
+            {uploading && <p className="text-sm text-gray-500 mt-2">Uploading...</p>}
+          </div>
+
+          <div className="md:col-span-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm text-gray-600">Full name</label>
+                <input name="name" value={form.name} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Farm name</label>
+                <input name="farmName" value={form.farmName} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Place</label>
+                <input name="place" value={form.place} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-600">Phone</label>
+                <input name="phone" value={form.phone} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm text-gray-600">Crops (comma separated)</label>
+                <input name="crops" value={form.crops} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm text-gray-600">Products (comma separated)</label>
+                <input name="products" value={form.products} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm text-gray-600">About</label>
+                <textarea name="about" value={form.about} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <button
+                onClick={form.id ? handleUpdate : handleCreate}
+                disabled={saving || uploading}
+                className="px-4 py-2 bg-green-600 text-white rounded-md"
+              >
+                {saving ? "Saving..." : form.id ? "Update Farmer" : "Create Farmer"}
+              </button>
+
+              <button
+                onClick={() => { setForm({ name: "", farmName: "", farmArea: "", crops: "", products: "" }); setFile(null); }}
+                className="px-4 py-2 border rounded-md"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,20 +1,29 @@
-// app/farmers/[id]/page.tsx
+// ✅ FIXED: app/farmers/[id]/page.tsx
 import React from "react";
-import { FARMERS } from "@/shared/data/farmers";
-import FarmerProfile from "@/shared/components/molecules/FarmerProfile";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
+import FarmerProfile from "@/shared/components/molecules/FarmerProfile";
 
-type Params = { params: { id: string } };
-
-export async function generateStaticParams() {
-  return FARMERS.map((f) => ({ id: f.id }));
+async function getBaseUrl() {
+  const h = await headers();
+  const proto = h.get("x-forwarded-proto") || "http";
+  const host = h.get("x-forwarded-host") || h.get("host");
+  return `${proto}://${host}`;
 }
 
-export default function FarmerDetailPage({ params }: Params) {
-  const { id } = params;
-  const farmer = FARMERS.find((f) => f.id === id);
-  if (!farmer) {
-    notFound();
-  }
-  return <FarmerProfile farmer={farmer!} />;
+export default async function FarmerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  // ✅ await params before using
+  const { id } = await params;
+  if (!id) return notFound();
+
+  const baseUrl = await getBaseUrl();
+  const res = await fetch(`${baseUrl}/api/v1/farmers/${id}`, { cache: "no-store" });
+
+  if (!res.ok) return notFound();
+
+  const json = await res.json();
+  const farmer = json?.data;
+  if (!farmer) return notFound();
+
+  return <FarmerProfile farmer={farmer} />;
 }

@@ -3,18 +3,15 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
    images: {
-    // simple list of allowed hostnames
-    domains: ["images.unsplash.com"],
-
-    // OR use remotePatterns for more control (preferred if you need path/query checks)
-    // remotePatterns: [
-    //   {
-    //     protocol: "https",
-    //     hostname: "images.unsplash.com",
-    //     port: "",
-    //     pathname: "/**",
-    //   },
-    // ],
+    remotePatterns: [
+      {
+        protocol: "https",
+        // replace hostname with your supabase project host (no protocol)
+        hostname: "xzcehmgbzoscskqhqvlm.supabase.co",
+        // only allow storage public objects; adjust if you use different path
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
   },
 };
 
