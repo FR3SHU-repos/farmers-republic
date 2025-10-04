@@ -36,10 +36,10 @@ export async function GET(
 
 
 // Patch (update) farmer by ID
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params:Promise< { id: string }> }) {
   try {
     await mongoDB();
-    const { id } = params;
+    const { id } = await params;
     if (!id) return NextResponse.json(failure("Missing id param"), { status: 400 });
 
     const body = await req.json();
