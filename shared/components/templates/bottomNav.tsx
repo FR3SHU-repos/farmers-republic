@@ -1,15 +1,15 @@
+// shared/components/templates/bottomNav.tsx
+// This is the bottom navigation bar for mobile devices
+
 "use client";
 import React from "react";
 import { Home as HomeIcon, Grid, Search, ShoppingCart, User } from "lucide-react";
 import { cx } from "@/shared/lib/utils";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/shared/context/UserContext";
 
-// Define a clean union type for tabs
 type BottomNavTab = "home" | "search" | "categories" | "cart" | "profile";
 
-/**
- * Full-width, comfortable mobile bottom nav.
- * Visible only on small screens (sm:hidden).
- */
 export default function BottomNav({
   active,
   onTab,
@@ -19,10 +19,17 @@ export default function BottomNav({
   onTab: (t: BottomNavTab) => void;
   cartCount?: number;
 }) {
+  const router = useRouter();
+  const { user: currentUser } = useUser();
+
+  const goProfile = () => {
+    if (currentUser?.id) router.push("/dashboard");
+    else router.push("/auth/login");
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 sm:hidden z-50">
       <div className="bg-white border-t border-stone-200 flex items-center justify-between px-2 py-2 safe-area-bottom">
-        {/* Expand icons evenly and with generous hit targets */}
         <button
           onClick={() => onTab("home")}
           className={cx(
@@ -77,15 +84,25 @@ export default function BottomNav({
         </button>
 
         <button
-          onClick={() => onTab("profile")}
+          onClick={goProfile}
           className={cx(
             "flex-1 flex flex-col items-center gap-0.5 py-2",
             active === "profile" ? "text-green-600" : "text-stone-500"
           )}
           aria-label="Profile"
         >
-          <User className="w-6 h-6" />
-          <span className="text-[11px]">Profile</span>
+          {/* show avatar/initial when logged in, otherwise a generic icon */}
+          {currentUser?.photo ? (
+            <img src={currentUser.photo} alt={currentUser.name} className="w-6 h-6 rounded-full" />
+          ) : currentUser?.name ? (
+            <div className="w-6 h-6 rounded-full bg-stone-200 flex items-center justify-center text-[12px] font-semibold">
+              {currentUser.name.charAt(0).toUpperCase()}
+            </div>
+          ) : (
+            <User className="w-6 h-6" />
+          )}
+
+          <span className="text-[11px]">{currentUser?.name ? "Profile" : "Login"}</span>
         </button>
       </div>
     </nav>

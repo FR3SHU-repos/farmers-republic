@@ -1,70 +1,92 @@
 // app/api/v1/auth/login/route.tsx
 
-// This is for login route
-
 import { NextRequest, NextResponse } from "next/server";
-import bcrypt from "bcryptjs"; // For hashing password
+import bcrypt from "bcryptjs";
+import { StringValue } from "ms";
+import jwt, { SignOptions } from "jsonwebtoken";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import UserModel from "@/shared/models/mongodb/user";
+import { success, failure } from "../../utils/responses";
 
-// User authentication handler (Login & Registration)
+// Env variables
+const JWT_SECRET = process.env.JWT_SECRET!;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "7d";
+
 export async function POST(req: NextRequest) {
   try {
-    // Connect to MongoDB
     await mongoDB();
 
-    // Extract user credentials from request query
-    const email = req.nextUrl.searchParams.get("email") || "";
-    const password = req.nextUrl.searchParams.get("password") || "";
+    // ✅ Extract from JSON body (not query)
+    const { email, password } = await req.json();
 
-    // Validate input fields
     if (!email || !password) {
-      return NextResponse.json({
-        message: "Email, password are required.",
-        success: false,
+      return NextResponse.json(failure("Email and password are required."), {
+        status: 400,
       });
     }
 
-    // Check if the user already exists
+    // Find user
     const existingUser = await UserModel.findOne({ email });
+    if (!existingUser) {
+      return NextResponse.json(failure("User does not exist."), {
+        status: 404,
+      });
+    }
 
-    if (existingUser) {
-      // Verify password for login
-      const isPasswordCorrect = await bcrypt.compare(
-        password,
-        existingUser.passwordHash,
-      );
+    // Compare passwords
+    const isPasswordCorrect = await bcrypt.compare(
+      password,
+      existingUser.passwordHash,
+    );
 
-      if (!isPasswordCorrect) {
-        return NextResponse.json({
-          message: "Invalid password.",
-          success: false,
-        });
-      }
+    if (!isPasswordCorrect) {
+      return NextResponse.json(failure("Invalid password."), {
+        status: 401,
+      });
+    }
 
-      // Login successful
-      return NextResponse.json({
-        message: `Welcome back, ${existingUser.name || "User"}!`,
-        success: true,
-        userData: {
-          name: existingUser.name || "",
+    // ✅ Generate JWT for login session
+    const payload = {
+      sub: existingUser._id.toString(),
+      email: existingUser.email,
+      type: existingUser.type,
+    };
+
+    const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || "7d") as StringValue;
+    const options: SignOptions = { expiresIn: JWT_EXPIRES_IN };
+    const token = jwt.sign(payload, JWT_SECRET as jwt.Secret, options);
+
+    // ✅ Prepare response
+    const res = NextResponse.json(
+      success(
+        {
+          id: existingUser._id,
+          name: existingUser.name,
           email: existingUser.email,
           phoneNumber: existingUser.phoneNumber,
-          id: existingUser._id,
+          type: existingUser.type,
         },
-      });
-    } else {
-      return NextResponse.json({
-        message: "User dont exist.",
-        success: false,
-        error: "User dont exist.",
-      });
-    }
-  } catch (error) {
-    return NextResponse.json({
-      message: "Error handling request.",
-      success: false,
-      error: error,
+        `Welcome back, ${existingUser.name || "User"}!`,
+      ),
+    );
+
+    // ✅ Set JWT cookie (for automatic session)
+    res.cookies.set({
+      name: "token",
+      value: token,
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
     });
+
+    return res;
+  } catch (error: any) {
+    console.error("Login error:", error);
+    return NextResponse.json(
+      failure("Error handling login request.", error.message),
+      { status: 500 },
+    );
   }
 }
