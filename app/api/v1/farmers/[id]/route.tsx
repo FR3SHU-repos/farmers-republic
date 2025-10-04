@@ -9,25 +9,28 @@ import { ObjectId } from "mongodb";
 import mongoose from "mongoose";
 
 // Get farmer by ID
-
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(
+  req: NextRequest,
+  context: { params: Promise<{ id: string }> } // <-- note the Promise here
+) {
   try {
-    await mongoDB();
-    const { id } = params;
-    if (!id) return NextResponse.json(failure("Missing id"), { status: 400 });
+    // await the params promise per Next 15 requirement
+    const { params } = context;
+    const { id } = await params;
 
-    // validate ObjectId-like id (if using ObjectId)
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json(failure("Invalid id"), { status: 400 });
+    if (!id || !mongoose.isValidObjectId(id)) {
+      return NextResponse.json(failure("Invalid farmer id"), { status: 400 });
     }
 
-    const farmer = await FarmerModel.findById(id).select("-__v").lean().exec();
-    if (!farmer) return NextResponse.json(failure("Farmer not found"), { status: 404 });
+    await mongoDB();
 
-    return NextResponse.json(success(farmer, "Farmer fetched"));
+    const farmer = await FarmerModel.findById(id).lean().select("-__v -passwordHash");
+    if (!farmer) return NextResponse.json(failure("Not found"), { status: 404 });
+
+    return NextResponse.json(success(farmer));
   } catch (err: any) {
-    console.error("Get farmer error:", err);
-    return NextResponse.json(failure("Failed to fetch farmer", err?.message || err), { status: 500 });
+    console.error("Error in GET /api/v1/farmers/[id]:", err);
+    return NextResponse.json(failure("Server error", err?.message), { status: 500 });
   }
 }
 
