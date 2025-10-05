@@ -12,14 +12,13 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { useUser } from "@/shared/context/UserContext";
+import { useCart } from "@/shared/context/CartContext";
 
 export default function NavBar({
-  cartCount = 0,
   onOpenCart,
   query,
   setQuery,
 }: {
-  cartCount?: number;
   onOpenCart: () => void;
   query: string;
   setQuery: (s: string) => void;
@@ -27,6 +26,7 @@ export default function NavBar({
   const router = useRouter();
   const pathname = usePathname();
   const { user: currentUser } = useUser();
+  const { cartCount } = useCart(); // ✅ get live count
 
   const [showCategories, setShowCategories] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -166,19 +166,20 @@ export default function NavBar({
               <Heart className="w-5 h-5" />
             </button>
 
+            {/* ✅ Cart */}
             <div className="relative">
               <button
                 aria-label="Open cart"
-                onClick={onOpenCart}
-                className="p-2 rounded-full hover:bg-stone-100"
+                onClick={() => router.push("/cart")}
+                className="p-2 rounded-full hover:bg-stone-100 relative"
               >
                 <ShoppingCart className="w-5 h-5" />
+                {cartCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                    {cartCount}
+                  </span>
+                )}
               </button>
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                  {cartCount}
-                </span>
-              )}
             </div>
 
             {currentUser?.id ? (

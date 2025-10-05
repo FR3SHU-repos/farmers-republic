@@ -1,4 +1,3 @@
-// shared/components/templates/bottomNav.tsx
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import {
@@ -18,20 +17,20 @@ import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/shared/context/UserContext";
 import Link from "next/link";
+import { useCart } from "@/shared/context/CartContext"; // ✅ use cart context
 
 type BottomNavTab = "home" | "search" | "categories" | "cart" | "profile";
 
 export default function BottomNav({
   active,
   onTab,
-  cartCount = 0,
 }: {
   active: BottomNavTab;
   onTab: (t: BottomNavTab) => void;
-  cartCount?: number;
 }) {
   const router = useRouter();
   const { user: currentUser } = useUser();
+  const { cartCount } = useCart(); // ✅ get cart count from context
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -46,7 +45,7 @@ export default function BottomNav({
   const toggleCategories = () => {
     setMenuOpen((s) => {
       const next = !s;
-      if (next) onTab("categories"); // keep parent state in sync (optional)
+      if (next) onTab("categories");
       return next;
     });
   };
@@ -56,7 +55,11 @@ export default function BottomNav({
     function onDocPointer(e: PointerEvent | MouseEvent | TouchEvent) {
       const target = e.target as Node | null;
       if (!menuOpen) return;
-      if (menuRef.current && !menuRef.current.contains(target) && !categoriesButtonRef.current?.contains(target)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(target) &&
+        !categoriesButtonRef.current?.contains(target)
+      ) {
         setMenuOpen(false);
       }
     }
@@ -74,15 +77,9 @@ export default function BottomNav({
     };
   }, [menuOpen]);
 
-  // small helper to close menu when navigating
-  const handleNavLink = (href: string) => {
-    setMenuOpen(false);
-    router.push(href);
-  };
-
   return (
     <nav className="fixed bottom-0 left-0 right-0 sm:hidden z-50">
-      {/* Categories popover */}
+      {/* ✅ Categories popover stays same */}
       {menuOpen && (
         <div
           ref={menuRef}
@@ -136,43 +133,43 @@ export default function BottomNav({
                 <div className="text-xs text-stone-700">Offers</div>
               </div>
             </Link>
-
-            <Link href="/nearby" onClick={() => setMenuOpen(false)} className="group">
-              <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
-                <Grid className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
-                <div className="text-xs text-stone-700">Nearby</div>
-              </div>
-            </Link>
           </div>
         </div>
       )}
 
-      {/* bottom bar */}
+      {/* ✅ Bottom navigation */}
       <div className="bg-white border-t border-stone-200 flex items-center justify-between px-2 py-2 safe-area-bottom">
+        {/* Home */}
         <button
-          onClick={() => onTab("home")}
+          onClick={() => {
+            onTab("home");
+            router.push("/");
+          }}
           className={cx(
             "flex-1 flex flex-col items-center gap-0.5 py-2",
             active === "home" ? "text-green-600" : "text-stone-500"
           )}
-          aria-label="Home"
         >
           <HomeIcon className="w-6 h-6" />
           <span className="text-[11px]">Home</span>
         </button>
 
+        {/* Search */}
         <button
-          onClick={() => onTab("search")}
+          onClick={() => {
+            onTab("search");
+            router.push("/search");
+          }}
           className={cx(
             "flex-1 flex flex-col items-center gap-0.5 py-2",
             active === "search" ? "text-green-600" : "text-stone-500"
           )}
-          aria-label="Search"
         >
           <Search className="w-6 h-6" />
           <span className="text-[11px]">Search</span>
         </button>
 
+        {/* Categories */}
         <button
           ref={categoriesButtonRef}
           onClick={toggleCategories}
@@ -180,14 +177,17 @@ export default function BottomNav({
             "flex-1 flex flex-col items-center gap-0.5 py-2",
             menuOpen || active === "categories" ? "text-green-600" : "text-stone-500"
           )}
-          aria-label="Categories"
         >
           <Grid className="w-6 h-6" />
           <span className="text-[11px]">Categories</span>
         </button>
 
+        {/* ✅ Cart (modified) */}
         <button
-          onClick={() => onTab("cart")}
+          onClick={() => {
+            //onTab("cart");
+            router.push("/cart"); // go directly to /cart
+          }}
           className={cx(
             "flex-1 flex flex-col items-center gap-0.5 py-2 relative",
             active === "cart" ? "text-green-600" : "text-stone-500"
@@ -203,15 +203,14 @@ export default function BottomNav({
           <span className="text-[11px]">Cart</span>
         </button>
 
+        {/* Profile */}
         <button
           onClick={goProfile}
           className={cx(
             "flex-1 flex flex-col items-center gap-0.5 py-2",
             active === "profile" ? "text-green-600" : "text-stone-500"
           )}
-          aria-label="Profile"
         >
-          {/* show avatar/initial when logged in, otherwise a generic icon */}
           {currentUser?.photo ? (
             <img src={currentUser.photo} alt={currentUser.name} className="w-6 h-6 rounded-full" />
           ) : currentUser?.name ? (
@@ -221,7 +220,6 @@ export default function BottomNav({
           ) : (
             <User className="w-6 h-6" />
           )}
-
           <span className="text-[11px]">{currentUser?.name ? "Profile" : "Login"}</span>
         </button>
       </div>

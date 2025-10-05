@@ -16,29 +16,41 @@ type CartContextType = {
   clearCart: () => void;
   cartCount: number;
   subtotal: number;
+  ready: boolean; // 👈 new flag so UI knows when it's safe to read
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
+  const [ready, setReady] = useState(false);
 
-  // ✅ Load from localStorage on mount
+  // ✅ Load from localStorage once on mount
   useEffect(() => {
     try {
       const raw = localStorage.getItem("fr_cart");
-      if (raw) setCart(JSON.parse(raw));
-    } catch {}
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setCart(parsed);
+      }
+    } catch (e) {
+      console.error("Cart load error:", e);
+    } finally {
+      setReady(true);
+    }
   }, []);
 
-  // ✅ Save to localStorage on change
+  // ✅ Save to localStorage on change (after hydration)
   useEffect(() => {
+    if (!ready) return;
     try {
       localStorage.setItem("fr_cart", JSON.stringify(cart));
-    } catch {}
-  }, [cart]);
+    } catch (e) {
+      console.error("Cart save error:", e);
+    }
+  }, [cart, ready]);
 
-  // 🛒 Add to cart
+  // 🛒 Add item
   const addToCart = (item: CartItem) =>
     setCart((c) => {
       const existing = c[item.id];
@@ -56,14 +68,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     setCart((c) => {
       const existing = c[id];
       if (!existing) return c;
-      const updatedQty = existing.qty - 1;
-      const copy = { ...c };
-      if (updatedQty <= 0) delete copy[id];
-      else copy[id] = { ...existing, qty: updatedQty };
-      return copy;
+      const qty = existing.qty - 1;
+      const updated = { ...c };
+      if (qty <= 0) delete updated[id];
+      else updated[id] = { ...existing, qty };
+      return updated;
     });
 
-  // 🧹 Clear all
   const clearCart = () => setCart({});
 
   const cartCount = Object.values(cart).reduce((s, i) => s + i.qty, 0);
@@ -71,7 +82,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <CartContext.Provider
-      value={{ cart, addToCart, removeOne, clearCart, cartCount, subtotal }}
+      value={{ cart, addToCart, removeOne, clearCart, cartCount, subtotal, ready }}
     >
       {children}
     </CartContext.Provider>

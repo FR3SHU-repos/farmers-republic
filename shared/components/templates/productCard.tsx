@@ -6,6 +6,7 @@ import { Product } from "@/shared/interfaces/mongodb/products/product";
 import { cx } from "@/shared/lib/utils";
 import Link from "next/link";
 import { useCart } from "@/shared/context/CartContext";
+import toast from "react-hot-toast";
 
 export default function ProductCard({
   product,
@@ -61,15 +62,17 @@ const { addToCart } = useCart();
 
         <div className="mt-4 flex items-center gap-3">
           <button
-            onClick={() =>
+            onClick={(e) => {
+              e.stopPropagation();
               addToCart({
                 id: String(product.id),
                 name: product.name,
                 price: product.price,
                 image: product.image,
                 qty: 1,
-              })
-            }
+              });
+              toast.success(`${product.name} added to cart 🛒`);
+            }}
             className="bg-green-600 text-white px-3 py-2 rounded-full text-sm hover:bg-green-700"
           >
             Add to Cart
