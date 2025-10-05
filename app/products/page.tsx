@@ -144,26 +144,34 @@ export default async function ProductsPage({ searchParams }: SearchParams) {
             <p className="mt-2 text-stone-600">Locally sourced products from trusted growers</p>
           </div>
 
-          <form action="/products" method="get" className="flex gap-2 items-center">
-            <input
-              name="q"
-              defaultValue={String(q || "")}
-              placeholder="Search products, tags..."
-              className="px-3 py-2 border rounded-md"
-            />
-            <input
-              name="category"
-              defaultValue={String(category || "")}
-              placeholder="Category"
-              className="px-3 py-2 border rounded-md"
-            />
-            <input type="hidden" name="limit" value={String(limit)} />
-            <button className="px-3 py-2 bg-green-600 text-white rounded-md">Search</button>
-          </form>
+          <form
+  action="/products"
+  method="get"
+  className="w-full sm:w-auto flex flex-col sm:flex-row gap-2 items-stretch sm:items-center"
+>
+  <input
+    name="q"
+    defaultValue={String(q || "")}
+    placeholder="Search products, tags..."
+    className="px-3 py-2 border rounded-md w-full sm:w-56"
+  />
+  <input
+    name="category"
+    defaultValue={String(category || "")}
+    placeholder="Category"
+    className="px-3 py-2 border rounded-md w-full sm:w-40"
+  />
+  <input type="hidden" name="limit" value={String(limit)} />
+  <button className="px-3 py-2 bg-green-600 text-white rounded-md w-full sm:w-auto">
+    Search
+  </button>
+</form>
         </header>
 
         {/* Product grid: client wrapper handles interactivity (no server -> client function props) */}
-        <ProductGridClient products={items} />
+       <div className="w-full overflow-hidden">
+  <ProductGridClient products={items} />
+</div>
 
         {/* Pagination */}
         <div className="mt-8 flex items-center justify-between">

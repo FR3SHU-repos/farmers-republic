@@ -138,7 +138,7 @@ let data: PagedResult<FarmerPreview> = {
             <p className="mt-2 text-stone-600">Transparent sourcing from trusted smallholders and family farms.</p>
           </div>
 
-          <form action="/farmers" method="get" className="flex gap-2 items-center">
+          <form action="/farmers" method="get"   className="w-full sm:w-auto flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
             <input
               name="q"
               defaultValue={String(q || "")}
