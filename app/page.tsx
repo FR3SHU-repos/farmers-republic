@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import ProductCard from "@/shared/components/templates/productCard";
 import { PRODUCTS } from "../shared/data/product";
 import { CATEGORIES } from "../shared/data/category";
-import { Product } from "../shared/interfaces/general";
+import { Product } from "@/shared/interfaces/mongodb/products/product";
 import Image from "next/image";
 import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
@@ -14,7 +14,7 @@ const HomePage = () => {
   const [cartOpen, setCartOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string>("All");
-  const [cart, setCart] = useState<Record<number, number>>({});
+  const [cart, setCart] = useState<Record<string, number>>({});
   const [activeTab, setActiveTab] = useState<
     "home" | "search" | "categories" | "cart" | "profile"
   >("home");
@@ -47,14 +47,21 @@ const HomePage = () => {
     return p ? s + p.price * qty : s;
   }, 0);
 
-  const addToCart = (p: Product) => setCart((c) => ({ ...c, [p.id]: (c[p.id] || 0) + 1 }));
-  const removeOne = (id: number) =>
-    setCart((c) => {
-      if (!c[id]) return c;
-      const copy = { ...c, [id]: c[id] - 1 };
-      if (copy[id] <= 0) delete copy[id];
-      return copy;
-    });
+const addToCart = (p: Product) =>
+  setCart((c) => {
+    const id = String(p.id);
+    return { ...c, [id]: (c[id] || 0) + 1 };
+  });
+
+const removeOne = (id: string | number) =>
+  setCart((c) => {
+    const key = String(id);
+    if (!c[key]) return c;
+    const updated = { ...c };
+    if (updated[key] > 1) updated[key] -= 1;
+    else delete updated[key];
+    return updated;
+  });
 
   // Navigate to product page when clicking on the card (but ignore clicks on buttons inside)
   function handleCardClick(e: React.MouseEvent, id: number | string) {
