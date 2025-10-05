@@ -56,7 +56,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen flex flex-col bg-stone-50 text-stone-800">
       {/* NavBar (client interactive) */}
       <NavBar
-        cartCount={cartCount}
         onOpenCart={() => {
           setCartOpen(true);
           setActiveTab("cart");
@@ -127,7 +126,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           setActiveTab(t);
           if (t === "cart") setCartOpen(true);
         }}
-        cartCount={cartCount}
+        //cartCount={cartCount}
       />
 
       {/* Cart bottom sheet simplified */}

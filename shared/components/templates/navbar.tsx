@@ -14,6 +14,13 @@ import { useRouter, usePathname } from "next/navigation";
 import { useUser } from "@/shared/context/UserContext";
 import { useCart } from "@/shared/context/CartContext";
 
+type NavBarProps = {
+  onOpenCart: () => void;
+  query: string;
+  setQuery: (s: string) => void;
+  cartCount: number;
+};
+
 export default function NavBar({
   onOpenCart,
   query,
