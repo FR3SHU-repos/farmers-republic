@@ -8,8 +8,17 @@ import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
 
 function getAbsoluteOrigin() {
+  // ✅ 1. Explicit origin if set
   if (process.env.NEXT_PUBLIC_APP_ORIGIN) return process.env.NEXT_PUBLIC_APP_ORIGIN;
+
+  // ✅ 2. Vercel auto variable
   if (process.env.NEXT_PUBLIC_VERCEL_URL) return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+
+  // ✅ 3. Netlify provides `URL` automatically (e.g. https://farmers-republic.netlify.app)
+  if (process.env.URL) return process.env.URL;
+
+  // ✅ 4. Fallback for local dev
   const port = process.env.PORT ?? "3000";
   return `http://localhost:${port}`;
 }
@@ -46,13 +55,19 @@ const HomePage = () => {
       setLoading(true);
       setError(null);
       try {
-        const origin = getAbsoluteOrigin();
-        const res = await fetch(`${origin}/api/v1/products?page=1&limit=12&sort=createdAt_desc`, {
+       const res = await fetch(`/api/v1/products?page=1&limit=12&sort=createdAt_desc`, {
           cache: "no-store",
         });
         if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
         const json = await res.json();
-        const items = json?.data?.products ?? json?.data?.items ?? [];
+        const itemsRaw = json?.data?.products ?? json?.data?.items ?? [];
+
+        // ✅ Normalize IDs from _id → id
+        const items = itemsRaw.map((p: any) => ({
+          ...p,
+          id: String(p._id ?? p.id ?? ""),
+        }));
+
         setProducts(items);
       } catch (err: any) {
         console.error("Error fetching products:", err);
@@ -91,7 +106,7 @@ const HomePage = () => {
   function handleCardClick(e: React.MouseEvent, id: string | number) {
     const target = e.target as HTMLElement | null;
     if (target?.closest("button") || target?.closest("a")) return;
-    router.push(`/product/${id}`);
+    router.push(`/products/${id}`);
   }
 
   return (
@@ -153,9 +168,9 @@ const HomePage = () => {
                     className="cursor-pointer"
                   >
                     <ProductCard
-                      key={p.id ?? p.id}
+                      key={p.id}
                       product={{
-                        id: String(p.id ?? p.id),
+                        id: String(p.id),
                         name: p.name,
                         image: p.image ?? (Array.isArray(p.images) ? p.images[0] : ""),
                         price: Number(p.price),
