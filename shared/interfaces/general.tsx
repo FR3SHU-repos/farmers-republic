@@ -11,7 +11,7 @@ This is for products
     description: Optional detailed description of the product
 */
 export type Product = {
-  id: number;
+  id: number | string;
   name: string;
   price: number;
   image: string;
