@@ -49,7 +49,7 @@ export default function ProductCard({
           </div>
 
           <div className="text-right flex-shrink-0">
-            <div className="text-lg font-bold text-stone-800">${product.price.toFixed(2)}</div>
+            <div className="text-lg font-bold text-stone-800">₹{product.price.toFixed(2)}</div>
             {product.badge && (
               <div className="text-xs mt-2 inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                 {product.badge}
