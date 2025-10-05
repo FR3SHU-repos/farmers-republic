@@ -35,14 +35,21 @@ type PagedResult<T> = {
 };
 
 function getAbsoluteOrigin() {
-  // Prefer explicit env var for production
+  // ✅ 1. Explicit origin if set
   if (process.env.NEXT_PUBLIC_APP_ORIGIN) return process.env.NEXT_PUBLIC_APP_ORIGIN;
-  // If deployed on Vercel, NEXT_PUBLIC_VERCEL_URL may be set
+
+  // ✅ 2. Vercel auto variable
   if (process.env.NEXT_PUBLIC_VERCEL_URL) return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
-  // Local dev fallback
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+
+  // ✅ 3. Netlify provides `URL` automatically (e.g. https://farmers-republic.netlify.app)
+  if (process.env.URL) return process.env.URL;
+
+  // ✅ 4. Fallback for local dev
   const port = process.env.PORT ?? "3000";
   return `http://localhost:${port}`;
 }
+
 
 async function fetchProductsFromApi({
   page = 1,
