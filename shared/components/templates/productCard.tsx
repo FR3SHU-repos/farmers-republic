@@ -2,8 +2,9 @@
 import React from "react";
 import Image from "next/image";
 import { Heart } from "lucide-react";
-import { Product } from "@/shared/interfaces/general";
+import { Product } from "@/shared/interfaces/mongodb/products/product";
 import { cx } from "@/shared/lib/utils";
+import Link from "next/link";
 
 export default function ProductCard({
   product,
@@ -14,11 +15,12 @@ export default function ProductCard({
   onAdd: (p: Product) => void;
   onWishlist?: (p: Product) => void;
 }) {
+
   return (
     <article className="group bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="relative w-full h-56 sm:h-64 bg-stone-100">
         <Image
-          src={product.image}
+          src={product.image ?? "/placeholder.png"}
           alt={product.name}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -39,7 +41,10 @@ export default function ProductCard({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs text-green-600 font-medium">{product.category}</p>
+            <Link href={`/products/${product.id}`}>
             <h3 className="text-md sm:text-lg font-semibold text-stone-800 mt-1">{product.name}</h3>
+            </Link>
+            
             <p className="text-sm text-stone-500 mt-2 line-clamp-2">{product.description}</p>
           </div>
 
