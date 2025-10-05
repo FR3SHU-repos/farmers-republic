@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useRouter, usePathname } from "next/navigation";
 import { useUser } from "@/shared/context/UserContext";
 import { useCart } from "@/shared/context/CartContext";
+import Image from "next/image";
 
 type NavBarProps = {
   onOpenCart: () => void;
@@ -79,10 +80,16 @@ export default function NavBar({
         )}
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center">
-            <Leaf className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-full text-white flex items-center justify-center">
+            <Image
+              src="/fr3sh_logo.svg"
+              alt="Fr3sh Logo"
+              width={20}
+              height={20}
+              className="inline-block"
+            />
           </div>
-          <Link href="/" className="text-sm font-semibold text-stone-700">
+          <Link href="/" className="text-lg font-semibold text-stone-700">
             {process.env.NEXT_PUBLIC_APP_NAME}
           </Link>
         </div>
@@ -94,8 +101,15 @@ export default function NavBar({
         <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-full px-6 py-3 flex items-center justify-between border border-stone-200 relative">
           {/* Logo */}
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-full bg-green-600 text-white flex items-center justify-center">
-              <Leaf className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-full text-white flex items-center justify-center">
+              
+              <Image
+              src="/fr3sh_logo.svg"
+              alt="Fr3sh Logo"
+              width={20}
+              height={20}
+              className="inline-block"
+            />
             </div>
             <Link href="/">
               <span className="font-semibold text-stone-700">

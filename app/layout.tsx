@@ -20,6 +20,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME,
   description: "Pick fresh. Eat fresh.",
+  icons: {
+    icon: "/fr3sh.in_logo.svg", // or "/icon.png"
+  },
 };
 
 export default function RootLayout({

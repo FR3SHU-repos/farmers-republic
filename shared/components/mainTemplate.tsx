@@ -5,6 +5,7 @@ import React, { useEffect, useState } from "react";
 import NavBar from "@/shared/components/templates/navbar";
 import BottomNav from "@/shared/components/templates/bottomNav";
 import { cx } from "@/shared/lib/utils";
+import Image from "next/image";
 
 /**
  * Shell: client wrapper used inside app/layout.tsx
@@ -75,12 +76,18 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <div>
             <div className="flex items-center gap-2 mb-3">
               {/* Small logo */}
-              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white">
-                P
+              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white">
+              <Image
+                src="/fr3sh.in_logo.svg"
+                alt="Fr3sh Logo"
+                width={20}
+                height={20}
+                className="inline-block"
+              />
               </div>
               <span className="text-white font-semibold">{process.env.NEXT_PUBLIC_APP_NAME}</span>
             </div>
-            <p className="text-sm">Small-batch, transparent sourcing — curated for conscious living.</p>
+            <p className="text-sm">Organic, Natural for everyone.</p>
           </div>
 
           <div>
