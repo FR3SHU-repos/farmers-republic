@@ -82,7 +82,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100">
       <div className="bg-white shadow-lg rounded-2xl p-8 w-full max-w-md">
         <h2 className="text-2xl font-bold text-center text-green-700">
-          {isLogin ? "🌾 Farmers Republic Login" : "🌱 Create an Account"}
+          {isLogin ? `🌾 ${process.env.NEXT_PUBLIC_APP_NAME} Login` : "🌱 Create an Account"}
         </h2>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

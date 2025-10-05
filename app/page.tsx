@@ -113,26 +113,48 @@ const HomePage = () => {
     <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
       <main>
         {/* Categories */}
-        <section className="py-8">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-2xl font-bold text-center mb-6">Shop by Category</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c.name}
-                  onClick={() => setActiveCategory(c.name)}
-                  className={cx(
-                    "bg-white p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 transition-transform transform hover:-translate-y-1",
-                    activeCategory === c.name ? "ring-2 ring-green-200" : ""
-                  )}
-                >
-                  <div className="text-2xl">{c.emoji}</div>
-                  <div className="text-sm font-semibold">{c.name}</div>
-                </button>
-              ))}
-            </div>
+        <section className="py-8 bg-green-200">
+  <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <h2 className="text-2xl font-bold text-center mb-6">
+      Shop by Category
+    </h2>
+
+    {/* ✅ Mobile (Horizontal scroll) */}
+    <div className="flex sm:hidden gap-3 overflow-x-auto pb-3 scrollbar-hide">
+      {CATEGORIES.map((c) => (
+        <button
+          key={c.name}
+          onClick={() => setActiveCategory(c.name)}
+          className={cx(
+            "flex-shrink-0 w-28 h-28 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1",
+            activeCategory === c.name ? "ring-2 ring-green-200" : ""
+          )}
+        >
+          <div className="text-2xl">{c.emoji}</div>
+          <div className="text-xs font-semibold text-center">{c.name}</div>
+        </button>
+      ))}
+    </div>
+
+    {/* ✅ Desktop / Tablet Grid */}
+    <div className="hidden sm:grid grid-cols-2 sm:grid-cols-4 gap-4">
+      {CATEGORIES.map((c) => (
+        <button
+          key={c.name}
+          onClick={() => setActiveCategory(c.name)}
+          className={cx(
+            "bg-white p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 transition-transform transform hover:-translate-y-1",
+            activeCategory === c.name ? "ring-2 ring-green-200" : ""
+          )}
+        >
+          <div className="text-2xl">{c.emoji}</div>
+          <div className="text-sm font-semibold">{c.name}</div>
+        </button>
+      ))}
           </div>
-        </section>
+        </div>
+      </section>
+
 
         {/* Products */}
         <section id="shop" className="py-6 bg-white">

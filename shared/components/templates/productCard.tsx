@@ -5,6 +5,7 @@ import { Heart } from "lucide-react";
 import { Product } from "@/shared/interfaces/mongodb/products/product";
 import { cx } from "@/shared/lib/utils";
 import Link from "next/link";
+import { useCart } from "@/shared/context/CartContext";
 
 export default function ProductCard({
   product,
@@ -15,7 +16,7 @@ export default function ProductCard({
   onAdd: (p: Product) => void;
   onWishlist?: (p: Product) => void;
 }) {
-
+const { addToCart } = useCart();
   return (
     <article className="group bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
       <div className="relative w-full h-56 sm:h-64 bg-stone-100">
@@ -60,10 +61,18 @@ export default function ProductCard({
 
         <div className="mt-4 flex items-center gap-3">
           <button
-            onClick={() => onAdd(product)}
-            className="flex-1 bg-green-600 text-white px-4 py-3 rounded-full font-medium hover:bg-green-700 transition-colors text-sm"
+            onClick={() =>
+              addToCart({
+                id: String(product.id),
+                name: product.name,
+                price: product.price,
+                image: product.image,
+                qty: 1,
+              })
+            }
+            className="bg-green-600 text-white px-3 py-2 rounded-full text-sm hover:bg-green-700"
           >
-            Add to cart
+            Add to Cart
           </button>
           <button
             onClick={() => onWishlist?.(product)}

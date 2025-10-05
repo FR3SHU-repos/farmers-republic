@@ -5,6 +5,7 @@ import "./globals.css";
 import Shell from "@/shared/components/mainTemplate";
 import { Toaster } from "react-hot-toast"; 
 import { UserProvider } from "@/shared/context/UserContext"; // ✅ added
+import { CartProvider } from "@/shared/context/CartContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Farmers Republic",
+  title: process.env.NEXT_PUBLIC_APP_NAME,
   description: "Pick fresh. Eat fresh.",
 };
 
@@ -30,7 +31,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <UserProvider> {/* ✅ UserContext now available globally */}
+          <CartProvider>
           <Shell>{children}</Shell>
+          </CartProvider>
           <Toaster
           position="top-right"
           toastOptions={{

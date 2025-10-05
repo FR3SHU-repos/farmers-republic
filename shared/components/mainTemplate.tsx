@@ -79,7 +79,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center text-white">
                 P
               </div>
-              <span className="text-white font-semibold">Farmers Republic</span>
+              <span className="text-white font-semibold">{process.env.NEXT_PUBLIC_APP_NAME}</span>
             </div>
             <p className="text-sm">Small-batch, transparent sourcing — curated for conscious living.</p>
           </div>

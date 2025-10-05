@@ -76,7 +76,7 @@ export default function NavBar({
             <Leaf className="w-5 h-5" />
           </div>
           <Link href="/" className="text-sm font-semibold text-stone-700">
-            Farmers Republic
+            {process.env.NEXT_PUBLIC_APP_NAME}
           </Link>
         </div>
 
@@ -92,7 +92,7 @@ export default function NavBar({
             </div>
             <Link href="/">
               <span className="font-semibold text-stone-700">
-                Farmers Republic
+                {process.env.NEXT_PUBLIC_APP_NAME}
               </span>
             </Link>
           </div>
