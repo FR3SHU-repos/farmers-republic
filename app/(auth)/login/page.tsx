@@ -159,6 +159,14 @@ const handleSubmit = async (e: React.FormEvent) => {
         </form>
 
         <p className="mt-4 text-center text-sm text-gray-600">
+          Forgot your password?{" "}
+          <button
+            onClick={() => router.push("/forgot-password")}
+            className="text-green-600 hover:underline"
+          >
+            Reset here
+          </button><br/>
+        
           {isLogin ? "Don’t have an account?" : "Already have an account?"}{" "}
           <button
             onClick={() => setIsLogin(!isLogin)}
