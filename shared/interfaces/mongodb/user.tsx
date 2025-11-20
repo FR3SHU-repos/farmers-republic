@@ -19,7 +19,8 @@ export interface IUser {
     | "Retailer"
     | "Wholesaler"
     | "Logistics Provider"
-    | "Banker";
+    | "Banker"
+    | "Buyer";  // user role
 
   // 🔹 Core identity
   name: string;

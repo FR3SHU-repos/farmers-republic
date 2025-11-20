@@ -118,10 +118,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                   className="mt-1 w-full border rounded-md px-3 py-2 focus:ring-2 focus:ring-green-400 outline-none"
                 >
                   <option value="Farmer">Farmer</option>
-                  <option value="Supplier">Supplier</option>
-                  <option value="Retailer">Retailer</option>
-                  <option value="Distributor">Distributor</option>
-                  <option value="Admin">Admin</option>
+                  <option value="Buyer">Buyer</option>
+                  
                 </select>
               </div>
             </>
