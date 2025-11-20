@@ -122,7 +122,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="border-t border-stone-700 mt-6 pt-4 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} PureNature. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} Farmers Republic. All rights reserved.</p>
         </div>
       </footer>
 
