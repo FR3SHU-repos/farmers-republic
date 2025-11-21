@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import ProductCard from "@/shared/components/templates/productCard";
 import { CATEGORIES } from "../shared/data/category";
 import { Product } from "@/shared/interfaces/mongodb/products/product";
-import Image from "next/image";
+//import Image from "next/image";
 import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
 
@@ -137,22 +137,23 @@ const HomePage = () => {
     </div>
 
     {/* ✅ Desktop / Tablet Grid */}
-    <div className="hidden sm:grid grid-cols-2 sm:grid-cols-4 gap-4">
-      {CATEGORIES.map((c) => (
-        <button
-          key={c.name}
-          onClick={() => setActiveCategory(c.name)}
-          className={cx(
-            "bg-white p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 transition-transform transform hover:-translate-y-1",
-            activeCategory === c.name ? "ring-2 ring-green-200" : ""
-          )}
-        >
-          <div className="text-2xl">{c.emoji}</div>
-          <div className="text-sm font-semibold">{c.name}</div>
-        </button>
-      ))}
-          </div>
-        </div>
+    {/* ✅ Horizontal Scroll Category List */}
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+        {CATEGORIES.map((c) => (
+          <button
+            key={c.name}
+            onClick={() => setActiveCategory(c.name)}
+            className={cx(
+              "bg-white min-w-[120px] p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 transition-transform transform hover:-translate-y-1",
+              activeCategory === c.name ? "ring-2 ring-green-200" : ""
+            )}
+          >
+            <div className="text-2xl">{c.emoji}</div>
+            <div className="text-sm font-semibold whitespace-nowrap">{c.name}</div>
+          </button>
+        ))}
+      </div>
+      </div>
       </section>
 
 
