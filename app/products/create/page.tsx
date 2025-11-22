@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "@/shared/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { categoriesList } from "@/shared/data/category";
+
 
 type FormState = {
   name: string;
@@ -229,8 +231,21 @@ export default function ProductCreatePage() {
 
               <div>
                 <label className="block text-sm text-gray-600">Category</label>
-                <input name="category" value={form.category} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <select
+                  name="category"
+                  value={form.category}
+                  onChange={handleChange}
+                  className="mt-1 w-full border rounded px-3 py-2 bg-white"
+                >
+                  <option value="">Select a category</option>
+                  {categoriesList.map((cat) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
+
 
               <div>
                 <label className="block text-sm text-gray-600">Badge</label>
