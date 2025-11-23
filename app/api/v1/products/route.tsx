@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       sourceFrom: body.sourceFrom,
       purchasedLast30Days: body.purchasedLast30Days ?? 0,
       farmer: body.farmer,
+      farmerId: body.farmerId ? new mongoose.Types.ObjectId(body.farmerId) : undefined,
       swadeshiPercent: body.swadeshiPercent ?? undefined,
       healthBenefits: Array.isArray(body.healthBenefits) ? body.healthBenefits : (body.healthBenefits ? String(body.healthBenefits).split(",").map(s=>s.trim()) : []),
       timeToSupply: body.timeToSupply,

@@ -1,6 +1,6 @@
 // app/product/create/page.tsx
 "use client";
-import React, { useState } from "react";
+import React, { useState,useEffect } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "@/shared/lib/supabase/client";
 import { useRouter } from "next/navigation";
@@ -22,6 +22,13 @@ type FormState = {
   timeToSupply?: string;
   swadeshiPercent?: number | "";
   farmer?: string; // farmer id or name
+  farmerId?: string;  // 👈 farmer id
+};
+
+type FarmerOption = {
+  id: string;
+  name: string;
+  farmName?: string;
 };
 
 export default function ProductCreatePage() {
@@ -41,6 +48,7 @@ export default function ProductCreatePage() {
     timeToSupply: "",
     swadeshiPercent: "",
     farmer: "",
+    farmerId: "",
   });
 
   const [files, setFiles] = useState<File[]>([]);
@@ -50,6 +58,42 @@ export default function ProductCreatePage() {
 
   const MAX_FILES = 6;
   const MAX_SIZE = 6 * 1024 * 1024; // 6MB
+
+  const [farmers, setFarmers] = useState<FarmerOption[]>([]);
+  const [farmersLoading, setFarmersLoading] = useState(false);
+  const [farmersError, setFarmersError] = useState<string | null>(null);
+
+  // 🔽 Fetch farmers once on mount
+  useEffect(() => {
+    async function loadFarmers() {
+      setFarmersLoading(true);
+      setFarmersError(null);
+      try {
+        const res = await fetch("/api/v1/farmers?page=1&limit=100&sort=name_asc");
+        const json = await res.json();
+
+        if (!res.ok || !json?.success) {
+          throw new Error(json?.message || "Failed to load farmers");
+        }
+
+        const items: any[] = json.data?.items ?? [];
+        const mapped: FarmerOption[] = items.map((f) => ({
+          id: String(f.id ?? f._id ?? ""),
+          name: f.name ?? "",
+          farmName: f.farmName ?? "",
+        }));
+
+        setFarmers(mapped);
+      } catch (err: any) {
+        console.error("Load farmers error:", err);
+        setFarmersError(err?.message || "Failed to load farmers");
+      } finally {
+        setFarmersLoading(false);
+      }
+    }
+
+    loadFarmers();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -140,6 +184,7 @@ export default function ProductCreatePage() {
         timeToSupply: form.timeToSupply || undefined,
         swadeshiPercent: form.swadeshiPercent === "" ? undefined : Number(form.swadeshiPercent),
         farmer: form.farmer || undefined,
+        farmerId: form.farmerId || undefined,   // 👈 id
         image: mainImage,
         images: images,
       };
@@ -302,10 +347,49 @@ export default function ProductCreatePage() {
                 <input name="timeToSupply" value={form.timeToSupply} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex:10 days"/>
               </div>
 
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-600">Farmer (id or name)</label>
-                <input name="farmer" value={form.farmer} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
-              </div>
+              {/* 🔽 Farmer select */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-gray-600">Farmer</label>
+                  <select
+                    name="farmerId"
+                    value={form.farmerId || ""}
+                    onChange={(e) => {
+                      const id = e.target.value;
+                      const selected = farmers.find((f) => f.id === id);
+
+                      setForm((s) => ({
+                        ...s,
+                        farmerId: id || "",
+                        farmer: selected?.name || "",  // keep name for display / backward compatibility
+                      }));
+                    }}
+                    className="mt-1 w-full border rounded px-3 py-2 bg-white"
+                  >
+                    <option value="">
+                      {farmersLoading ? "Loading farmers..." : "Select a farmer"}
+                    </option>
+
+                    {farmersError && (
+                      <option value="" disabled>
+                        {farmersError}
+                      </option>
+                    )}
+
+                    {farmers.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                        {f.farmName ? ` — ${f.farmName}` : ""}
+                      </option>
+                    ))}
+                  </select>
+
+                  {farmersError && (
+                    <p className="mt-1 text-xs text-red-500">
+                      Couldn’t load farmers. You can still create the product without selecting
+                      one.
+                    </p>
+                  )}
+                </div>
             </div>
 
             <div className="mt-4 flex gap-3">

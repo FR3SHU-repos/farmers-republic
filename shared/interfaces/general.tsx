@@ -65,6 +65,7 @@ export type ProductDetail = {
   sourceFrom: string;
   purchasedLast30Days: number;
   farmer: Farmer;
+  farmerId?: string;
   swadeshiPercent?: number; // 0-100
   healthBenefits?: string[]; 
   timeToSupply?: string; // e.g. "2-4 days"

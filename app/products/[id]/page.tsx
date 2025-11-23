@@ -53,6 +53,7 @@ function mapDocToProductDetail(doc: any): ProductDetailType {
       typeof doc.farmer === "string"
         ? { name: doc.farmer }
         : doc.farmer ?? { name: "" },
+    farmerId: doc.farmerId ? String(doc.farmerId) : undefined,
     swadeshiPercent:
       typeof doc.swadeshiPercent === "number"
         ? doc.swadeshiPercent

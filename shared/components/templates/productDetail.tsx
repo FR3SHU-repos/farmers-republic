@@ -35,6 +35,7 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
   const [activeImage, setActiveImage] = useState<string>(
     product.image || product.images[0] || "/placeholder.png"
   );
+console.log(product);
 
 
   const subtotal = useMemo(() => product.price * qty, [product.price, qty]);
@@ -141,11 +142,12 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
                 {product.farmer.avatar ? (
                   <Image src={product.farmer.avatar} alt={product.farmer.name} fill className="object-cover" />
                 ) : (
-                  <div className="flex items-center justify-center h-full text-stone-500">{product.farmer.name?.[0]}</div>
+                  <div className="flex items-center justify-center h-full text-stone-500">
+                    <Link href={`/farmers/${product.farmerId}`}>{product.farmer.name?.[0]}</Link></div>
                 )}
               </div>
               <div>
-                <Link href={`/farmers/f1`} className="hover:underline">
+                <Link href={`/farmers/${product.farmerId}`} className="hover:underline">
                   <div className="font-medium">{product.farmer.name}</div>
                 </Link>
                 

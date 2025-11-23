@@ -12,6 +12,7 @@ This is for product descriptions
     sourceFrom: Origin of the farmer's products
     purchasedLast30Days: Number of purchases in the last 30 days
     farmer: Farmer;
+    farmerId: Unique identifier for the farmer;
     swadeshiPercent: Percentage of products that are Swadeshi (0-100)
     healthBenefits: List of health benefits associated with the farmer's products
     timeToSupply: Estimated time to supply the products (e.g., "2-4 days")
@@ -33,6 +34,7 @@ reviewsCount?: number;
 sourceFrom?: string;
 purchasedLast30Days?: number;
 farmer?: string;
+farmerId?: string | number;
 swadeshiPercent?: number;
 healthBenefits?: string[];
 timeToSupply?: string;
