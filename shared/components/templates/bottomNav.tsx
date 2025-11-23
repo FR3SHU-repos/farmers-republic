@@ -106,13 +106,6 @@ export default function BottomNav({
               </div>
             </Link>
 
-            <Link href="/fpos" onClick={() => setMenuOpen(false)} className="group">
-              <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
-                <Users className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
-                <div className="text-xs text-stone-700">FPOs</div>
-              </div>
-            </Link>
-
             <Link href="/products" onClick={() => setMenuOpen(false)} className="group">
               <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
                 <Box className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
@@ -120,19 +113,6 @@ export default function BottomNav({
               </div>
             </Link>
 
-            <Link href="/categories" onClick={() => setMenuOpen(false)} className="group">
-              <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
-                <Tag className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
-                <div className="text-xs text-stone-700">Categories</div>
-              </div>
-            </Link>
-
-            <Link href="/offers" onClick={() => setMenuOpen(false)} className="group">
-              <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
-                <Gift className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
-                <div className="text-xs text-stone-700">Offers</div>
-              </div>
-            </Link>
           </div>
         </div>
       )}

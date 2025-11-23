@@ -120,7 +120,6 @@ const HomePage = () => {
           </h2>
 
     {/* ✅ Mobile (Horizontal scroll) */}
-        {/* ✅ Mobile (Horizontal scroll) */}
     <div className="flex sm:hidden gap-3 overflow-x-auto pb-3 scrollbar-hide">
       {CATEGORIES.map((c) => (
         <button
