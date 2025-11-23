@@ -6,6 +6,7 @@ This is for product descriptions
     name: Name of the product
     image: URL of the product image
     price: Price of the product
+    unit: Unit of measurement (e.g., "kg", "litre")
     rating: Average rating of the product (0-5)
     reviewsCount: Number of reviews for the farmer
     sourceFrom: Origin of the farmer's products
@@ -26,6 +27,7 @@ name: string;
 image?: string;
 images?: string[];
 price: number;
+unit?: string;
 rating?: number;
 reviewsCount?: number;
 sourceFrom?: string;

@@ -1,5 +1,5 @@
 // app/product/[id]/page.tsx
-// app/product/[id]/page.tsx
+
 import React from "react";
 import ProductDetail from "@/shared/components/templates/productDetail";
 import { mongoDB } from "@/shared/lib/db/mongo";
@@ -43,6 +43,7 @@ function mapDocToProductDetail(doc: any): ProductDetailType {
 
     price:
       typeof doc.price === "number" ? doc.price : Number(doc.price ?? 0),
+    unit: doc.unit ?? undefined,
     rating:
       typeof doc.rating === "number" ? doc.rating : Number(doc.rating ?? 0),
     reviewsCount: doc.reviewsCount ?? 0,

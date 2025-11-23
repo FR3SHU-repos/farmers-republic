@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       image: body.image,
       images: Array.isArray(body.images) ? body.images : (body.images ? String(body.images).split(",").map(s=>s.trim()) : []),
       price: body.price,
+      unit: body.unit,
       rating: body.rating ?? 0,
       reviewsCount: body.reviewsCount ?? 0,
       sourceFrom: body.sourceFrom,

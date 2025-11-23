@@ -10,6 +10,7 @@ name: { type: String, required: true },
 image: { type: String }, // main image URL
 images: { type: [String], default: [] }, // additional images
 price: { type: Number, required: true },
+unit: { type: String,required:true }, // e.g. "kg", "litre"
 rating: { type: Number, default: 0 },
 reviewsCount: { type: Number, default: 0 },
 sourceFrom: String,

@@ -10,6 +10,7 @@ import { categoriesList } from "@/shared/data/category";
 type FormState = {
   name: string;
   price: number | "";
+  unit: string;
   category?: string;
   badge?: string;
   description?: string;
@@ -28,6 +29,7 @@ export default function ProductCreatePage() {
   const [form, setForm] = useState<FormState>({
     name: "",
     price: "",
+    unit:"",
     category: "",
     badge: "",
     description: "",
@@ -126,6 +128,7 @@ export default function ProductCreatePage() {
       const payload: any = {
         name: form.name,
         price: Number(form.price),
+        unit: form.unit || undefined,
         category: form.category || undefined,
         badge: form.badge || undefined,
         description: form.description || undefined,
@@ -174,6 +177,7 @@ export default function ProductCreatePage() {
     setForm({
       name: "",
       price: "",
+      unit:"",
       category: "",
       badge: "",
       description: "",
@@ -221,12 +225,18 @@ export default function ProductCreatePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm text-gray-600">Product name</label>
-                <input name="name" value={form.name} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="name" value={form.name} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: Mango" />
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600">Price (₹)</label>
-                <input name="price" value={form.price} onChange={handleChange} type="number" className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="price" value={form.price} onChange={handleChange} type="number" className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex:200" />
+              </div>
+
+              <div>
+                <label className="block text-sm text-gray-600">Unit</label>
+                <input name="unit" value={form.unit} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex:Kgs"/>
+                
               </div>
 
               <div>
@@ -249,47 +259,47 @@ export default function ProductCreatePage() {
 
               <div>
                 <label className="block text-sm text-gray-600">Badge</label>
-                <input name="badge" value={form.badge} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="badge" value={form.badge} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: Organic" />
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm text-gray-600">Description</label>
-                <textarea name="description" value={form.description} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" rows={4} />
+                <textarea name="description" value={form.description} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" rows={4} placeholder="Ex: Best of Andhra" />
               </div>
 
               <div className="md:col-span-2">
                 <label className="block text-sm text-gray-600">Tags (comma separated)</label>
-                <input name="tags" value={form.tags} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="tags" value={form.tags} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: Chemical Free, Tasty" />
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600">Health benefits (comma separated)</label>
-                <input name="healthBenefits" value={form.healthBenefits} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="healthBenefits" value={form.healthBenefits} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: Best for gut" />
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600">Swadeshi %</label>
-                <input name="swadeshiPercent" value={form.swadeshiPercent} onChange={handleChange} type="number" min={0} max={100} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="swadeshiPercent" value={form.swadeshiPercent} onChange={handleChange} type="number" min={0} max={100} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: 100%" />
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600">FSSAI</label>
-                <input name="fssai" value={form.fssai} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="fssai" value={form.fssai} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: FSSAI Number"/>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600">Shelf life</label>
-                <input name="shelfLife" value={form.shelfLife} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="shelfLife" value={form.shelfLife} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: 10 days"/>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600">Source from</label>
-                <input name="sourceFrom" value={form.sourceFrom} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="sourceFrom" value={form.sourceFrom} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: Vizag"/>
               </div>
 
               <div>
                 <label className="block text-sm text-gray-600">Time to supply</label>
-                <input name="timeToSupply" value={form.timeToSupply} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <input name="timeToSupply" value={form.timeToSupply} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex:10 days"/>
               </div>
 
               <div className="md:col-span-2">

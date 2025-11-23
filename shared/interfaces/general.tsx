@@ -59,6 +59,7 @@ export type ProductDetail = {
   image: string;
   images: string[]; // gallery
   price: number;
+  unit?: string; // e.g. "per kg"
   rating: number; // 0-5
   reviewsCount?: number;
   sourceFrom: string;

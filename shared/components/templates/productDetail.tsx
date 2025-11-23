@@ -95,9 +95,12 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
 
             <div className="mt-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="text-2xl font-bold text-stone-900">₹{product.price.toFixed(2)}</div>
+                <div className="text-2xl font-bold text-stone-900">₹{product.price.toFixed(2)}/{product.unit ? `${product.unit}` : ""}</div>
+                
                 <Rating value={product.rating} count={product.reviewsCount} />
               </div>
+
+              
 
               <div className="flex items-center gap-3">
                 <button
