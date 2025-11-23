@@ -57,6 +57,7 @@ export type ProductDetail = {
   id: number | string;
   name: string;
   image: string;
+  images: string[]; // gallery
   price: number;
   rating: number; // 0-5
   reviewsCount?: number;

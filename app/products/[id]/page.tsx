@@ -28,25 +28,57 @@ async function fetchProductById(id: string): Promise<ProductDetailType | null> {
 }
 
 function mapDocToProductDetail(doc: any): ProductDetailType {
+  const mainImage =
+    doc.image ?? (Array.isArray(doc.images) && doc.images[0]) ?? "";
+
   return {
     id: String(doc._id ?? doc.id ?? ""),
     name: doc.name ?? "",
-    image: doc.image ?? (Array.isArray(doc.images) && doc.images[0]) ?? "",
-    price: typeof doc.price === "number" ? doc.price : Number(doc.price ?? 0),
-    rating: typeof doc.rating === "number" ? doc.rating : Number(doc.rating ?? 0),
+    image: mainImage,
+    images: Array.isArray(doc.images)
+      ? doc.images
+      : mainImage
+      ? [mainImage]
+      : [], // 👈 pass full gallery
+
+    price:
+      typeof doc.price === "number" ? doc.price : Number(doc.price ?? 0),
+    rating:
+      typeof doc.rating === "number" ? doc.rating : Number(doc.rating ?? 0),
     reviewsCount: doc.reviewsCount ?? 0,
     sourceFrom: doc.sourceFrom ?? "",
     purchasedLast30Days: doc.purchasedLast30Days ?? 0,
-    farmer: typeof doc.farmer === "string" ? { name: doc.farmer } : (doc.farmer ?? { name: "" }),
-    swadeshiPercent: typeof doc.swadeshiPercent === "number" ? doc.swadeshiPercent : (doc.swadeshiPercent ? Number(doc.swadeshiPercent) : 0),
-    healthBenefits: Array.isArray(doc.healthBenefits) ? doc.healthBenefits : (doc.healthBenefits ? String(doc.healthBenefits).split(",").map((s: string) => s.trim()) : []),
+    farmer:
+      typeof doc.farmer === "string"
+        ? { name: doc.farmer }
+        : doc.farmer ?? { name: "" },
+    swadeshiPercent:
+      typeof doc.swadeshiPercent === "number"
+        ? doc.swadeshiPercent
+        : doc.swadeshiPercent
+        ? Number(doc.swadeshiPercent)
+        : 0,
+    healthBenefits: Array.isArray(doc.healthBenefits)
+      ? doc.healthBenefits
+      : doc.healthBenefits
+      ? String(doc.healthBenefits)
+          .split(",")
+          .map((s: string) => s.trim())
+      : [],
     timeToSupply: doc.timeToSupply ?? undefined,
-    tags: Array.isArray(doc.tags) ? doc.tags : (doc.tags ? String(doc.tags).split(",").map((s: string) => s.trim()) : []),
+    tags: Array.isArray(doc.tags)
+      ? doc.tags
+      : doc.tags
+      ? String(doc.tags)
+          .split(",")
+          .map((s: string) => s.trim())
+      : [],
     fssai: doc.fssai ?? undefined,
     shelfLife: doc.shelfLife ?? undefined,
     description: doc.description ?? undefined,
   };
 }
+
 
 export default async function ProductPage({ params }: { params: { id: string } }) {
   const id = params?.id;

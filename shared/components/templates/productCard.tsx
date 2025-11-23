@@ -17,9 +17,11 @@ export default function ProductCard({
   onAdd: (p: Product) => void;
   onWishlist?: (p: Product) => void;
 }) {
-const { addToCart } = useCart();
+  const { addToCart } = useCart();
+
   return (
-    <article className="group bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+    <article className="group bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden h-full flex flex-col">
+      {/* Image */}
       <div className="relative w-full h-56 sm:h-64 bg-stone-100">
         <Image
           src={product.image ?? "/placeholder.png"}
@@ -39,19 +41,27 @@ const { addToCart } = useCart();
         </div>
       </div>
 
-      <div className="p-4">
+      {/* Content */}
+      <div className="p-4 flex flex-col flex-1">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs text-green-600 font-medium">{product.category}</p>
+            <p className="text-xs text-green-600 font-medium">
+              {product.category}
+            </p>
             <Link href={`/products/${product.id}`}>
-            <h3 className="text-md sm:text-lg font-semibold text-stone-800 mt-1">{product.name}</h3>
+              <h3 className="text-md sm:text-lg font-semibold text-stone-800 mt-1">
+                {product.name}
+              </h3>
             </Link>
-            
-            <p className="text-sm text-stone-500 mt-2 line-clamp-2">{product.description}</p>
+            <p className="text-sm text-stone-500 mt-2 line-clamp-2">
+              {product.description}
+            </p>
           </div>
 
           <div className="text-right flex-shrink-0">
-            <div className="text-lg font-bold text-stone-800">₹{product.price.toFixed(2)}</div>
+            <div className="text-lg font-bold text-stone-800">
+              ₹{product.price.toFixed(2)}
+            </div>
             {product.badge && (
               <div className="text-xs mt-2 inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
                 {product.badge}
@@ -60,7 +70,9 @@ const { addToCart } = useCart();
           </div>
         </div>
 
-        <div className="mt-4 flex items-center gap-3">
+        {/* Buttons pinned to bottom */}
+        <br/>
+        <div className="mt-4 flex items-center gap-3 mt-auto">
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -77,15 +89,10 @@ const { addToCart } = useCart();
           >
             Add to Cart
           </button>
-          <button
-            onClick={() => onWishlist?.(product)}
-            aria-label={`Quick view ${product.name}`}
-            className="px-3 py-3 border rounded-full text-sm hover:border-green-600 transition-colors"
-          >
-            Quick
-          </button>
+          
         </div>
       </div>
     </article>
   );
 }
+

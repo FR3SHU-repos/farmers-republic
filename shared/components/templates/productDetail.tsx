@@ -32,6 +32,10 @@ function Rating({ value, count }: { value: number; count?: number }) {
 export default function ProductDetail({ product }: { product: ProductDetail }) {
   const [qty, setQty] = useState<number>(1);
   const [wish, setWish] = useState(false);
+  const [activeImage, setActiveImage] = useState<string>(
+    product.image || product.images[0] || "/placeholder.png"
+  );
+
 
   const subtotal = useMemo(() => product.price * qty, [product.price, qty]);
 
@@ -50,7 +54,7 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
           <div className="rounded-2xl overflow-hidden bg-stone-50 shadow">
             <div className="relative w-full h-[420px] sm:h-[520px]">
               <Image
-                src={product.image}
+                src={activeImage}
                 alt={product.name}
                 fill
                 className="object-cover"
@@ -60,11 +64,26 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
           </div>
 
           {/* small gallery stub */}
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            <div className="h-20 rounded-md bg-stone-100" />
-            <div className="h-20 rounded-md bg-stone-100" />
-            <div className="h-20 rounded-md bg-stone-100" />
+          {product.images && product.images.length > 1 && (
+          <div className="mt-4 grid grid-cols-3 gap-4 h-20">
+            {product.images.slice(0, 3).map((img, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setActiveImage(img)}
+                className="relative h- w-full aspect-square rounded-xl overflow-hidden bg-stone-100 border border-transparent data-[active=true]:border-green-500"
+                data-active={activeImage === img}
+              >
+                <Image
+                  src={img}
+                  alt={`${product.name} ${idx + 1}`}
+                  fill
+                  className="object-cover"
+                />
+              </button>
+            ))}
           </div>
+        )}
         </div>
 
         {/* Middle: details */}

@@ -114,10 +114,10 @@ const HomePage = () => {
       <main>
         {/* Categories */}
         <section className="py-8 bg-green-200">
-  <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-    <h2 className="text-2xl font-bold text-center mb-6">
-      Shop by Category
-    </h2>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl font-bold text-center mb-6">
+            Shop by Category
+          </h2>
 
     {/* ✅ Mobile (Horizontal scroll) */}
         {/* ✅ Mobile (Horizontal scroll) */}
@@ -188,7 +188,7 @@ const HomePage = () => {
                   <div
                     key={p.id}
                     onClick={(e) => handleCardClick(e, String(p.id))}
-                    className="cursor-pointer w-full max-w-[320px] mx-auto"
+                    className="cursor-pointer w-full max-w-[320px] mx-auto h-full"
                   >
                     <ProductCard
                       product={{
