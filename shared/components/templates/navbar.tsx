@@ -139,10 +139,9 @@ export default function NavBar({
                 >
                   {[
                     { name: "👩‍🌾 Farmers", href: "/farmers" },
-                    { name: "🏢 FPOs", href: "/fpos" },
+                   
                     { name: "🛍️ Products", href: "/products" },
-                    { name: "🏬 Markets", href: "/markets" },
-                    { name: "📦 Warehouses", href: "/warehouses" },
+                    
                   ].map((link) => (
                     <Link
                       key={link.href}

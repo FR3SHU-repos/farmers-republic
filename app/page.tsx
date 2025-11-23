@@ -120,6 +120,7 @@ const HomePage = () => {
     </h2>
 
     {/* ✅ Mobile (Horizontal scroll) */}
+        {/* ✅ Mobile (Horizontal scroll) */}
     <div className="flex sm:hidden gap-3 overflow-x-auto pb-3 scrollbar-hide">
       {CATEGORIES.map((c) => (
         <button
@@ -136,24 +137,23 @@ const HomePage = () => {
       ))}
     </div>
 
-    {/* ✅ Desktop / Tablet Grid */}
-    {/* ✅ Horizontal Scroll Category List */}
-      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-        {CATEGORIES.map((c) => (
-          <button
-            key={c.name}
-            onClick={() => setActiveCategory(c.name)}
-            className={cx(
-              "bg-white min-w-[120px] p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 transition-transform transform hover:-translate-y-1",
-              activeCategory === c.name ? "ring-2 ring-green-200" : ""
-            )}
-          >
-            <div className="text-2xl">{c.emoji}</div>
-            <div className="text-sm font-semibold whitespace-nowrap">{c.name}</div>
-          </button>
-        ))}
-      </div>
-      </div>
+    {/* ✅ Desktop / Tablet row */}
+    <div className="hidden sm:flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
+      {CATEGORIES.map((c) => (
+        <button
+          key={c.name}
+          onClick={() => setActiveCategory(c.name)}
+          className={cx(
+            "bg-white min-w-[120px] p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 transition-transform hover:-translate-y-1",
+            activeCategory === c.name ? "ring-2 ring-green-200" : ""
+          )}
+        >
+          <div className="text-2xl">{c.emoji}</div>
+          <div className="text-sm font-semibold whitespace-nowrap">{c.name}</div>
+        </button>
+      ))}
+    </div>
+  </div>
       </section>
 
 
@@ -181,17 +181,16 @@ const HomePage = () => {
             {loading && <div className="text-center text-stone-500 py-10">Loading products...</div>}
             {error && <div className="text-center text-red-500 py-10">{error}</div>}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {!loading &&
                 !error &&
                 filtered.map((p) => (
                   <div
                     key={p.id}
                     onClick={(e) => handleCardClick(e, String(p.id))}
-                    className="cursor-pointer"
+                    className="cursor-pointer w-full max-w-[320px] mx-auto"
                   >
                     <ProductCard
-                      key={p.id}
                       product={{
                         id: String(p.id),
                         name: p.name,
@@ -207,6 +206,7 @@ const HomePage = () => {
                   </div>
                 ))}
             </div>
+
           </div>
         </section>
       </main>

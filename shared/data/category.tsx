@@ -3,10 +3,23 @@ import { Category } from "../interfaces/general";
 
 export const CATEGORIES: Category[] = [
   { name: "All", emoji: "✨" },
-  { name: "Skincare", emoji: "🌿" },
-  { name: "Food & Pantry", emoji: "🥗" },
-  { name: "Wellness", emoji: "💚" },
-  { name: "Home Care", emoji: "🏡" },
+  { name: "Grains", emoji: "🌾" },
+  { name: "Fruits", emoji: "🍎" },
+  { name: "Vegetables", emoji: "🥦" },
+  { name: "Dairy", emoji: "🧀" },
+  { name: "Meat & Poultry", emoji: "🍗" },
+  { name: "Seafood", emoji: "🦞" },
+  { name: "Beverages", emoji: "🥤" },
+  { name: "Snacks", emoji: "🍿" },
+  { name: "Bakery", emoji: "🍞" },
+  { name: "Frozen Foods", emoji: "❄️" },
+  { name: "Herbs & Spices", emoji: "🌿" },
+  { name: "Oils", emoji: "🛢️" },
+  { name: "Nuts & Seeds", emoji: "🥜" },
+  { name: "Breakfast Foods", emoji: "🥞" },
+  { name: "Sweets", emoji: "🍰" },
+  { name: "Baby Products", emoji: "🍼" },
+  { name: "Organic Foods", emoji: "🌱" },
 ];
 
 export const categoriesList = [
