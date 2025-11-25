@@ -1,216 +1,163 @@
 "use client";
+
 import React, { useEffect, useMemo, useState } from "react";
-import ProductCard from "@/shared/components/templates/productCard";
-import { CATEGORIES } from "../shared/data/category";
-import { Product } from "@/shared/interfaces/mongodb/products/product";
-//import Image from "next/image";
+import { CATEGORIES } from "@/shared/data/category";
 import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
+import FarmerSection from "@/shared/components/templates/farmerSection";
 
-function getAbsoluteOrigin() {
-  // ✅ 1. Explicit origin if set
-  if (process.env.NEXT_PUBLIC_APP_ORIGIN) return process.env.NEXT_PUBLIC_APP_ORIGIN;
+type Farmer = {
+  id: string;
+  name: string;
+  farmName?: string;
+  avatar?: string;
+  about?: string;
+  place?: string;
+  fpo?: string;
+  last30daysSales?: number;
+  crops?: string[];
+};
 
-  // ✅ 2. Vercel auto variable
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-
-  // ✅ 3. Netlify provides `URL` automatically (e.g. https://farmers-republic.netlify.app)
-  if (process.env.URL) return process.env.URL;
-
-  // ✅ 4. Fallback for local dev
-  const port = process.env.PORT ?? "3000";
-  return `http://localhost:${port}`;
-}
-
-const HomePage = () => {
+const FarmersHomePage = () => {
   const router = useRouter();
 
-  const [cartOpen, setCartOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [activeCategory, setActiveCategory] = useState<string>("All");
-  const [cart, setCart] = useState<Record<string, number>>({});
-  const [products, setProducts] = useState<Product[]>([]);
+  const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string>("All");
 
-  // 🧠 Load cart
+  // 🌐 Fetch farmers
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem("pn_cart");
-      if (raw) setCart(JSON.parse(raw));
-    } catch {}
-  }, []);
-
-  // 💾 Save cart
-  useEffect(() => {
-    try {
-      localStorage.setItem("pn_cart", JSON.stringify(cart));
-    } catch {}
-  }, [cart]);
-
-  // 🌐 Fetch products
-  useEffect(() => {
-    async function fetchProducts() {
+    async function fetchFarmers() {
       setLoading(true);
       setError(null);
       try {
-       const res = await fetch(`/api/v1/products?page=1&limit=12&sort=createdAt_desc`, {
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
+        const res = await fetch(
+          `/api/v1/farmers?page=1&limit=100&sort=last30daysSales_desc`,
+          { cache: "no-store" }
+        );
+        if (!res.ok) throw new Error(`Failed to fetch farmers: ${res.status}`);
         const json = await res.json();
-        const itemsRaw = json?.data?.products ?? json?.data?.items ?? [];
+        const itemsRaw = json?.data?.items ?? [];
 
-        // ✅ Normalize IDs from _id → id
-        const items = itemsRaw.map((p: any) => ({
-          ...p,
-          id: String(p._id ?? p.id ?? ""),
+        const items: Farmer[] = itemsRaw.map((f: any) => ({
+          id: String(f.id ?? f._id ?? ""),
+          name: f.name,
+          farmName: f.farmName,
+          avatar: f.avatar,
+          about: f.about,
+          place: f.place,
+          fpo: f.fpo,
+          last30daysSales: f.last30daysSales ?? 0,
+          crops: Array.isArray(f.crops) ? f.crops : [],
         }));
 
-        setProducts(items);
+        setFarmers(items);
       } catch (err: any) {
-        console.error("Error fetching products:", err);
-        setError(err.message || "Failed to load products");
+        console.error("Error fetching farmers:", err);
+        setError(err.message || "Failed to load farmers");
       } finally {
         setLoading(false);
       }
     }
-    fetchProducts();
+    fetchFarmers();
   }, []);
 
-  // 🧮 Derived values
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return products.filter((p) => {
-      if (activeCategory !== "All" && p.category !== activeCategory) return false;
-      if (!q) return true;
-      return `${p.name} ${p.description} ${p.category}`.toLowerCase().includes(q);
-    });
-  }, [query, activeCategory, products]);
+  // 🧠 Group farmers by category name
+  const farmersByCategory = useMemo(() => {
+    const map: Record<string, Farmer[]> = {};
 
-  const cartCount = Object.values(cart).reduce((s, n) => s + n, 0);
-  const subtotal = Object.entries(cart).reduce((s, [id, qty]) => {
-    const p = products.find((x) => String(x.id) === id);
-    return p ? s + Number(p.price) * qty : s;
-  }, 0);
-
-  // 🛒 Cart handlers
-  const addToCart = (p: Product) =>
-    setCart((c) => {
-      const id = String(p.id ?? p.id);
-      return { ...c, [id]: (c[id] || 0) + 1 };
+    CATEGORIES.forEach((cat) => {
+      map[cat.name] = [];
     });
 
-  // 🖱️ Navigate to product details
-  function handleCardClick(e: React.MouseEvent, id: string | number) {
-    const target = e.target as HTMLElement | null;
-    if (target?.closest("button") || target?.closest("a")) return;
-    router.push(`/products/${id}`);
-  }
+    farmers.forEach((f) => {
+      const cropsLower = (f.crops ?? []).map((c) => c.toLowerCase());
+      let matched = false;
+
+      CATEGORIES.forEach((cat) => {
+        const catName = cat.name.toLowerCase();
+        if (cropsLower.some((c) => c.includes(catName))) {
+          map[cat.name].push(f);
+          matched = true;
+        }
+      });
+
+      if (!matched) {
+        if (!map["Others"]) map["Others"] = [];
+        map["Others"].push(f);
+      }
+    });
+
+    return map;
+  }, [farmers]);
+
+  const handleFarmerClick = (id: string) => {
+    router.push(`/farmers/${id}`);
+  };
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
       <main>
-        {/* Categories */}
-        <section className="py-8 bg-green-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-2xl font-bold text-center mb-6">
-            Shop by Category
-          </h2>
+        {/* Header */}
+        <header className="bg-green-200  border-b border-stone-200">
+          <div className=" max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+            <h1 className="text-xl sm:text-2xl font-bold text-stone-900">
+              Adapt A Farmer
+            </h1>
+            <p className="hidden sm:block text-xs text-stone-500">
+              Choose farmers by category and support them directly
+            </p>
+          </div>
+        </header>
 
-    {/* ✅ Mobile (Horizontal scroll) */}
-    <div className="flex sm:hidden gap-3 overflow-x-auto pb-3 scrollbar-hide">
-      {CATEGORIES.map((c) => (
-        <button
-          key={c.name}
-          onClick={() => setActiveCategory(c.name)}
-          className={cx(
-            "flex-shrink-0 w-28 h-28 bg-white rounded-xl shadow-sm flex flex-col items-center justify-center gap-2 transition-transform hover:-translate-y-1",
-            activeCategory === c.name ? "ring-2 ring-green-200" : ""
-          )}
-        >
-          <div className="text-2xl">{c.emoji}</div>
-          <div className="text-xs font-semibold text-center">{c.name}</div>
-        </button>
-      ))}
-    </div>
-
-    {/* ✅ Desktop / Tablet row */}
-    <div className="hidden sm:flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-      {CATEGORIES.map((c) => (
-        <button
-          key={c.name}
-          onClick={() => setActiveCategory(c.name)}
-          className={cx(
-            "bg-white min-w-[120px] p-4 rounded-xl shadow-sm flex flex-col items-center gap-2 transition-transform hover:-translate-y-1",
-            activeCategory === c.name ? "ring-2 ring-green-200" : ""
-          )}
-        >
-          <div className="text-2xl">{c.emoji}</div>
-          <div className="text-sm font-semibold whitespace-nowrap">{c.name}</div>
-        </button>
-      ))}
-    </div>
-  </div>
-      </section>
-
-
-        {/* Products */}
-        <section id="shop" className="py-6 bg-white">
+        {/* Top category strip */}
+        <section className="bg-stone-100 border-b border-stone-200 py-3">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-bold">Featured Products</h3>
-              <select
-                className="border px-3 py-2 rounded-md text-sm"
-                value={activeCategory}
-                onChange={(e) => setActiveCategory(e.target.value)}
-              >
-                <option>All</option>
-                {Array.from(new Set(products.map((p) => p.category))).map((c) =>
-                  c ? (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ) : null
+            <div className="flex gap-3 overflow-x-auto scrollbar-hide">
+              <button
+                type="button"
+                onClick={() => setActiveCategory("All")}
+                className={cx(
+                  "flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border",
+                  activeCategory === "All"
+                    ? "bg-green-600 text-white border-green-600"
+                    : "bg-white text-stone-700 border-stone-200"
                 )}
-              </select>
+              >
+                All
+              </button>
+              {CATEGORIES.map((c) => (
+                <button
+                  key={c.name}
+                  type="button"
+                  onClick={() => setActiveCategory(c.name)}
+                  className={cx(
+                    "flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border flex items-center gap-1",
+                    activeCategory === c.name
+                      ? "bg-green-600 text-white border-green-600"
+                      : "bg-white text-stone-700 border-stone-200"
+                  )}
+                >
+                  <span>{c.emoji}</span>
+                  <span>{c.name}</span>
+                </button>
+              ))}
             </div>
-
-            {loading && <div className="text-center text-stone-500 py-10">Loading products...</div>}
-            {error && <div className="text-center text-red-500 py-10">{error}</div>}
-
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-              {!loading &&
-                !error &&
-                filtered.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={(e) => handleCardClick(e, String(p.id))}
-                    className="cursor-pointer w-full max-w-[320px] mx-auto h-full"
-                  >
-                    <ProductCard
-                      product={{
-                        id: String(p.id),
-                        name: p.name,
-                        image: p.image ?? (Array.isArray(p.images) ? p.images[0] : ""),
-                        price: Number(p.price),
-                        description: p.description ?? "",
-                        category: p.category ?? "",
-                        badge: p.badge ?? "",
-                      }}
-                      onAdd={addToCart}
-                      onWishlist={() => {}}
-                    />
-                  </div>
-                ))}
-            </div>
-
           </div>
         </section>
+
+        {/* ✅ Reusable section component */}
+        <FarmerSection
+          loading={loading}
+          error={error}
+          farmersByCategory={farmersByCategory}
+          activeCategory={activeCategory}
+          onFarmerClick={handleFarmerClick}
+        />
       </main>
     </div>
   );
 };
 
-export default HomePage;
+export default FarmersHomePage;

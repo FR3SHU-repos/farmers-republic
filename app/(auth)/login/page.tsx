@@ -37,39 +37,84 @@ export default function AuthPage() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
   setLoading(true);
+
   try {
-    const res = await fetch("/api/v1/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: form.email, password: form.password }),
-      credentials: "include", // IMPORTANT: ensures HttpOnly cookie is saved
-    });
+    if (isLogin) {
+      // 🔐 LOGIN FLOW
+      const res = await fetch("/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: form.email, password: form.password }),
+        credentials: "include",
+      });
 
-    const data = await res.json();
-    console.log("login response", res.status, data);
+      const data = await res.json();
+      console.log("login response", res.status, data);
 
-    if (!res.ok || !data.success) {
-      toast.error(data?.message || "Login failed");
-      return;
+      if (!res.ok || !data.success) {
+        toast.error(data?.message || "Login failed");
+        return;
+      }
+
+      const serverUser = data.data ?? data.userData ?? data;
+      const mappedUser = {
+        id:
+          serverUser.id ??
+          serverUser._id ??
+          serverUser._id?.toString() ??
+          "",
+        name: serverUser.name,
+        email: serverUser.email,
+        phoneNumber: serverUser.phoneNumber,
+        type: serverUser.type,
+        photo: serverUser.photo,
+      };
+
+      login(mappedUser);
+      toast.success(data.message || "Welcome!");
+      router.push("/");
+    } else {
+      // 🆕 REGISTER FLOW
+      const res = await fetch("/api/v1/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          password: form.password,
+          phoneNumber: form.phoneNumber,
+          type: form.type, // "Farmer" or "Buyer"
+        }),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      console.log("register response", res.status, data);
+
+      if (!res.ok || !data.success) {
+        toast.error(data?.message || "Registration failed");
+        return;
+      }
+
+      const serverUser = data.data ?? data.userData ?? data;
+      const mappedUser = {
+        id:
+          serverUser.id ??
+          serverUser._id ??
+          serverUser._id?.toString() ??
+          "",
+        name: serverUser.name,
+        email: serverUser.email,
+        phoneNumber: serverUser.phoneNumber,
+        type: serverUser.type,
+        photo: serverUser.photo,
+      };
+
+      // ✅ User is already logged-in after register (you set cookie + token)
+      login(mappedUser);
+      toast.success(data.message || "Account created!");
+      router.push("/");
     }
-
-    // data.data or data.userData depending on your backend response shape
-    // Map backend user -> ILoggedinUser
-    const serverUser = data.data ?? data.userData ?? data; // try common names
-    const mappedUser = {
-      id: serverUser.id ?? serverUser._id ?? serverUser._id?.toString() ?? "",
-      name: serverUser.name,
-      email: serverUser.email,
-      phoneNumber: serverUser.phoneNumber,
-      type: serverUser.type,
-      photo: serverUser.photo,
-    };
-
-    // Save to context + localStorage
-    login(mappedUser);
-
-    toast.success(data.message || "Welcome!");
-    router.push("/"); // or /dashboard
   } catch (err) {
     console.error(err);
     toast.error("Network error");
@@ -77,6 +122,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     setLoading(false);
   }
 };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100">

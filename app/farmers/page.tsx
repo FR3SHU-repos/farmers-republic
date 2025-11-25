@@ -1,263 +1,223 @@
-"use client";
+// app/farmers/page.tsx  (server component - queries MongoDB directly)
+import React from "react";
+import FarmerCard from "@/shared/components/molecules/FarmerCard";
+import Link from "next/link";
+import { mongoDB } from "@/shared/lib/db/mongo";
+import FarmerModel from "@/shared/models/mongodb/farmer";
 
-import React, { useEffect, useMemo, useState } from "react";
-import { CATEGORIES } from "@/shared/data/category";
-import { cx } from "@/shared/lib/utils";
-import { useRouter } from "next/navigation";
-
-type Farmer = {
-  id: string;
-  name: string;
-  farmName?: string;
-  avatar?: string;
-  about?: string;
-  place?: string;
-  fpo?: string;
-  last30daysSales?: number;
-  crops?: string[];
+export const metadata = {
+  title: "Farmers",
+  description: "Meet the farmers behind our produce",
 };
 
-const FarmersHomePage = () => {
-  const router = useRouter();
+type SearchParams = { searchParams?: { [key: string]: string | string[] | undefined } };
 
-  const [farmers, setFarmers] = useState<Farmer[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState<string>("All");
+const DEFAULT_LIMIT = 12;
+const MAX_LIMIT = 100;
 
-  // 🌐 Fetch farmers
-  useEffect(() => {
-    async function fetchFarmers() {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch(
-          `/api/v1/farmers?page=1&limit=100&sort=last30daysSales_desc`,
-          { cache: "no-store" }
-        );
-        if (!res.ok) throw new Error(`Failed to fetch farmers: ${res.status}`);
-        const json = await res.json();
-        const itemsRaw = json?.data?.items ?? [];
+type FarmerPreview = {
+  id: string;
+  name?: string;
+  farmName?: string | null;
+  avatar?: string | null;
+  about?: string | null;
+  place?: string | null;
+  fpo?: string | null;
+  last30daysSales?: number | null;
+};
 
-        const items: Farmer[] = itemsRaw.map((f: any) => ({
-          id: String(f.id ?? f._id ?? ""),
-          name: f.name,
-          farmName: f.farmName,
-          avatar: f.avatar,
-          about: f.about,
-          place: f.place,
-          fpo: f.fpo,
-          last30daysSales: f.last30daysSales ?? 0,
-          crops: Array.isArray(f.crops) ? f.crops : [],
-        }));
+type PagedResult<T> = {
+  items: T[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
 
-        setFarmers(items);
-      } catch (err: any) {
-        console.error("Error fetching farmers:", err);
-        setError(err.message || "Failed to load farmers");
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchFarmers();
-  }, []);
+async function fetchFarmersFromDb({ page = 1, limit = DEFAULT_LIMIT, q = "", place = "", sort = "createdAt_desc"}: any): Promise<PagedResult<FarmerPreview>> {
+  await mongoDB();
 
-  // 🧠 Group farmers by category name
-  const farmersByCategory = useMemo(() => {
-    const map: Record<string, Farmer[]> = {};
+  const pageNum = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
+  const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Math.min(Number(limit), MAX_LIMIT) : DEFAULT_LIMIT;
+  const skip = (pageNum - 1) * limitNum;
 
-    // init keys for each category
-    CATEGORIES.forEach((cat) => {
-      map[cat.name] = [];
-    });
+  // Build filter
+  const filter: any = {};
+  if (q && String(q).trim().length > 0) {
+    const term = String(q).trim();
+    filter.$or = [
+      { name: { $regex: term, $options: "i" } },
+      { farmName: { $regex: term, $options: "i" } },
+      { about: { $regex: term, $options: "i" } },
+      { crops: { $in: [new RegExp(term, "i")] } },
+    ];
+  }
+  if (place && String(place).trim().length > 0) {
+    filter.place = { $regex: String(place).trim(), $options: "i" };
+  }
 
-    farmers.forEach((f) => {
-      const cropsLower = (f.crops ?? []).map((c) => c.toLowerCase());
-      let matched = false;
+  // Sort mapping
+  const [sortField, sortDir] = String(sort).split("_");
+  const dir = sortDir === "asc" ? 1 : -1;
+  const sortObj: any = {};
+  if (sortField === "last30daysSales") sortObj.last30daysSales = dir;
+  else if (sortField === "name") sortObj.name = dir;
+  else sortObj.createdAt = dir;
 
-      CATEGORIES.forEach((cat) => {
-        const catName = cat.name.toLowerCase();
-        if (cropsLower.some((c) => c.includes(catName))) {
-          map[cat.name].push(f);
-          matched = true;
-        }
-      });
+  // Count total
+  const total = await FarmerModel.countDocuments(filter);
 
-      // if no match you can optionally push to an "Others" bucket
-      if (!matched) {
-        if (!map["Others"]) map["Others"] = [];
-        map["Others"].push(f);
-      }
-    });
+  // Query page (only fields needed for list)
+  const docs = await FarmerModel.find(filter)
+    .sort(sortObj)
+    .skip(skip)
+    .limit(limitNum)
+    .select("name farmName avatar about place fpo last30daysSales")
+    .lean()
+    .exec();
 
-    return map;
-  }, [farmers]);
+  const items = docs.map((f: any) => ({
+    id: String(f._id ?? f.id),
+    name: f.name,
+    farmName: f.farmName,
+    avatar: f.avatar,
+    about: f.about,
+    place: f.place,
+    fpo: f.fpo,
+    last30daysSales: f.last30daysSales ?? 0,
+  }));
 
-  const handleFarmerClick = (id: string) => {
-    router.push(`/farmers/${id}`);
+  const totalPages = Math.max(1, Math.ceil(total / limitNum));
+
+  return {
+    items,
+    meta: { total, page: pageNum, limit: limitNum, totalPages },
+  };
+}
+
+export default async function FarmersPage({ searchParams }: SearchParams) {
+  const page = Number(searchParams?.page ?? 1);
+  const limit = Number(searchParams?.limit ?? DEFAULT_LIMIT);
+  const q = typeof searchParams?.q === "string" ? searchParams.q : (Array.isArray(searchParams?.q) ? searchParams.q[0] : "");
+  const place = typeof searchParams?.place === "string" ? searchParams.place : (Array.isArray(searchParams?.place) ? searchParams.place[0] : "");
+  const sort = typeof searchParams?.sort === "string" ? searchParams.sort : "createdAt_desc";
+
+let data: PagedResult<FarmerPreview> = {
+  items: [],
+  meta: { total: 0, page, limit, totalPages: 1 },
+};
+
+  try {
+    data = await fetchFarmersFromDb({ page, limit, q, place, sort });
+  } catch (err) {
+    console.error("Error loading farmers from DB:", err);
+  }
+
+  const { items, meta } = data;
+  const currentPage = meta?.page ?? 1;
+  const totalPages = meta?.totalPages ?? 1;
+
+  const buildLink = (p: number) => {
+    const qs = new URLSearchParams();
+    if (p) qs.set("page", String(p));
+    if (limit) qs.set("limit", String(limit));
+    if (q) qs.set("q", String(q));
+    if (place) qs.set("place", String(place));
+    if (sort) qs.set("sort", String(sort));
+    return `/farmers?${qs.toString()}`;
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
-      <main>
-        {/* Header */}
-        <header className="bg-white border-b border-stone-200">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-bold text-stone-900">
-              Adapt A Farmer 🌾
-            </h1>
-            <p className="hidden sm:block text-xs text-stone-500">
-              Choose farmers by category and support them directly
-            </p>
+    <div className="min-h-screen bg-stone-50 pb-20">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-24">
+        <header className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-stone-800">Meet our farmers</h1>
+            <p className="mt-2 text-stone-600">Transparent sourcing from trusted smallholders and family farms.</p>
           </div>
+
+          <form action="/farmers" method="get"   className="w-full sm:w-auto flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+            <input
+              name="q"
+              defaultValue={String(q || "")}
+              placeholder="Search farmers, crops, place..."
+              className="px-3 py-2 border rounded-md"
+            />
+            <input
+              name="place"
+              defaultValue={String(place || "")}
+              placeholder="Place"
+              className="px-3 py-2 border rounded-md"
+            />
+            <input type="hidden" name="limit" value={String(limit)} />
+            <button className="px-3 py-2 bg-green-600 text-white rounded-md">Search</button>
+          </form>
         </header>
 
-        {/* Top category strip (like your “v v v v”) */}
-        <section className="bg-stone-100 border-b border-stone-200 py-3">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex gap-3 overflow-x-auto scrollbar-hide">
-              <button
-                type="button"
-                onClick={() => setActiveCategory("All")}
-                className={cx(
-                  "flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border",
-                  activeCategory === "All"
-                    ? "bg-green-600 text-white border-green-600"
-                    : "bg-white text-stone-700 border-stone-200"
-                )}
-              >
-                All
-              </button>
-              {CATEGORIES.map((c) => (
-                <button
-                  key={c.name}
-                  type="button"
-                  onClick={() => setActiveCategory(c.name)}
-                  className={cx(
-                    "flex-shrink-0 px-4 py-2 rounded-full text-xs font-medium border flex items-center gap-1",
-                    activeCategory === c.name
-                      ? "bg-green-600 text-white border-green-600"
-                      : "bg-white text-stone-700 border-stone-200"
-                  )}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {items.length === 0 ? (
+            <div className="col-span-full text-center text-stone-500">No farmers found.</div>
+          ) : (
+            items.map((f: any) => (
+              <FarmerCard
+                key={f.id}
+                farmer={{
+                  id: String(f.id),
+                  name: f.name,
+                  farmName: f.farmName,
+                  avatar: f.avatar,
+                  about: f.about,
+                  place: f.place,
+                  fpo: f.fpo,
+                  last30daysSales: f.last30daysSales,
+                }}
+              />
+            ))
+          )}
+        </div>
+
+        {/* Pagination */}
+        <div className="mt-8 flex items-center justify-between">
+          <div className="text-sm text-stone-600">
+            Showing page {currentPage} of {totalPages} — {meta?.total ?? 0} farmers
+          </div>
+
+          <nav className="flex items-center gap-2">
+            <Link
+              href={buildLink(Math.max(1, currentPage - 1))}
+              className={`px-3 py-1 rounded-md border ${currentPage <= 1 ? "opacity-50 pointer-events-none" : ""}`}
+            >
+              Prev
+            </Link>
+
+            {Array.from({ length: Math.min(7, totalPages) }, (_, i) => {
+              const half = Math.floor(Math.min(7, totalPages) / 2);
+              let start = Math.max(1, currentPage - half);
+              if (start + 6 > totalPages) start = Math.max(1, totalPages - 6);
+              const pageNum = start + i;
+              if (pageNum > totalPages) return null;
+              return (
+                <Link
+                  key={pageNum}
+                  href={buildLink(pageNum)}
+                  className={`px-3 py-1 rounded-md border ${pageNum === currentPage ? "bg-green-600 text-white" : ""}`}
                 >
-                  <span>{c.emoji}</span>
-                  <span>{c.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
+                  {pageNum}
+                </Link>
+              );
+            })}
 
-        {/* Farmers grouped by category */}
-        <section className="py-6 bg-white">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
-            {loading && (
-              <div className="text-center text-stone-500 py-10">
-                Loading farmers...
-              </div>
-            )}
-            {error && (
-              <div className="text-center text-red-500 py-10">{error}</div>
-            )}
-
-            {!loading &&
-              !error &&
-              Object.entries(farmersByCategory)
-                .filter(([catName]) =>
-                  activeCategory === "All" ? true : catName === activeCategory
-                )
-                .map(([catName, list]) =>
-                  list.length === 0 ? null : (
-                    <div key={catName} className="space-y-3">
-                      {/* Category Title (Fruits, Grains, etc.) */}
-                      <h2 className="text-lg font-semibold text-stone-900">
-                        {catName}
-                      </h2>
-
-                      {/* Farmer cards grid (similar to product cards) */}
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                        {list.map((f) => (
-                          <button
-                            key={f.id}
-                            type="button"
-                            onClick={() => handleFarmerClick(f.id)}
-                            className="text-left bg-white border border-stone-200 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition overflow-hidden"
-                          >
-                            {/* Image area like product card */}
-                            <div className="h-24 bg-stone-100 flex items-center justify-center">
-                              {f.avatar ? (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img
-                                  src={f.avatar}
-                                  alt={f.name}
-                                  className="w-full h-24 object-cover"
-                                />
-                              ) : (
-                                <div className="text-2xl">
-                                  {f.name?.charAt(0)?.toUpperCase() ?? "👨‍🌾"}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Content area */}
-                            <div className="p-3 space-y-1">
-                              <div className="text-sm font-semibold text-stone-900 line-clamp-1">
-                                {f.name}
-                              </div>
-                              {f.farmName && (
-                                <div className="text-[11px] text-stone-500 line-clamp-1">
-                                  {f.farmName}
-                                </div>
-                              )}
-                              {f.place && (
-                                <div className="text-[11px] text-stone-500">
-                                  📍 {f.place}
-                                </div>
-                              )}
-
-                              {/* Crops chips */}
-                              {f.crops && f.crops.length > 0 && (
-                                <div className="flex flex-wrap gap-1 mt-1">
-                                  {f.crops.slice(0, 3).map((crop) => (
-                                    <span
-                                      key={crop}
-                                      className="inline-flex px-2 py-0.5 rounded-full bg-green-50 text-[10px] text-green-700 border border-green-100"
-                                    >
-                                      {crop}
-                                    </span>
-                                  ))}
-                                  {f.crops.length > 3 && (
-                                    <span className="text-[10px] text-stone-400">
-                                      +{f.crops.length - 3} more
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-
-                              {/* Bottom strip like product CTA */}
-                              <div className="mt-2 pt-2 border-t border-stone-100 flex items-center justify-between">
-                                <span className="text-[11px] text-stone-500">
-                                  Last 30 days:{" "}
-                                  <span className="font-semibold text-stone-700">
-                                    {f.last30daysSales ?? 0}
-                                  </span>
-                                </span>
-                                <span className="text-[11px] font-semibold text-green-700">
-                                  View
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )
-                )}
-          </div>
-        </section>
-      </main>
+            <Link
+              href={buildLink(Math.min(totalPages, currentPage + 1))}
+              className={`px-3 py-1 rounded-md border ${currentPage >= totalPages ? "opacity-50 pointer-events-none" : ""}`}
+            >
+              Next
+            </Link>
+          </nav>
+        </div>
+      </div>
     </div>
   );
-};
-
-export default FarmersHomePage;
+}
