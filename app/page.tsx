@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { CATEGORIES } from "@/shared/data/category";
 import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
@@ -13,9 +13,8 @@ type Farmer = {
   avatar?: string;
   about?: string;
   place?: string;
-  fpo?: string;
-  last30daysSales?: number;
-  crops?: string[];
+  phone?: string;
+  category?: string;
 };
 
 const FarmersHomePage = () => {
@@ -47,9 +46,8 @@ const FarmersHomePage = () => {
           avatar: f.avatar,
           about: f.about,
           place: f.place,
-          fpo: f.fpo,
-          last30daysSales: f.last30daysSales ?? 0,
-          crops: Array.isArray(f.crops) ? f.crops : [],
+          phone: f.phone,
+          category: f.category, // 👈 important
         }));
 
         setFarmers(items);
@@ -63,35 +61,6 @@ const FarmersHomePage = () => {
     fetchFarmers();
   }, []);
 
-  // 🧠 Group farmers by category name
-  const farmersByCategory = useMemo(() => {
-    const map: Record<string, Farmer[]> = {};
-
-    CATEGORIES.forEach((cat) => {
-      map[cat.name] = [];
-    });
-
-    farmers.forEach((f) => {
-      const cropsLower = (f.crops ?? []).map((c) => c.toLowerCase());
-      let matched = false;
-
-      CATEGORIES.forEach((cat) => {
-        const catName = cat.name.toLowerCase();
-        if (cropsLower.some((c) => c.includes(catName))) {
-          map[cat.name].push(f);
-          matched = true;
-        }
-      });
-
-      if (!matched) {
-        if (!map["Others"]) map["Others"] = [];
-        map["Others"].push(f);
-      }
-    });
-
-    return map;
-  }, [farmers]);
-
   const handleFarmerClick = (id: string) => {
     router.push(`/farmers/${id}`);
   };
@@ -100,8 +69,8 @@ const FarmersHomePage = () => {
     <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
       <main>
         {/* Header */}
-        <header className="bg-green-200  border-b border-stone-200">
-          <div className=" max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <header className="bg-green-200 border-b border-stone-200">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <h1 className="text-xl sm:text-2xl font-bold text-stone-900">
               Adapt A Farmer
             </h1>
@@ -151,7 +120,7 @@ const FarmersHomePage = () => {
         <FarmerSection
           loading={loading}
           error={error}
-          farmersByCategory={farmersByCategory}
+          farmers={farmers} // 👈 flat list
           activeCategory={activeCategory}
           onFarmerClick={handleFarmerClick}
         />

@@ -6,21 +6,17 @@ import React, { useState } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "@/shared/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { categoriesList } from "@/shared/data/category";
 
 type FormState = {
   id?: string;
   name: string;
   farmName?: string;
   farmArea?: string;
-  crops: string;
-  products: string;
-  fpo?: string;
-  swadeshiPercent?: number;
+  category: string;
   place?: string;
   phone?: string;
   about?: string;
-  established?: string;
-  certifications?: string;
 };
 
 export default function FarmerProfilePage() {
@@ -29,15 +25,10 @@ export default function FarmerProfilePage() {
     name: "",
     farmName: "",
     farmArea: "",
-    crops: "",
-    products: "",
-    fpo: "",
-    swadeshiPercent: 0,
+    category: "",
     place: "",
     phone: "",
     about: "",
-    established: "",
-    certifications: "",
   });
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -100,15 +91,10 @@ export default function FarmerProfilePage() {
         name: form.name,
         farmName: form.farmName,
         farmArea: form.farmArea,
-        crops: form.crops ? form.crops.split(",").map(s => s.trim()) : [],
-        products: form.products ? form.products.split(",").map((p, i) => ({ id: `p${i+1}`, name: p.trim() })) : [],
-        fpo: form.fpo || null,
-        swadeshiPercent: form.swadeshiPercent,
+        category: form.category,
         place: form.place,
         phone: form.phone,
         about: form.about,
-        established: form.established,
-        certifications: form.certifications ? form.certifications.split(",").map(s=>s.trim()) : [],
         ...photoPayload,
       };
 
@@ -150,15 +136,10 @@ export default function FarmerProfilePage() {
         name: form.name,
         farmName: form.farmName,
         farmArea: form.farmArea,
-        crops: form.crops ? form.crops.split(",").map(s => s.trim()) : [],
-        products: form.products ? form.products.split(",").map((p, i) => ({ id: `p${i+1}`, name: p.trim() })) : [],
-        fpo: form.fpo || null,
-        swadeshiPercent: form.swadeshiPercent,
+        category: form.category,
         place: form.place,
         phone: form.phone,
         about: form.about,
-        established: form.established,
-        certifications: form.certifications ? form.certifications.split(",").map(s=>s.trim()) : [],
         ...photoPayload,
       };
 
@@ -210,6 +191,16 @@ export default function FarmerProfilePage() {
                 <input name="farmName" value={form.farmName} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
               </div>
               <div>
+                <label className="block text-sm text-gray-600">Farm area</label>
+                <input
+                  name="farmArea"
+                  value={form.farmArea}
+                  onChange={handleChange}
+                  className="mt-1 w-full border rounded px-3 py-2"
+                  placeholder="Eg: 2 acres"
+                />
+              </div>
+              <div>
                 <label className="block text-sm text-gray-600">Place</label>
                 <input name="place" value={form.place} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
               </div>
@@ -218,12 +209,15 @@ export default function FarmerProfilePage() {
                 <input name="phone" value={form.phone} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-sm text-gray-600">Crops (comma separated)</label>
-                <input name="crops" value={form.crops} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm text-gray-600">Products (comma separated)</label>
-                <input name="products" value={form.products} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" />
+                <label className="block text-sm text-gray-600">Catgeory </label>
+                <select name="category" value={form.category} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2">
+                  <option value="">Select category</option>
+                  {categoriesList.map((cat) => (
+                    <option key={cat.name} value={cat.name}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm text-gray-600">About</label>
@@ -241,7 +235,7 @@ export default function FarmerProfilePage() {
               </button>
 
               <button
-                onClick={() => { setForm({ name: "", farmName: "", farmArea: "", crops: "", products: "" }); setFile(null); }}
+                onClick={() => { setForm({ name: "", farmName: "", farmArea: "", category: ""}); setFile(null); }}
                 className="px-4 py-2 border rounded-md"
               >
                 Reset

@@ -17,18 +17,12 @@ const farmerSchema = new mongoose.Schema<Farmer>(
     name: { type: String, required: true, index: true },
     farmName: { type: String },
     farmArea: { type: String },
-    crops: { type: [String], default: [] },
-    products: { type: [productSchema], default: [] },
-    fpo: { type: String },
-    swadeshiPercent: { type: Number },
+    category: { type: String },
     place: { type: String },
     phone: { type: String },
     avatar: { type: String }, // public URL
     photoPath: { type: String }, // supabase storage path
     about: { type: String },
-    established: { type: String },
-    certifications: { type: [String], default: [] },
-    last30daysSales: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

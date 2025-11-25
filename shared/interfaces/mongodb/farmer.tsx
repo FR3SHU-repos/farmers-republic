@@ -11,18 +11,12 @@ export type Farmer = {
   name: string;
   farmName?: string;
   farmArea?: string; // e.g. "2 acres"
-  crops: string[]; // crops grown
-  products?: FarmerProduct[]; // products produced
-  fpo?: string | null;
-  swadeshiPercent?: number; // 0-100
+  category?: string; // e.g. "Fruits"
   place?: string;
   phone?: string;
   avatar?: string; // public URL
   photoPath?: string; // Supabase path for deletion if needed
   about?: string;
-  established?: string; // year
-  certifications?: string[];
-  last30daysSales?: number;
   createdAt?: Date;
   updatedAt?: Date;
 };

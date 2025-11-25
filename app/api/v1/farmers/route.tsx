@@ -10,43 +10,52 @@ import { success, failure } from "@/app/api/v1/utils/responses"; // adjust path 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 100;
 
+// app/api/v1/farmers/route.ts (POST)
+
 export async function POST(req: NextRequest) {
   try {
     await mongoDB();
     const body = await req.json();
 
-    // Basic validation
     if (!body?.name) {
       return NextResponse.json(failure("Name is required"), { status: 400 });
     }
 
-    // Normalize minimal fields
     const doc = {
       name: body.name,
       farmName: body.farmName,
       farmArea: body.farmArea,
-      crops: Array.isArray(body.crops) ? body.crops : (body.crops ? String(body.crops).split(",").map(s=>s.trim()) : []),
-      products: body.products || [],
-      fpo: body.fpo ?? null,
-      swadeshiPercent: body.swadeshiPercent ?? undefined,
+      category: body.category,         // 👈 IMPORTANT
       place: body.place,
       phone: body.phone,
-      avatar: body.avatar,     // public URL
-      photoPath: body.photoPath, // supabase path
+      avatar: body.avatar,             // public URL
+      photoPath: body.photoPath,       // supabase storage path
       about: body.about,
-      established: body.established,
-      certifications: body.certifications || [],
-      last30daysSales: body.last30daysSales ?? 0,
+      // you can still keep last30daysSales if you add it to schema later
+      // last30daysSales: body.last30daysSales ?? 0,
     };
 
     const created = await FarmerModel.create(doc);
 
-    return NextResponse.json(success({ id: created._id, ...doc }, "Farmer created"), { status: 201 });
+    return NextResponse.json(
+      success(
+        {
+          id: created._id,
+          ...doc,
+        },
+        "Farmer created"
+      ),
+      { status: 201 }
+    );
   } catch (err: any) {
     console.error("Create farmer error:", err);
-    return NextResponse.json(failure("Failed to create farmer", err?.message || err), { status: 500 });
+    return NextResponse.json(
+      failure("Failed to create farmer", err?.message || err),
+      { status: 500 }
+    );
   }
 }
+
 
 // Getting list of farmers with pagination
 
@@ -93,38 +102,40 @@ export async function GET(req: NextRequest) {
 
     // Query page
     const farmers = await FarmerModel.find(filter)
-      .sort(sortMap)
-      .skip(skip)
-      .limit(limit)
-      .select("name farmName avatar about place fpo last30daysSales") // only fields needed for list
-      .lean()
-      .exec();
+  .sort(sortMap)
+  .skip(skip)
+  .limit(limit)
+  .select("name farmName farmArea category avatar about place phone last30daysSales") // 👈 include category + phone
+  .lean()
+  .exec();
 
-    const totalPages = Math.max(1, Math.ceil(total / limit));
+const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    return NextResponse.json(
-      success(
-        {
-          items: farmers.map((f) => ({
-            id: String(f._id ?? f.id),
-            name: f.name,
-            farmName: f.farmName,
-            avatar: f.avatar,
-            about: f.about,
-            place: f.place,
-            fpo: f.fpo,
-            last30daysSales: f.last30daysSales ?? 0,
-          })),
-          meta: {
-            total,
-            page,
-            limit,
-            totalPages,
-          },
-        },
-        "Farmers fetched"
-      )
-    );
+return NextResponse.json(
+  success(
+    {
+      items: farmers.map((f) => ({
+        id: String(f._id ?? f.id),
+        name: f.name,
+        farmName: f.farmName,
+        farmArea: f.farmArea,
+        category: f.category || "",              // 👈 send category
+        avatar: f.avatar,
+        about: f.about,
+        place: f.place,
+        phone: f.phone,
+        last30daysSales: f.last30daysSales ?? 0,
+      })),
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    },
+    "Farmers fetched"
+  )
+);
   } catch (err: any) {
     console.error("Fetch farmers error:", err);
     return NextResponse.json(failure("Failed to fetch farmers", err?.message || err), { status: 500 });
