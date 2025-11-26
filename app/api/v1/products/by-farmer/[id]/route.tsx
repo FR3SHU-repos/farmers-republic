@@ -1,23 +1,20 @@
-// This is for getting products by a specific farmer
-
-// app/api/v1/products/by-farmer/route.tsx
-
+// app/api/v1/products/by-farmer/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import ProductSchema from "@/shared/models/mongodb/products/products";
+import ProductModel from "@/shared/models/mongodb/products/products";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import { success, failure } from "@/app/api/v1/utils/responses";
 
 export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
+  _req: NextRequest,
+  context: { params: Promise<{ id: string }> }   // 👈 note the Promise here
 ) {
   try {
     await mongoDB();
 
-    const farmerId = params.id;
+    const { id: farmerId } = await context.params;  // 👈 await params
 
-    const products = await ProductSchema
-      .find({ farmerId })
+    const products = await ProductModel.find({ farmerId })
+      .select("name price image farmerId")
       .lean()
       .exec();
 
