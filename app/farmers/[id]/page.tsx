@@ -25,5 +25,5 @@ export default async function FarmerDetailPage({ params }: { params: Promise<{ i
   const farmer = json?.data;
   if (!farmer) return notFound();
 
-  return <FarmerProfile farmer={farmer} />;
+  return <FarmerProfile farmer={farmer} farmerId={id} />;
 }

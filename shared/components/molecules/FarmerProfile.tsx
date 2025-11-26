@@ -2,11 +2,14 @@
 "use client";
 
 import React from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import type { Farmer } from "@/shared/interfaces/mongodb/farmer"; // 👈 new source of truth
 import { Phone, MapPin } from "lucide-react";
+import ProductFarmerCard from "@/shared/components/molecules/FarmerProductCard";
 
-export default function FarmerProfile({ farmer }: { farmer: Farmer }) {
+export default function FarmerProfile({ farmer,farmerId }: { farmer: Farmer, farmerId: string }) {
+  
   // Format createdAt nicely if it exists
   const createdAtText =
     farmer.createdAt instanceof Date
@@ -14,6 +17,30 @@ export default function FarmerProfile({ farmer }: { farmer: Farmer }) {
       : farmer.createdAt
       ? new Date(farmer.createdAt).toLocaleDateString()
       : null;
+
+
+      type Product = {
+        _id: string;
+        name: string;
+        price?: number;
+        image?: string;
+      };
+
+      const [products, setProducts] = useState<Product[]>([]);
+
+      useEffect(() => {
+        async function loadProducts() {
+          if (!farmerId) return;
+
+          const res = await fetch(`/api/v1/products/by-farmer/${farmerId}`);
+          const json = await res.json();
+
+          setProducts((json.data?.items as Product[]) || []);
+        }
+
+        loadProducts();
+        console.log("Loading products for farmer:", farmerId);
+      }, [farmer]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -119,6 +146,8 @@ export default function FarmerProfile({ farmer }: { farmer: Farmer }) {
             )}
           </div>
 
+          
+
           {/* Optional: simple info card so page doesn’t look empty
               (only shows rows that actually have data) */}
           <div className="bg-white p-4 rounded-xl shadow-sm space-y-2">
@@ -161,6 +190,9 @@ export default function FarmerProfile({ farmer }: { farmer: Farmer }) {
               </div>
             )}
           </div>
+
+          <ProductFarmerCard products={products} />
+
         </div>
       </div>
     </div>
