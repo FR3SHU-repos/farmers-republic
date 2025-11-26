@@ -26,7 +26,7 @@ const FarmerProductCard = ({ products }: FarmerProductCardProps) => {
                         {products.map((prod: Product) => (
                             <Link href={`/products/${prod._id}`}
                                 key={prod._id}
-                                className="border rounded-xl p-3 shadow-sm hover:shadow transition bg-stone-50"
+                                className="bg-green-50 border rounded-xl p-3 shadow-sm hover:shadow transition"
                             >
                                 <div className="text-sm font-semibold text-stone-900">
                                     {prod.name}
