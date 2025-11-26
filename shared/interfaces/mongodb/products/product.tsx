@@ -17,7 +17,6 @@ This is for product descriptions
     healthBenefits: List of health benefits associated with the farmer's products
     timeToSupply: Estimated time to supply the products (e.g., "2-4 days")
     tags: List of tags associated with the farmer's products (e.g., health products, categories)
-    fssai: FSSAI license number
     shelfLife: Shelf life of the products (e.g., "12 months")
     description: Optional detailed description of the farmer and their practices
 */
@@ -39,7 +38,6 @@ swadeshiPercent?: number;
 healthBenefits?: string[];
 timeToSupply?: string;
 tags?: string[];
-fssai?: string;
 shelfLife?: string;
 description?: string;
 category?: string;

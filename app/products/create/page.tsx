@@ -16,7 +16,6 @@ type FormState = {
   description?: string;
   tags?: string; // comma separated
   healthBenefits?: string; // comma separated
-  fssai?: string;
   shelfLife?: string;
   sourceFrom?: string;
   timeToSupply?: string;
@@ -42,7 +41,6 @@ export default function ProductCreatePage() {
     description: "",
     tags: "",
     healthBenefits: "",
-    fssai: "",
     shelfLife: "",
     sourceFrom: "",
     timeToSupply: "",
@@ -178,7 +176,6 @@ export default function ProductCreatePage() {
         description: form.description || undefined,
         tags: form.tags ? form.tags.split(",").map((s) => s.trim()).filter(Boolean) : [],
         healthBenefits: form.healthBenefits ? form.healthBenefits.split(",").map((s) => s.trim()).filter(Boolean) : [],
-        fssai: form.fssai || undefined,
         shelfLife: form.shelfLife || undefined,
         sourceFrom: form.sourceFrom || undefined,
         timeToSupply: form.timeToSupply || undefined,
@@ -228,7 +225,6 @@ export default function ProductCreatePage() {
       description: "",
       tags: "",
       healthBenefits: "",
-      fssai: "",
       shelfLife: "",
       sourceFrom: "",
       timeToSupply: "",
@@ -325,11 +321,6 @@ export default function ProductCreatePage() {
               <div>
                 <label className="block text-sm text-gray-600">Swadeshi %</label>
                 <input name="swadeshiPercent" value={form.swadeshiPercent} onChange={handleChange} type="number" min={0} max={100} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: 100%" />
-              </div>
-
-              <div>
-                <label className="block text-sm text-gray-600">FSSAI</label>
-                <input name="fssai" value={form.fssai} onChange={handleChange} className="mt-1 w-full border rounded px-3 py-2" placeholder="Ex: FSSAI Number"/>
               </div>
 
               <div>

@@ -1,6 +1,7 @@
 // This is the productcard for displaying individual products of a farmer
 
 // shared/components/molecules/FarmerProductCard.tsx
+import Link from "next/link";
 
 interface Product {
     _id: string;
@@ -23,7 +24,7 @@ const FarmerProductCard = ({ products }: FarmerProductCardProps) => {
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                         {products.map((prod: Product) => (
-                            <div
+                            <Link href={`/products/${prod._id}`}
                                 key={prod._id}
                                 className="border rounded-xl p-3 shadow-sm hover:shadow transition bg-stone-50"
                             >
@@ -42,7 +43,7 @@ const FarmerProductCard = ({ products }: FarmerProductCardProps) => {
                                         className="w-full h-28 object-cover rounded-lg mt-2"
                                     />
                                 )}
-                            </div>
+                            </Link>
                         ))}
                     </div>
                 </div>

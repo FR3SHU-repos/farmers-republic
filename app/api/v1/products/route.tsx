@@ -36,7 +36,6 @@ export async function POST(req: NextRequest) {
       healthBenefits: Array.isArray(body.healthBenefits) ? body.healthBenefits : (body.healthBenefits ? String(body.healthBenefits).split(",").map(s=>s.trim()) : []),
       timeToSupply: body.timeToSupply,
       tags: Array.isArray(body.tags) ? body.tags : (body.tags ? String(body.tags).split(",").map(s=>s.trim()) : []),
-      fssai: body.fssai,
       shelfLife: body.shelfLife,
       description: body.description,
       category: body.category,
