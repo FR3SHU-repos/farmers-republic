@@ -7,9 +7,13 @@ import Image from "next/image";
 import type { Farmer } from "@/shared/interfaces/mongodb/farmer"; // 👈 new source of truth
 import { Phone, MapPin } from "lucide-react";
 import ProductFarmerCard from "@/shared/components/molecules/FarmerProductCard";
+import { AdaptButton } from "@/shared/components/molecules/AdaptButton";
+import { useUser } from "@/shared/context/UserContext";
 
 export default function FarmerProfile({ farmer,farmerId }: { farmer: Farmer, farmerId: string }) {
   
+ const { user } = useUser();
+const buyerId = user?.id; 
   // Format createdAt nicely if it exists
   const createdAtText =
     farmer.createdAt instanceof Date
@@ -96,6 +100,15 @@ export default function FarmerProfile({ farmer,farmerId }: { farmer: Farmer, far
           {/* Contact card */}
           <div className="bg-white p-3 rounded-xl shadow-sm space-y-2">
             <div className="text-sm text-stone-500">Contact</div>
+
+            <div className="mt-2">
+              {buyerId && (
+                <AdaptButton
+                  buyerId={buyerId}
+                  farmerId={farmerId}
+                />
+              )}
+            </div>
 
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
