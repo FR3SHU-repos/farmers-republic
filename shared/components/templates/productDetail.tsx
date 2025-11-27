@@ -8,6 +8,8 @@ import { cx } from "@/shared/lib/utils";
 import type { Product as ProductBase } from "@/shared/interfaces/mongodb/products/product";
 import Link from "next/link";
 import { ProductHealthAndQuality } from "../molecules/productCards/ProductHealthAndQuality";
+import { ProductPricingAndTax } from "../molecules/productCards/ProductpricingAndTax";
+import { ProductInventoryAndQty } from "../molecules/productCards/ProductqtyAndInventory";
 
 // 👉 local type for populated farmer (what your API actually returns here)
 type PopulatedFarmer = {
@@ -362,89 +364,11 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
             {/* Product meta / category / inventory */}
             <div className="space-y-4">
               {/* Pricing & Tax */}
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <h4 className="font-semibold">Pricing & Tax</h4>
-                <div className="mt-3 text-sm text-stone-600 space-y-2">
-                  <div>
-                    <span className="text-stone-500">Price: </span>
-                    ₹{(product.price ?? 0).toFixed(2)}{" "}
-                    {unitLabel && (
-                      <span className="text-xs text-stone-500">
-                        / {unitLabel}
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">MRP: </span>
-                    {product.mrp
-                      ? `₹${product.mrp.toFixed(2)}`
-                      : "-"}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">Currency: </span>
-                    {product.currency || "INR"}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">HSN: </span>
-                    {product.hsnCode || "-"}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">
-                      GST rate:{" "}
-                    </span>
-                    {product.gstRate != null
-                      ? `${product.gstRate}%`
-                      : "-"}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">
-                      Price includes GST:{" "}
-                    </span>
-                    {product.gstIncludedInPrice ? "Yes" : "No"}
-                  </div>
-                </div>
-              </div>
+              <ProductPricingAndTax product={product} unitLabel={unitLabel} />
 
               {/* Inventory */}
-              <div className="bg-white p-4 rounded-lg shadow-sm">
-                <h4 className="font-semibold">Qty & Inventory</h4>
-                <div className="mt-3 text-sm text-stone-600 space-y-2">
-                  <div>
-                    <span className="text-stone-500">
-                      Stock quantity:{" "}
-                    </span>
-                    {product.stockQty ?? "-"}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">In stock: </span>
-                    {product.inStock ? "Yes" : "No"}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">
-                      Min order quantity:{" "}
-                    </span>
-                    {product.minOrderQty ?? 1}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">
-                      Max order quantity:{" "}
-                    </span>
-                    {product.maxOrderQty ?? "-"}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">
-                      Step quantity:{" "}
-                    </span>
-                    {product.stepQty ?? 1}
-                  </div>
-                  <div>
-                    <span className="text-stone-500">
-                      Allow backorder:{" "}
-                    </span>
-                    {product.allowBackorder ? "Yes" : "No"}
-                  </div>
-                </div>
-              </div>
+              <ProductInventoryAndQty product={product} />
+
             </div>
           </div>
 
