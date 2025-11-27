@@ -15,6 +15,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
+  console.log("User in profile page:", user?.phoneNumber);
+
   const [form, setForm] = useState({
     name: "",
     phoneNumber: "",
@@ -189,7 +191,7 @@ export default function ProfilePage() {
             <label className="text-sm text-gray-600">Phone ({TELUGU_LANGUAGE.phone})</label>
             <input
               name="phoneNumber"
-              value={form.phoneNumber}
+              value={user?.phoneNumber || form.phoneNumber}
               onChange={handleChange}
               className="mt-1 block w-full border rounded-md px-3 py-2"
             />

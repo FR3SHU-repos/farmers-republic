@@ -101,6 +101,7 @@ const buyerId = user?.id;
           <div className="bg-white p-3 rounded-xl shadow-sm space-y-2">
             <div className="text-sm text-stone-500">Contact</div>
 
+            {user?.type === "Buyer" && (
             <div className="mt-2">
               {buyerId && (
                 <AdaptButton
@@ -109,6 +110,7 @@ const buyerId = user?.id;
                 />
               )}
             </div>
+            )}
 
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">

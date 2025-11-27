@@ -52,6 +52,9 @@ const FarmerProductCard = ({ products }: FarmerProductCardProps) => {
             {products.length === 0 && (
                 <div className="bg-white p-3 rounded-xl shadow-sm text-sm text-stone-400">
                     No products added for this farmer.
+                    <Link href="/products/create" className="text-green-600 underline ml-1">
+                        Add Products
+                    </Link>
                 </div>
             )}
         </>
