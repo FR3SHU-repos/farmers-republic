@@ -1,6 +1,5 @@
 // app/profile/page.tsx
 
-// app/profile/page.tsx
 "use client";
 
 import { useUser } from "@/shared/context/UserContext";
@@ -8,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "@/shared/lib/supabase/client";
+import { TELUGU_LANGUAGE } from "@/shared/language/telugu";
+import Link from "next/link";
 
 export default function ProfilePage() {
   const { user, login, logout } = useUser();
@@ -175,7 +176,7 @@ export default function ProfilePage() {
 
         <div className="mt-6 grid gap-4">
           <div>
-            <label className="text-sm text-gray-600">Full name</label>
+            <label className="text-sm text-gray-600">Full name ({TELUGU_LANGUAGE.name})</label>
             <input
               name="name"
               value={form.name}
@@ -185,7 +186,7 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600">Phone</label>
+            <label className="text-sm text-gray-600">Phone ({TELUGU_LANGUAGE.phone})</label>
             <input
               name="phoneNumber"
               value={form.phoneNumber}
@@ -195,13 +196,9 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600">User type</label>
+            <label className="text-sm text-gray-600">User type ({TELUGU_LANGUAGE.user_type})</label>
             <select name="type" value={form.type} onChange={handleChange} className="mt-1 block w-full border rounded-md px-3 py-2">
-              <option value="Farmer">Farmer</option>
-              <option value="Supplier">Supplier</option>
-              <option value="Retailer">Retailer</option>
-              <option value="Distributor">Distributor</option>
-              <option value="Admin">Admin</option>
+              <option value="${user?.type}">{user?.type}</option>
             </select>
           </div>
 
@@ -221,6 +218,21 @@ export default function ProfilePage() {
             >
               Logout
             </button>
+          </div>
+          {/* Additional data */}
+          <div className="mt-6 w-full max-w-md">
+            <div className="flex flex-col gap-4">
+              <h3 className="text-xl font-bold text-gray-800">
+                {user?.type}
+              </h3>
+
+              <Link
+                href={`/${user?.type?.toLowerCase()}s/create`}
+                className="w-full inline-flex items-center justify-center bg-green-600 text-white py-2.5 rounded-lg font-semibold transition-all hover:bg-green-700 active:scale-[0.98]"
+              >
+                Create
+              </Link>
+            </div>
           </div>
         </div>
       </div>
