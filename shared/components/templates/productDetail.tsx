@@ -11,8 +11,8 @@ import { ProductHealthAndQuality } from "../molecules/productCards/ProductHealth
 import { ProductPricingAndTax } from "../molecules/productCards/ProductpricingAndTax";
 import { ProductInventoryAndQty } from "../molecules/productCards/ProductqtyAndInventory";
 import { ProductCategoryAndMerch } from "../molecules/productCards/ProductCategoryAndMerch";
-import { P } from "framer-motion/dist/types.d-DsEeKk6G";
 import { ProductLogisticsAndShipping } from "../molecules/productCards/ProductLogisticsAndShipping";
+import { useUser } from "@/shared/context/UserContext";
 
 // 👉 local type for populated farmer (what your API actually returns here)
 type PopulatedFarmer = {
@@ -34,6 +34,8 @@ function Rating({ value, count }: { value: number; count?: number }) {
   const stars = new Array(5)
     .fill(0)
     .map((_, i) => i + 1 <= Math.round(safeValue));
+
+
 
   return (
     <div className="flex items-center gap-3">
@@ -60,6 +62,7 @@ function Rating({ value, count }: { value: number; count?: number }) {
 export default function ProductDetail({ product }: { product: ProductDetail }) {
   const [qty, setQty] = useState<number>(1);
   const [wish, setWish] = useState(false);
+  const { user, login, logout } = useUser();
 
   const mainImage =
     product.image || product.images?.[0] || "/placeholder.png";
@@ -144,7 +147,11 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
               {product.name}
+
             </h1>
+            <Link href={`/products/${product.id}/edit`} className="hover:underline text-blue-50">
+            Edit Product
+            </Link>
 
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               {product.slug && (
@@ -442,6 +449,8 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
             )}
 
           {/* Desktop action row */}
+          {user?.type === "buyer" && (
+            
           <div className="hidden md:flex items-center gap-4">
             <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-white">
               <button
@@ -474,7 +483,10 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
             </div>
           </div>
 
+          )}
+
           {/* Mobile buy bar (in-flow) */}
+          {user?.type === "buyer" && (
           <div className="md:hidden mt-6 mb-20">
             <div className="bg-white border-t shadow-lg p-3 rounded-lg">
               <div className="flex items-center gap-3">
@@ -497,6 +509,7 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
                 </div>
               </div>
 
+              
               <div className="mt-3 flex items-center gap-3 justify-between">
                 <div className="flex items-center gap-2">
                   <button
@@ -520,8 +533,11 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
                   Buy — ₹{subtotal.toFixed(2)}
                 </button>
               </div>
+              
+
             </div>
           </div>
+        )}
           {/* end mobile buy bar */}
         </div>
       </div>
