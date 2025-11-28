@@ -10,6 +10,9 @@ import Link from "next/link";
 import { ProductHealthAndQuality } from "../molecules/productCards/ProductHealthAndQuality";
 import { ProductPricingAndTax } from "../molecules/productCards/ProductpricingAndTax";
 import { ProductInventoryAndQty } from "../molecules/productCards/ProductqtyAndInventory";
+import { ProductCategoryAndMerch } from "../molecules/productCards/ProductCategoryAndMerch";
+import { P } from "framer-motion/dist/types.d-DsEeKk6G";
+import { ProductLogisticsAndShipping } from "../molecules/productCards/ProductLogisticsAndShipping";
 
 // 👉 local type for populated farmer (what your API actually returns here)
 type PopulatedFarmer = {
@@ -136,7 +139,7 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
         </div>
 
         {/* RIGHT: content */}
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-2 space-y-6 mt-4">
           {/* Title + price + rating + badges */}
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
@@ -375,76 +378,10 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
           {/* Category / Merch / Logistics / SEO */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Category / Merch + Tags */}
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h4 className="font-semibold">
-                Category & Merchandising
-              </h4>
-              <div className="mt-3 text-sm text-stone-600 space-y-2">
-                <div>
-                  <span className="text-stone-500">Category: </span>
-                  {product.category || "-"}
-                </div>
-                <div>
-                  <span className="text-stone-500">
-                    Sub-category:{" "}
-                  </span>
-                  {product.subCategory || "-"}
-                </div>
-                <div>
-                  <span className="text-stone-500">Tags: </span>
-                  {product.tags?.length
-                    ? product.tags.join(", ")
-                    : "-"}
-                </div>
-                <div>
-                  <span className="text-stone-500">
-                    Sort priority:{" "}
-                  </span>
-                  {product.sortPriority ?? "-"}
-                </div>
-              </div>
-            </div>
+            <ProductCategoryAndMerch product={product} />
 
             {/* Logistics */}
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <h4 className="font-semibold">Logistics & Shipping</h4>
-              <div className="mt-3 text-sm text-stone-600 space-y-2">
-                <div>
-                  <span className="text-stone-500">
-                    Product type:{" "}
-                  </span>
-                  {product.productType || "physical"}
-                </div>
-                <div>
-                  <span className="text-stone-500">
-                    Weight (grams):{" "}
-                  </span>
-                  {product.weightGrams ?? "-"}
-                </div>
-                <div>
-                  <span className="text-stone-500">
-                    Dimensions:{" "}
-                  </span>
-                  {dimensions || "-"}
-                </div>
-                <div>
-                  <span className="text-stone-500">
-                    COD available:{" "}
-                  </span>
-                  {product.codAvailable ? "Yes" : "No"}
-                </div>
-                <div>
-                  <span className="text-stone-500">Fragile: </span>
-                  {product.fragile ? "Yes" : "No"}
-                </div>
-                <div>
-                  <span className="text-stone-500">
-                    Perishable:{" "}
-                  </span>
-                  {product.perishable ? "Yes" : "No"}
-                </div>
-              </div>
-            </div>
+            <ProductLogisticsAndShipping product={product} />
           </div>
 
           {/* SEO / Meta */}
