@@ -83,9 +83,10 @@ type FormState = {
 };
 
 type FarmerOption = {
-  id: string;
+  id: string; // Farmer document _id
   name: string;
   farmName?: string;
+  profileId?: string; // auth user id (user.id)
 };
 
 type TabKey =
@@ -158,7 +159,6 @@ const initialForm: FormState = {
   searchKeywords: "",
 };
 
-
 // Simple helper to generate a SKU from the product name
 function generateSkuFromName(name: string): string {
   if (!name) return "";
@@ -180,13 +180,9 @@ function generateSkuFromName(name: string): string {
   // Random 3 digits (clean, numeric)
   const rand = Math.floor(100 + Math.random() * 900); // 100-999
 
-  if (last)
-    return `${main}-${last}-${rand}`;
-  
+  if (last) return `${main}-${last}-${rand}`;
   return `${main}-${rand}`;
 }
-
-
 
 export default function ProductCreatePage() {
   const router = useRouter();
@@ -227,6 +223,7 @@ export default function ProductCreatePage() {
           id: String(f.id ?? f._id ?? ""),
           name: f.name ?? "",
           farmName: f.farmName ?? "",
+          profileId: f.profileId ?? "",
         }));
 
         setFarmers(mapped);
@@ -241,75 +238,77 @@ export default function ProductCreatePage() {
     loadFarmers();
   }, []);
 
-
+  // For farmer users, auto-fill readable name (UI only)
   useEffect(() => {
-  if (user?.type === "Farmer" && user?.id) {
-    setForm((prev) => ({
-      ...prev,
-      farmerId: user.id,
-      farmer: user.name || "",
-    }));
-  }
-}, [user]);
-
-const handleChange = (
-  e: React.ChangeEvent<
-    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-  >,
-) => {
-  const { name, value } = e.target;
-
-  // Special handling: when product name changes, auto-suggest SKU + slug if empty
-  if (name === "name") {
-    setForm((prev) => {
-      const next = { ...prev, name: value };
-
-      // Auto-generate SKU only if it's empty
-      if (!prev.sku || prev.sku.trim() === "") {
-        next.sku = generateSkuFromName(value);
+    if (user?.type === "Farmer" && user.id && farmers.length) {
+      const myFarmer = farmers.find((f) => f.profileId === user.id);
+      if (myFarmer) {
+        setForm((prev) => ({
+          ...prev,
+          farmerId: myFarmer.id, // we'll override in handleCreate anyway, but keeps UI consistent
+          farmer: myFarmer.name,
+        }));
       }
+    }
+  }, [user, farmers]);
 
-      // Optional: also auto-fill slug if empty
-      if (!prev.slug || prev.slug.trim() === "") {
-        next.slug = value
-          .toLowerCase()
-          .trim()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "");
-      }
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >,
+  ) => {
+    const { name, value } = e.target;
 
-      return next;
-    });
-    return;
-  }
+    // Special handling: when product name changes, auto-suggest SKU + slug if empty
+    if (name === "name") {
+      setForm((prev) => {
+        const next = { ...prev, name: value };
 
-  const numericFields: (keyof FormState)[] = [
-    "price",
-    "mrp",
-    "gstRate",
-    "unitQuantity",
-    "stockQty",
-    "minOrderQty",
-    "maxOrderQty",
-    "stepQty",
-    "swadeshiPercent",
-    "weightGrams",
-    "lengthCm",
-    "widthCm",
-    "heightCm",
-    "sortPriority",
-  ];
+        // Auto-generate SKU only if it's empty
+        if (!prev.sku || prev.sku.trim() === "") {
+          next.sku = generateSkuFromName(value);
+        }
 
-  if (numericFields.includes(name as keyof FormState)) {
-    setForm((s) => ({
-      ...s,
-      [name]: value === "" ? "" : Number(value),
-    }));
-  } else {
-    setForm((s) => ({ ...s, [name]: value }));
-  }
-};
+        // Also auto-fill slug if empty
+        if (!prev.slug || prev.slug.trim() === "") {
+          next.slug = value
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        }
 
+        return next;
+      });
+      return;
+    }
+
+    const numericFields: (keyof FormState)[] = [
+      "price",
+      "mrp",
+      "gstRate",
+      "unitQuantity",
+      "stockQty",
+      "minOrderQty",
+      "maxOrderQty",
+      "stepQty",
+      "swadeshiPercent",
+      "weightGrams",
+      "lengthCm",
+      "widthCm",
+      "heightCm",
+      "sortPriority",
+    ];
+
+    if (numericFields.includes(name as keyof FormState)) {
+      setForm((s) => ({
+        ...s,
+        [name]: value === "" ? "" : Number(value),
+      }));
+    } else {
+      setForm((s) => ({ ...s, [name]: value }));
+    }
+  };
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fl = e.target.files;
@@ -383,11 +382,23 @@ const handleChange = (
       return;
     }
 
-      // ✅ Ensure SKU exists
-  let sku = form.sku;
-  if (!sku || sku.trim() === "") {
-    sku = generateSkuFromName(form.name);
-  }
+    // ✅ Ensure SKU exists
+    let sku = form.sku;
+    if (!sku || sku.trim() === "") {
+      sku = generateSkuFromName(form.name);
+    }
+
+    // ✅ Ensure farmerId is a Farmer _id, NOT user.id
+    let finalFarmerId: string | undefined = form.farmerId || undefined;
+    let finalFarmerName: string | undefined = form.farmer || undefined;
+
+    if (user?.type === "Farmer" && user.id) {
+      const myFarmer = farmers.find((f) => f.profileId === user.id);
+      if (myFarmer) {
+        finalFarmerId = myFarmer.id;
+        finalFarmerName = myFarmer.name;
+      }
+    }
 
     setSaving(true);
     try {
@@ -414,7 +425,7 @@ const handleChange = (
         // identity / basic
         name: form.name,
         slug: form.slug || undefined,
-        sku: form.sku || undefined,
+        sku, // ✅ use ensured SKU
 
         // media
         image: mainImage,
@@ -470,8 +481,8 @@ const handleChange = (
 
         // farmer / source
         sourceFrom: form.sourceFrom || undefined,
-        farmer: form.farmer || undefined,
-        farmerId: form.farmerId || undefined,
+        farmer: finalFarmerName,
+        farmerId: finalFarmerId,
 
         // logistics
         productType: form.productType || "physical",
@@ -1043,55 +1054,60 @@ const handleChange = (
                 {/* Farmer selection */}
                 <div className="md:col-span-2">
                   {user?.type === "Admin" ? (
-  // ---------- ADMIN VIEW: Show dropdown ----------
-                  <div>
-                    <label className="block text-sm text-gray-600">Farmer</label>
-                    <select
-                      name="farmerId"
-                      value={form.farmerId || ""}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        const selected = farmers.find((f) => f.id === id);
+                    // ---------- ADMIN VIEW: Show dropdown ----------
+                    <div>
+                      <label className="block text-sm text-gray-600">
+                        Farmer
+                      </label>
+                      <select
+                        name="farmerId"
+                        value={form.farmerId || ""}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          const selected = farmers.find((f) => f.id === id);
 
-                        setForm((s) => ({
-                          ...s,
-                          farmerId: id || "",
-                          farmer: selected?.name || "",
-                        }));
-                      }}
-                      className="mt-1 w-full border rounded px-3 py-2 bg-white"
-                    >
-                      <option value="">
-                        {farmersLoading ? "Loading farmers..." : "Select farmer"}
-                      </option>
-
-                      {farmersError && (
-                        <option value="" disabled>
-                          {farmersError}
+                          setForm((s) => ({
+                            ...s,
+                            farmerId: id || "",
+                            farmer: selected?.name || "",
+                          }));
+                        }}
+                        className="mt-1 w-full border rounded px-3 py-2 bg-white"
+                      >
+                        <option value="">
+                          {farmersLoading
+                            ? "Loading farmers..."
+                            : "Select farmer"}
                         </option>
-                      )}
 
-                      {farmers.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                          {f.farmName ? ` — ${f.farmName}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : (
-                  // ---------- FARMER VIEW: Auto-assign, no dropdown ----------
-                  <div>
-                    <label className="block text-sm text-gray-600">Farmer</label>
-                    <input
-                      type="text"
-                      readOnly
-                      value={user?.name || "My Profile"}
-                      className="mt-1 w-full border rounded px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
-                    />
-                  </div>
-                )}
+                        {farmersError && (
+                          <option value="" disabled>
+                            {farmersError}
+                          </option>
+                        )}
 
+                        {farmers.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                            {f.farmName ? ` — ${f.farmName}` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    // ---------- FARMER VIEW: Auto-assign, no dropdown ----------
+                    <div>
+                      <label className="block text-sm text-gray-600">
+                        Farmer
+                      </label>
+                      <input
+                        type="text"
+                        readOnly
+                        value={form.farmer || user?.name || "My Profile"}
+                        className="mt-1 w-full border rounded px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
+                      />
+                    </div>
+                  )}
 
                   {farmersError && (
                     <p className="mt-1 text-xs text-red-500">
