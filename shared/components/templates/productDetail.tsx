@@ -149,7 +149,7 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
               {product.name}
 
             </h1>
-            <Link href={`/products/${product.id}/edit`} className="hover:underline text-blue-50">
+            <Link href={`/products/${product.id}/edit`} className="hover:underline">
             Edit Product
             </Link>
 

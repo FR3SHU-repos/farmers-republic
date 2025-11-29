@@ -10,6 +10,7 @@ import type {
   ProductStatus,
   ProductType,
 } from "@/shared/interfaces/mongodb/products/product";
+import { useUser } from "@/shared/context/UserContext";
 
 type FormState = {
   // General / basic
@@ -157,8 +158,39 @@ const initialForm: FormState = {
   searchKeywords: "",
 };
 
+
+// Simple helper to generate a SKU from the product name
+function generateSkuFromName(name: string): string {
+  if (!name) return "";
+
+  const words = name.trim().split(/\s+/);
+
+  // First 4 letters of the first word (e.g., Banginapalli → BANG)
+  const main = words[0].slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  // First 3 letters of the last word (e.g., mango → MAN)
+  const last =
+    words.length > 1
+      ? words[words.length - 1]
+          .slice(0, 3)
+          .toUpperCase()
+          .replace(/[^A-Z0-9]/g, "")
+      : "";
+
+  // Random 3 digits (clean, numeric)
+  const rand = Math.floor(100 + Math.random() * 900); // 100-999
+
+  if (last)
+    return `${main}-${last}-${rand}`;
+  
+  return `${main}-${rand}`;
+}
+
+
+
 export default function ProductCreatePage() {
   const router = useRouter();
+  const { user } = useUser();
 
   const [form, setForm] = useState<FormState>(initialForm);
   const [files, setFiles] = useState<File[]>([]);
@@ -209,39 +241,75 @@ export default function ProductCreatePage() {
     loadFarmers();
   }, []);
 
-  const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
-  ) => {
-    const { name, value } = e.target;
 
-    const numericFields: (keyof FormState)[] = [
-      "price",
-      "mrp",
-      "gstRate",
-      "unitQuantity",
-      "stockQty",
-      "minOrderQty",
-      "maxOrderQty",
-      "stepQty",
-      "swadeshiPercent",
-      "weightGrams",
-      "lengthCm",
-      "widthCm",
-      "heightCm",
-      "sortPriority",
-    ];
+  useEffect(() => {
+  if (user?.type === "Farmer" && user?.id) {
+    setForm((prev) => ({
+      ...prev,
+      farmerId: user.id,
+      farmer: user.name || "",
+    }));
+  }
+}, [user]);
 
-    if (numericFields.includes(name as keyof FormState)) {
-      setForm((s) => ({
-        ...s,
-        [name]: value === "" ? "" : Number(value),
-      }));
-    } else {
-      setForm((s) => ({ ...s, [name]: value }));
-    }
-  };
+const handleChange = (
+  e: React.ChangeEvent<
+    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+  >,
+) => {
+  const { name, value } = e.target;
+
+  // Special handling: when product name changes, auto-suggest SKU + slug if empty
+  if (name === "name") {
+    setForm((prev) => {
+      const next = { ...prev, name: value };
+
+      // Auto-generate SKU only if it's empty
+      if (!prev.sku || prev.sku.trim() === "") {
+        next.sku = generateSkuFromName(value);
+      }
+
+      // Optional: also auto-fill slug if empty
+      if (!prev.slug || prev.slug.trim() === "") {
+        next.slug = value
+          .toLowerCase()
+          .trim()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+      }
+
+      return next;
+    });
+    return;
+  }
+
+  const numericFields: (keyof FormState)[] = [
+    "price",
+    "mrp",
+    "gstRate",
+    "unitQuantity",
+    "stockQty",
+    "minOrderQty",
+    "maxOrderQty",
+    "stepQty",
+    "swadeshiPercent",
+    "weightGrams",
+    "lengthCm",
+    "widthCm",
+    "heightCm",
+    "sortPriority",
+  ];
+
+  if (numericFields.includes(name as keyof FormState)) {
+    setForm((s) => ({
+      ...s,
+      [name]: value === "" ? "" : Number(value),
+    }));
+  } else {
+    setForm((s) => ({ ...s, [name]: value }));
+  }
+};
+
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fl = e.target.files;
@@ -314,6 +382,12 @@ export default function ProductCreatePage() {
       setActiveTab("general");
       return;
     }
+
+      // ✅ Ensure SKU exists
+  let sku = form.sku;
+  if (!sku || sku.trim() === "") {
+    sku = generateSkuFromName(form.name);
+  }
 
     setSaving(true);
     try {
@@ -968,43 +1042,56 @@ export default function ProductCreatePage() {
 
                 {/* Farmer selection */}
                 <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Farmer
-                  </label>
-                  <select
-                    name="farmerId"
-                    value={form.farmerId || ""}
-                    onChange={(e) => {
-                      const id = e.target.value;
-                      const selected = farmers.find((f) => f.id === id);
+                  {user?.type === "Admin" ? (
+  // ---------- ADMIN VIEW: Show dropdown ----------
+                  <div>
+                    <label className="block text-sm text-gray-600">Farmer</label>
+                    <select
+                      name="farmerId"
+                      value={form.farmerId || ""}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        const selected = farmers.find((f) => f.id === id);
 
-                      setForm((s) => ({
-                        ...s,
-                        farmerId: id || "",
-                        farmer: selected?.name || "",
-                      }));
-                    }}
-                    className="mt-1 w-full border rounded px-3 py-2 bg-white"
-                  >
-                    <option value="">
-                      {farmersLoading
-                        ? "Loading farmers..."
-                        : "Select a farmer (optional)"}
-                    </option>
-
-                    {farmersError && (
-                      <option value="" disabled>
-                        {farmersError}
+                        setForm((s) => ({
+                          ...s,
+                          farmerId: id || "",
+                          farmer: selected?.name || "",
+                        }));
+                      }}
+                      className="mt-1 w-full border rounded px-3 py-2 bg-white"
+                    >
+                      <option value="">
+                        {farmersLoading ? "Loading farmers..." : "Select farmer"}
                       </option>
-                    )}
 
-                    {farmers.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.name}
-                        {f.farmName ? ` — ${f.farmName}` : ""}
-                      </option>
-                    ))}
-                  </select>
+                      {farmersError && (
+                        <option value="" disabled>
+                          {farmersError}
+                        </option>
+                      )}
+
+                      {farmers.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name}
+                          {f.farmName ? ` — ${f.farmName}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  // ---------- FARMER VIEW: Auto-assign, no dropdown ----------
+                  <div>
+                    <label className="block text-sm text-gray-600">Farmer</label>
+                    <input
+                      type="text"
+                      readOnly
+                      value={user?.name || "My Profile"}
+                      className="mt-1 w-full border rounded px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
+                    />
+                  </div>
+                )}
+
 
                   {farmersError && (
                     <p className="mt-1 text-xs text-red-500">
