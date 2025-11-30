@@ -1,6 +1,5 @@
 // app/products/page.tsx  (server component - fetches /api/v1/products and renders client grid)
 import React from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 // import the client wrapper directly (it's a "use client" file)
 import ProductGridClient from "@/shared/components/molecules/ProductGridClient";

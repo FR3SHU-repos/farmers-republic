@@ -70,61 +70,48 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Footer */}
       {/* Footer - hidden on mobile, visible on md+ */}
+{/* Footer - hidden on mobile, visible on md+ */}
 <footer className="hidden md:block bg-stone-800 text-stone-300 py-8 mt-8">
 
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              {/* Small logo */}
-              <div className="w-8 h-8 rounded-full flex items-center justify-center text-white">
-              <Image
-                src="/fr3sh.in_logo.svg"
-                alt="Fr3sh Logo"
-                width={20}
-                height={20}
-                className="inline-block"
-              />
-              </div>
-              <span className="text-white font-semibold">{process.env.NEXT_PUBLIC_APP_NAME}</span>
-            </div>
-            <p className="text-sm">Organic, Natural for everyone.</p>
-          </div>
+  <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          <div>
-            <h4 className="text-white font-semibold mb-2">Shop</h4>
-            <ul className="space-y-2 text-sm">
-              <li><a className="hover:text-green-500">All Products</a></li>
-              <li><a className="hover:text-green-500">New Arrivals</a></li>
-              <li><a className="hover:text-green-500">Best Sellers</a></li>
-              <li><a className="hover:text-green-500">Sale</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-white font-semibold mb-2">Support</h4>
-            <ul className="space-y-2 text-sm">
-              <li><a className="hover:text-green-500">Contact</a></li>
-              <li><a className="hover:text-green-500">FAQs</a></li>
-              <li><a className="hover:text-green-500">Shipping</a></li>
-              <li><a className="hover:text-green-500">Returns</a></li>
-            </ul>
-          </div>
-
-          <div>
-            <h4 className="text-white font-semibold mb-2">Company</h4>
-            <ul className="space-y-2 text-sm">
-              <li><a className="hover:text-green-500">About</a></li>
-              <li><a className="hover:text-green-500">Our Story</a></li>
-              <li><a className="hover:text-green-500">Sustainability</a></li>
-              <li><a className="hover:text-green-500">Blog</a></li>
-            </ul>
-          </div>
+    {/* Brand Section */}
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white">
+          <Image
+            src="/fr3sh.in_logo.svg"
+            alt="Fr3sh Logo"
+            width={20}
+            height={20}
+            className="inline-block"
+          />
         </div>
+        <span className="text-white font-semibold">
+          {process.env.NEXT_PUBLIC_APP_NAME}
+        </span>
+      </div>
 
-        <div className="border-t border-stone-700 mt-6 pt-4 text-center text-sm">
-          <p>&copy; {new Date().getFullYear()} Farmers Republic. All rights reserved.</p>
-        </div>
-      </footer>
+      <p className="text-sm">Organic. Local. Farmer-first.</p>
+    </div>
+
+    {/* Contact Section */}
+    <div>
+      <h4 className="text-white font-semibold mb-2">Contact Us</h4>
+      <ul className="space-y-2 text-sm">
+        <li>Email: <a href="mailto:hello@farmers-republic.com" className="hover:text-green-500">
+          hello@farmers-republic.com
+        </a></li>
+      </ul>
+    </div>
+
+  </div>
+
+  <div className="border-t border-stone-700 mt-6 pt-4 text-center text-sm">
+    <p>&copy; {new Date().getFullYear()} Farmers Republic. All rights reserved.</p>
+  </div>
+</footer>
+
 
       {/* Bottom nav (mobile) */}
       <BottomNav

@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from "react";
 import { useUser } from "@/shared/context/UserContext";
+import Link from "next/link"; // 👈 add this
 
 type AdaptedWithFarmer = {
   id: string;
@@ -103,74 +104,103 @@ export default function AdaptedFarmersPage() {
       )}
 
       {!loading && !error && items.length > 0 && (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {items.map((item) => {
-            const f = item.farmer;
-            if (!f) {
-              return (
-                <div
-                  key={item.id}
-                  className="border rounded-lg p-3 text-sm text-gray-500"
-                >
-                  <div className="font-medium mb-1">
-                    Farmer not found (ID: {item.farmerId})
-                  </div>
-                </div>
-              );
-            }
-
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => {
+          const f = item.farmer;
+          if (!f) {
             return (
               <div
                 key={item.id}
-                className="border rounded-lg p-3 flex flex-col gap-2"
+                className="border rounded-lg p-3 text-sm text-gray-500"
               >
-                <div className="flex items-center gap-2">
-                  {f.avatar && (
-                    // use next/image if you want
-                    <img
-                      src={f.avatar}
-                      alt={f.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
-                  )}
-                  <div>
-                    <div className="font-medium text-sm md:text-base">
-                      {f.name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {f.farmName || "—"} • {f.place || "Location NA"}
-                    </div>
-                  </div>
-                </div>
-
-                {f.about && (
-                  <p className="text-xs text-gray-600 line-clamp-3">
-                    {f.about}
-                  </p>
-                )}
-
-                <div className="flex flex-wrap gap-2 text-[11px] text-gray-600 mt-1">
-                  {f.category && (
-                    <span className="px-2 py-0.5 rounded-full border">
-                      {f.category}
-                    </span>
-                  )}
-                  {f.farmArea && (
-                    <span className="px-2 py-0.5 rounded-full border">
-                      Area: {f.farmArea}
-                    </span>
-                  )}
-                  {f.phone && (
-                    <span className="px-2 py-0.5 rounded-full border">
-                      📞 {f.phone}
-                    </span>
-                  )}
+                <div className="font-medium mb-1">
+                  Farmer not found (ID: {item.farmerId})
                 </div>
               </div>
             );
-          })}
-        </div>
-      )}
+          }
+
+          const initials =
+            f.name?.split(" ").map((n) => n[0]).join("").slice(0, 2) || "F";
+
+          return (
+            <article
+              key={item.id}
+              className="flex flex-col rounded-2xl border border-stone-200 bg-green-50 p-5 shadow-sm transition hover:shadow-md"
+            >
+              {/* Avatar + Name */}
+              <div className="flex items-center gap-4">
+                {f.avatar ? (
+                  <img
+                    src={f.avatar}
+                    alt={f.name}
+                    className="h-12 w-12 rounded-full object-cover ring-2 ring-green-100"
+                  />
+                ) : (
+                  <div className="h-12 w-12 rounded-full bg-green-100 text-green-800 flex items-center justify-center text-sm font-semibold">
+                    {f.name?.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                  </div>
+                )}
+
+                <div>
+                  <h2 className="text-base font-semibold text-stone-900 leading-tight">
+                    {f.name}
+                  </h2>
+                  <p className="text-sm text-stone-500 mt-0.5">
+                    {f.farmName || "Farm name not available"}
+                  </p>
+                </div>
+              </div>
+
+              {/* Category */}
+              {f.category && (
+                <div className="mt-3">
+                  <span className="inline-block rounded-full bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700">
+                    {f.category}
+                  </span>
+                </div>
+              )}
+
+              {/* Meta Info */}
+              <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-stone-600">
+                {f.farmArea && (
+                  <span className="flex items-center gap-1 rounded-full border border-stone-200 px-3 py-1 text-xs">
+                    🌾 Area: {f.farmArea}
+                  </span>
+                )}
+
+                {f.phone && (
+                  <span className="flex items-center gap-1 rounded-full border border-stone-200 px-3 py-1 text-xs">
+                    📞 {f.phone}
+                  </span>
+                )}
+              </div>
+
+              {/* Buttons */}
+              <div className="mt-5 flex items-center gap-3">
+                <Link
+                  href={`/farmers/${f.id}`}
+                  className="flex-1 rounded-lg border border-stone-300 bg-stone-50 px-4 py-2 text-center text-sm font-medium text-stone-800 hover:bg-stone-100"
+                >
+                  View profile
+                </Link>
+
+                {f.phone && (
+                  <a
+                    href={`tel:${f.phone}`}
+                    className="rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700"
+                  >
+                    Call farmer
+                  </a>
+                )}
+              </div>
+            </article>
+
+          );
+        })}
+      </div>
+    )}
+
     </main>
   );
 }
