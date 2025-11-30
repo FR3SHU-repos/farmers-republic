@@ -72,11 +72,21 @@ const FarmersHomePage = () => {
         <header className="bg-green-200 border-b border-stone-200">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <h1 className="text-xl sm:text-2xl font-bold text-stone-900">
-              Adapt A Farmer
+              Adopt A Farmer
             </h1>
             <p className="hidden sm:block text-xs text-stone-500">
               Choose farmers by category and support them directly
             </p>
+
+            {/* ✅ NEW BUTTON */}
+            <button
+              type="button"
+              onClick={() => router.push("/farmers/adapted")}
+              className="px-3 py-2 rounded-lg bg-green-700 text-white text-xs sm:text-sm font-medium hover:bg-green-800 transition"
+            >
+              View Adopted
+            </button>
+    
           </div>
         </header>
 
