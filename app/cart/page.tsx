@@ -24,65 +24,66 @@ export default function CartPage() {
 
   const items = Object.values(cart);
 
-  const handleCheckout = async () => {
-    if (!items.length) return;
+const handleCheckout = async () => {
+  if (!items.length) return;
 
+  try {
+    const buyerPhone =
+      (user as any)?.phone ||
+      (user as any)?.phoneNumber ||
+      (user as any)?.whatsappNumber ||
+      "";
+
+    const payload = {
+      items: items.map((it) => ({
+        productId: it.id,
+        name: it.name,
+        price: it.price,
+        image: it.image,
+        qty: it.qty,
+        farmerId: it.farmerId,
+      })),
+      subtotal,
+      deliveryFee: 0, // later you can calculate this
+      buyerId: user?.id || null,
+      buyerName: user?.name || "",
+      buyerEmail: user?.email || "",
+      buyerPhone,               // 👈👈 send phone!
+      paymentMode: "cod",
+      paymentStatus: "unpaid",
+      source: "web",
+    };
+
+    const res = await fetch("/api/v1/orders/voice/buyerOrders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    let json: any = null;
     try {
-      const payload = {
-        items: items.map((it) => ({
-          productId: it.id,
-          name: it.name,
-          price: it.price,
-          image: it.image,
-          qty: it.qty,
-          farmerId: it.farmerId,
-        })),
-        subtotal,
-        deliveryFee: 0, // later you can calculate this
-        buyerId: user?.id || null,
-        buyerName: user?.name || "",
-        buyerEmail: user?.email || "",
-        paymentMode: "cod",
-        paymentStatus: "unpaid",
-        source: "web",
-      };
-
-      const res = await fetch("/api/v1/orders/voice/buyerOrders", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        let json: any = null;
-        try {
-          json = await res.json();
-        } catch (e) {
-          console.error("Order API non-JSON response:", await res.text());
-          throw e;
-        }finally {
-          router.push(`/orders/${user?.id}`);
-        }
-
-
-        if (!res.ok || !json?.success) {
-          console.error("Order API error:", res.status, json);
-          throw new Error(json?.message || "Failed to place order");
-        }
-
-
-
-
-      toast.success("Order placed successfully ✅");
-      clearCart();
-
-      // optional: redirect to order detail or a thank-you page
-      // const orderId = json.data?.id;
-      // if (orderId) router.push(`/orders/${orderId}`);
-    } catch (err: any) {
-      console.error("Checkout error:", err);
-      toast.error(err?.message || "Failed to place order");
+      json = await res.json();
+    } catch (e) {
+      console.error("Order API non-JSON response:", await res.text());
+      throw e;
     }
-  };
+
+    if (!res.ok || !json?.success) {
+      console.error("Order API error:", res.status, json);
+      throw new Error(json?.message || "Failed to place order");
+    }
+
+    toast.success("Order placed successfully ✅");
+    clearCart();
+
+    // redirect AFTER success
+    router.push(`/orders/${user?.id}`);
+  } catch (err: any) {
+    console.error("Checkout error:", err);
+    toast.error(err?.message || "Failed to place order");
+  }
+};
+
 
   if (items.length === 0) {
     return (

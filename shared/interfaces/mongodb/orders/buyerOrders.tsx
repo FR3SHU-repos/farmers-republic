@@ -14,6 +14,7 @@ export type Order = {
   buyerId?: string | null;
   buyerName?: string;
   buyerEmail?: string;
+  buyerPhone?: string; // if you ever add it
   subtotal: number;
   deliveryFee: number;
   total: number;

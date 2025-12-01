@@ -4,9 +4,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@/shared/context/UserContext";
+import Link from "next/link";
 
 type FarmerOrder = {
   id: string;
+  buyerId: string;
   customerName: string;
   customerPhone: string;
   total: number;
@@ -299,12 +301,12 @@ useEffect(() => {
                           </div>
                         </td>
                         <td className="px-4 py-3">
+                          <Link href={`/buyers/profile/${o.buyerId}`}>
                           <div className="text-sm font-medium text-stone-800">
                             {o.customerName || "—"}
                           </div>
-                          <div className="text-xs text-stone-500">
-                            {o.customerPhone || "No phone"}
-                          </div>
+                          </Link>
+                          
                         </td>
                         <td className="px-4 py-3 text-sm text-stone-700">
                           {o.itemsCount} item{o.itemsCount !== 1 ? "s" : ""}

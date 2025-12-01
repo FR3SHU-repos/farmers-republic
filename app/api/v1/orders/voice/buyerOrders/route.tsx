@@ -113,6 +113,7 @@ export async function POST(req: NextRequest) {
       buyerId: body.buyerId || null,
       buyerName: body.buyerName || "",
       buyerEmail: body.buyerEmail || "",
+      buyerPhone: body.buyerPhone || "",
       subtotal,
       deliveryFee,
       total,

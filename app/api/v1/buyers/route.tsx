@@ -70,3 +70,64 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+
+
+// ✅ GET buyer profile
+// Supports either:
+//   /api/v1/buyers?profileId=<auth-user-id>   (most useful)
+// or
+//   /api/v1/buyers?id=<buyer-mongo-id>
+export async function GET(req: NextRequest) {
+  try {
+    await mongoDB();
+
+    const url = new URL(req.url);
+    const searchParams = url.searchParams;
+
+    const id = searchParams.get("id");
+    const profileId = searchParams.get("profileId");
+
+    if (!id && !profileId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Either id or profileId query parameter is required",
+        },
+        { status: 400 }
+      );
+    }
+
+    const query: any = {};
+    if (id) query._id = id;
+    if (profileId) query.profileId = profileId;
+
+    const buyer = await BuyerModel.findOne(query).lean();
+
+    if (!buyer) {
+      return NextResponse.json(
+        { success: false, message: "Buyer not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        data: {
+          buyerId: String((buyer as any)._id),
+          buyer,
+        },
+      },
+      { status: 200 }
+    );
+  } catch (err: any) {
+    console.error("GET /api/v1/buyers error:", err);
+    return NextResponse.json(
+      {
+        success: false,
+        message: err?.message || "Failed to fetch buyer",
+      },
+      { status: 500 }
+    );
+  }
+}

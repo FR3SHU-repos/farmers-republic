@@ -20,7 +20,7 @@ const orderSchema = new Schema<Order>(
     buyerId: { type: String, index: true },
     buyerName: { type: String },
     buyerEmail: { type: String },
-
+    buyerPhone: { type: String },
     subtotal: { type: Number, required: true },
     deliveryFee: { type: Number, default: 0 },
     total: { type: Number, required: true },

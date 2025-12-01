@@ -92,6 +92,8 @@ export async function GET(req: NextRequest) {
 
       return {
         id: String(o._id),
+        
+        buyerId: o.buyerId || "—",
         customerName: o.buyerName || "—",
         customerPhone: (o as any).buyerPhone || "",
         subtotal: subtotalForFarmer,
