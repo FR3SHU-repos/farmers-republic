@@ -30,32 +30,72 @@ export default function FarmerOrdersDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  useEffect(() => {
-    const load = async () => {
-      if (!user?.id) return;
-      setLoading(true);
-      setError(null);
+useEffect(() => {
+  const load = async () => {
+    if (!user?.id) return;
 
-      try {
-        const res = await fetch(
-          `/api/v1/farmers/dashboard/orders/list?farmerId=${encodeURIComponent(user.id)}`,
-          { cache: "no-store" }
-        );
-        const json = await res.json();
-        if (!res.ok || !json?.success) {
-          throw new Error(json?.message || json?.error || "Failed to load orders");
-        }
-        setOrders(json.data.orders || []);
-      } catch (err: any) {
-        console.error("farmer dashboard orders error:", err);
-        setError(err?.message || "Failed to load orders");
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    setError(null);
+
+    try {
+      // 1️⃣ Get REAL farmerId (profile -> farmer)
+      const fRes = await fetch(`/api/v1/helper/by-profile/${user.id}`);
+      //const fRes = await fetch(`/api/v1/helper/by-profile/692c565e16ca8fb8b2db16e1`);
+      if (fRes.status === 404) {
+        // ❗ No farmer profile for this user — just show empty state
+        console.warn("No farmer profile for user", user.id);
+        setOrders([]);
+        return;
       }
-    };
 
-    load();
-  }, [user?.id]);
+      if (!fRes.ok) {
+        const txt = await fRes.text();
+        console.error("by-profile error response:", fRes.status, txt);
+        throw new Error("Failed to load farmer profile");
+      }
+
+      const fJson = await fRes.json();
+      if (!fJson.success || !fJson.data?.farmerId) {
+        throw new Error(fJson.message || "Farmer profile not found");
+      }
+
+      console.log("Farmer profile fetched:", fJson.data.farmerId);
+
+      const farmerId = fJson.data.farmerId as string;
+
+      // 2️⃣ Fetch orders for that farmerId
+      const res = await fetch(
+        `/api/v1/farmers/dashboard/orders?farmerId=${encodeURIComponent(
+          farmerId
+        )}`,
+        { cache: "no-store" }
+      );
+
+      if (!res.ok) {
+        const txt = await res.text();
+        console.error("orders error response:", res.status, txt);
+        throw new Error("Failed to load orders");
+      }
+
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "Failed to load orders");
+
+      setOrders(json.data.orders || []);
+    } catch (err: any) {
+      console.error("farmer dashboard load error:", err);
+      // ⛔ only show UI error for *real* failures, not 404-no-profile case
+      if (err?.message !== "No farmer profile") {
+        setError(err.message || "Failed to load orders");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  load();
+}, [user?.id]);
+
+
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === "all") return orders;

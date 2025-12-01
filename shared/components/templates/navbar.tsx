@@ -138,9 +138,9 @@ export default function NavBar({
                   className="absolute top-full mt-2 right-0 bg-white border border-stone-200 rounded-xl shadow-lg py-2 w-52 z-50 origin-top-right"
                 >
                   {[
-                    { name: "👩‍🌾 Farmers", href: "/farmers" },
+                    { name: "👩‍🌾 Farmers", href: "/farmers/adapted" },
                    
-                    { name: "🛍️ Products", href: "/products" },
+                    { name: "🛍️ Products", href: "/shop" },
                     
                   ].map((link) => (
                     <Link

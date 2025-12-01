@@ -191,7 +191,7 @@ export default function ProfilePage() {
             <label className="text-sm text-gray-600">Phone ({TELUGU_LANGUAGE.phone})</label>
             <input
               name="phoneNumber"
-              value={user?.phoneNumber || form.phoneNumber}
+              value={user?.phoneNumber}
               onChange={handleChange}
               className="mt-1 block w-full border rounded-md px-3 py-2"
             />

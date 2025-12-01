@@ -5,6 +5,7 @@ import { CATEGORIES } from "@/shared/data/category";
 import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
 import FarmerSection from "@/shared/components/templates/farmerSection";
+import { useUser } from "@/shared/context/UserContext";
 
 type Farmer = {
   id: string;
@@ -19,6 +20,10 @@ type Farmer = {
 
 const FarmersHomePage = () => {
   const router = useRouter();
+  
+  const { user } = useUser();
+
+  console.log("User in FarmersHomePage:", user);
 
   const [farmers, setFarmers] = useState<Farmer[]>([]);
   const [loading, setLoading] = useState(true);
@@ -78,14 +83,28 @@ const FarmersHomePage = () => {
               Choose farmers by category and support them directly
             </p>
 
-            {/* ✅ NEW BUTTON */}
-            <button
-              type="button"
-              onClick={() => router.push("/farmers/adapted")}
-              className="px-3 py-2 rounded-lg bg-green-700 text-white text-xs sm:text-sm font-medium hover:bg-green-800 transition"
-            >
-              View Adopted
-            </button>
+            {/* ✅ Buyer: View Adopted */}
+            {user?.type === "Buyer" && (
+              <button
+                type="button"
+                onClick={() => router.push("/farmers/adapted")}
+                className="px-3 py-2 rounded-lg bg-green-700 text-white text-xs sm:text-sm font-medium hover:bg-green-800 transition"
+              >
+                View Adopted
+              </button>
+            )}
+
+            {/* ✅ Farmer: View Dashboard */}
+            {user?.type === "Farmer" && (
+              <button
+                type="button"
+                onClick={() => router.push("/farmers/dashboard")}
+                className="px-3 py-2 rounded-lg bg-green-700 text-white text-xs sm:text-sm font-medium hover:bg-green-800 transition"
+              >
+                View Dashboard
+              </button>
+            )}
+            
     
           </div>
         </header>

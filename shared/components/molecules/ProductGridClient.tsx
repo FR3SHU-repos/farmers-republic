@@ -6,15 +6,15 @@ import ProductCard from "../templates/productCard";
 import toast from "react-hot-toast";
 
 export type ProductGridItem = {
-  id: string ;
+  id: string;
   name: string;
-  // allow null because server may return null
   image?: string | null | undefined;
   price: number | string;
-  // allow null for description/category/badge too
   description?: string | null | undefined;
   category?: string | null | undefined;
   badge?: string | null | undefined;
+  farmerId?: string | null;   // ✅ new
+  farmerName?: string | null; // optional, for display
 };
 
 export default function ProductGridClient({ products }: { products: ProductGridItem[] }) {
@@ -41,14 +41,14 @@ export default function ProductGridClient({ products }: { products: ProductGridI
             product={{
               id: String(p.id),
               name: p.name,
-              // ProductCard expects string for image — provide safe fallback
               image: (p.image ?? "") as string,
-              // ensure price is a number for display; ProductCard uses price.toFixed so it should be a number
               price: typeof p.price === "number" ? p.price : Number(p.price ?? 0),
               description: (p.description ?? "") as string,
               category: (p.category ?? "") as string,
               badge: (p.badge ?? "") as string,
-            }}
+              farmerId: (p.farmerId ?? "") as string,     // ✅ pass to ProductCard
+            } as any}
+            farmerName={p.farmerName ?? undefined}        // ✅ show on special pages
             onAdd={() => onAdd(p)}
             onWishlist={() => onWishlist(p)}
           />

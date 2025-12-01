@@ -1,9 +1,9 @@
+// shared/components/templates/productCard.tsx
 "use client";
 import React from "react";
 import Image from "next/image";
 import { Heart } from "lucide-react";
 import { Product } from "@/shared/interfaces/mongodb/products/product";
-import { cx } from "@/shared/lib/utils";
 import Link from "next/link";
 import { useCart } from "@/shared/context/CartContext";
 import toast from "react-hot-toast";
@@ -12,12 +12,16 @@ export default function ProductCard({
   product,
   onAdd,
   onWishlist,
+  farmerName,
 }: {
   product: Product;
   onAdd: (p: Product) => void;
   onWishlist?: (p: Product) => void;
+  farmerName?: string;
 }) {
   const { addToCart } = useCart();
+
+  const effectiveFarmerName = farmerName || (product as any).farmer || "";
 
   return (
     <article className="group bg-white rounded-2xl shadow-sm hover:shadow-md transition-shadow overflow-hidden h-full flex flex-col">
@@ -48,6 +52,16 @@ export default function ProductCard({
             <p className="text-xs text-green-600 font-medium">
               {product.category}
             </p>
+
+            {effectiveFarmerName && (
+              <p className="text-xs text-stone-500 mt-0.5">
+                Farmer:{" "}
+                <span className="font-medium text-stone-700">
+                  {effectiveFarmerName}
+                </span>
+              </p>
+            )}
+
             <Link href={`/products/${product.id}`}>
               <h3 className="text-md sm:text-lg font-semibold text-stone-800 mt-1">
                 {product.name}
@@ -60,7 +74,8 @@ export default function ProductCard({
 
           <div className="text-right flex-shrink-0">
             <div className="text-lg font-bold text-stone-800">
-              ₹{product.price.toFixed(2)}/{product.unit ? ` ${product.unit}` : "unit"}
+              ₹{product.price.toFixed(2)}/
+              {product.unit ? ` ${product.unit}` : "unit"}
             </div>
             {product.badge && (
               <div className="text-xs mt-2 inline-block bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full">
@@ -70,29 +85,30 @@ export default function ProductCard({
           </div>
         </div>
 
-        {/* Buttons pinned to bottom */}
-        <br/>
+        <br />
         <div className="mt-4 flex items-center gap-3 mt-auto">
           <button
             onClick={(e) => {
               e.stopPropagation();
+              // ✅ include farmerId here
               addToCart({
                 id: String(product.id),
                 name: product.name,
                 price: product.price,
                 image: product.image,
                 qty: 1,
+                farmerId: (product as any).farmerId || undefined,
               });
+
               toast.success(`${product.name} added to cart 🛒`);
+              onAdd(product);
             }}
             className="bg-green-600 text-white px-3 py-2 rounded-full text-sm hover:bg-green-700"
           >
             Add to Cart
           </button>
-          
         </div>
       </div>
     </article>
   );
 }
-

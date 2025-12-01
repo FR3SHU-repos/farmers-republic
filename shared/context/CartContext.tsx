@@ -1,12 +1,14 @@
+// shared/context/CartContext.tsx
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
 
 export type CartItem = {
-  id: string;
+  id: string;        // productId
   name: string;
   price: number;
   image?: string;
   qty: number;
+  farmerId?: string; // 👈 NEW
 };
 
 type CartContextType = {
@@ -16,7 +18,7 @@ type CartContextType = {
   clearCart: () => void;
   cartCount: number;
   subtotal: number;
-  ready: boolean; // 👈 new flag so UI knows when it's safe to read
+  ready: boolean;
 };
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -25,10 +27,9 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [cart, setCart] = useState<Record<string, CartItem>>({});
   const [ready, setReady] = useState(false);
 
-  // ✅ Load from localStorage once on mount
   useEffect(() => {
     try {
-      const raw = localStorage.getItem("fr_cart");
+      const raw = typeof window !== "undefined" ? localStorage.getItem("fr_cart") : null;
       if (raw) {
         const parsed = JSON.parse(raw);
         setCart(parsed);
@@ -40,7 +41,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, []);
 
-  // ✅ Save to localStorage on change (after hydration)
   useEffect(() => {
     if (!ready) return;
     try {
@@ -50,7 +50,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }, [cart, ready]);
 
-  // 🛒 Add item
   const addToCart = (item: CartItem) =>
     setCart((c) => {
       const existing = c[item.id];
@@ -63,7 +62,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       };
     });
 
-  // ➖ Remove one
   const removeOne = (id: string) =>
     setCart((c) => {
       const existing = c[id];
