@@ -1,16 +1,17 @@
-// app/api/v1/helper/by-profile/[profileId]/route.ts
+// app/api/v1/helper/by-profile/[id]/route.tsx
 import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import FarmerModel from "@/shared/models/mongodb/farmer";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     await mongoDB();
 
-    const profileId = params.id;
+    const { id } = await context.params; // this is profileId
+    const profileId = id;
 
     console.log("[by-profile] looking for farmer with profileId:", profileId);
 

@@ -3,7 +3,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, Package, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
@@ -44,12 +44,10 @@ const STATUS_OPTIONS = [
 
 const PAYMENT_STATUS_OPTIONS = ["unpaid", "paid"] as const;
 
-export default function FarmerOrderDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const orderId = params.id;
+export default function FarmerOrderDetailPage() {
+  // ✅ useParams for dynamic segment
+  const params = useParams<{ id: string }>();
+  const orderId = params?.id;
   const searchParams = useSearchParams();
   const farmerId = searchParams.get("farmerId");
   const router = useRouter();
@@ -61,6 +59,11 @@ export default function FarmerOrderDetailPage({
 
   useEffect(() => {
     const load = async () => {
+      if (!orderId) {
+        setError("Missing orderId");
+        setLoading(false);
+        return;
+      }
       if (!farmerId) {
         setError("Missing farmerId");
         setLoading(false);
@@ -71,14 +74,28 @@ export default function FarmerOrderDetailPage({
       setError(null);
 
       try {
-        const res = await fetch(
-          `/api/v1/farmers/orders/${encodeURIComponent(
-            orderId,
-          )}?farmerId=${encodeURIComponent(farmerId)}`,
-          { cache: "no-store" },
-        );
+        const url = `/api/v1/farmers/orders/${encodeURIComponent(
+          orderId,
+        )}?farmerId=${encodeURIComponent(farmerId)}`;
 
-        const json = await res.json();
+        const res = await fetch(url, { cache: "no-store" });
+        const text = await res.text();
+        const contentType = res.headers.get("content-type") || "";
+
+        // If backend is returning HTML, log it instead of crashing JSON.parse
+        if (!contentType.includes("application/json")) {
+          console.error("Non-JSON response from", url, res.status, text);
+          throw new Error(`Unexpected response from server (status ${res.status})`);
+        }
+
+        let json: any;
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          console.error("JSON parse error:", e, text);
+          throw new Error("Server returned invalid JSON");
+        }
+
         if (!res.ok || !json.success) {
           throw new Error(json.message || "Failed to load order");
         }
@@ -96,15 +113,18 @@ export default function FarmerOrderDetailPage({
   }, [orderId, farmerId]);
 
   const handleUpdate = async (patch: { status?: string; paymentStatus?: string }) => {
-    if (!data) return;
+    if (!data || !orderId) return;
     try {
       setSaving(true);
 
-      const res = await fetch(`/api/v1/farmers/orders/${encodeURIComponent(orderId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
+      const res = await fetch(
+        `/api/v1/orders/${encodeURIComponent(orderId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(patch),
+        },
+      );
 
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -194,8 +214,9 @@ export default function FarmerOrderDetailPage({
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
         {/* primary info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* left: buyer + status */}
+          {/* left: buyer + items */}
           <div className="md:col-span-2 space-y-4">
+            {/* Buyer & meta */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div>
@@ -246,7 +267,7 @@ export default function FarmerOrderDetailPage({
               </div>
             </div>
 
-            {/* items */}
+            {/* Items */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 space-y-4">
               <h2 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
                 <Package className="w-4 h-4 text-green-700" />
@@ -324,7 +345,7 @@ export default function FarmerOrderDetailPage({
 
           {/* right: status & payment */}
           <div className="space-y-4">
-            {/* status */}
+            {/* Status */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 space-y-4">
               <h3 className="text-sm font-semibold text-stone-800">
                 Order Status
@@ -352,7 +373,7 @@ export default function FarmerOrderDetailPage({
               </p>
             </div>
 
-            {/* payment */}
+            {/* Payment */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 space-y-4">
               <h3 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-blue-700" />
@@ -364,6 +385,12 @@ export default function FarmerOrderDetailPage({
                   <span className="text-stone-500 text-xs">Mode</span>
                   <span className="font-medium text-stone-800">
                     {data.paymentMode.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-stone-500 text-xs">Status</span>
+                  <span className="font-medium text-stone-800">
+                    {data.paymentStatus === "paid" ? "Paid" : "Unpaid"}
                   </span>
                 </div>
               </div>
