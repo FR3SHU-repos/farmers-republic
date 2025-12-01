@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useUser } from "@/shared/context/UserContext";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type FarmerOrder = {
   id: string;
@@ -22,82 +22,89 @@ type FarmerOrder = {
   itemsCount: number;
 };
 
-const STATUS_FILTERS = ["all", "pending", "confirmed", "out_for_delivery", "delivered", "cancelled"] as const;
+const STATUS_FILTERS = [
+  "all",
+  "pending",
+  "confirmed",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 export default function FarmerOrdersDashboardPage() {
   const { user } = useUser();
+  const router = useRouter();
+
   const [orders, setOrders] = useState<FarmerOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [farmerId, setFarmerId] = useState<string | null>(null);
 
-useEffect(() => {
-  const load = async () => {
-    if (!user?.id) return;
+  useEffect(() => {
+    const load = async () => {
+      if (!user?.id) return;
 
-    setLoading(true);
-    setError(null);
+      setLoading(true);
+      setError(null);
 
-    try {
-      // 1️⃣ Get REAL farmerId (profile -> farmer)
-      const fRes = await fetch(`/api/v1/helper/by-profile/${user.id}`);
-      //const fRes = await fetch(`/api/v1/helper/by-profile/692c565e16ca8fb8b2db16e1`);
-      if (fRes.status === 404) {
-        // ❗ No farmer profile for this user — just show empty state
-        console.warn("No farmer profile for user", user.id);
-        setOrders([]);
-        return;
+      try {
+        // 1️⃣ get REAL farmerId from profile
+        const fRes = await fetch(`/api/v1/helper/by-profile/${user.id}`, {
+          cache: "no-store",
+        });
+
+        if (fRes.status === 404) {
+          console.warn("No farmer profile for user", user.id);
+          setOrders([]);
+          return;
+        }
+
+        if (!fRes.ok) {
+          const txt = await fRes.text();
+          console.error("by-profile error response:", fRes.status, txt);
+          throw new Error("Failed to load farmer profile");
+        }
+
+        const fJson = await fRes.json();
+        if (!fJson.success || !fJson.data?.farmerId) {
+          throw new Error(fJson.message || "Farmer profile not found");
+        }
+
+        const realFarmerId = fJson.data.farmerId as string;
+        setFarmerId(realFarmerId);
+
+        // 2️⃣ fetch orders for that farmer
+        const res = await fetch(
+          `/api/v1/farmers/dashboard/orders?farmerId=${encodeURIComponent(
+            realFarmerId,
+          )}&limit=20`,
+          { cache: "no-store" },
+        );
+
+        if (!res.ok) {
+          const txt = await res.text();
+          console.error("orders error response:", res.status, txt);
+          throw new Error("Failed to load orders");
+        }
+
+        const json = await res.json();
+        if (!json.success) throw new Error(json.message || "Failed to load orders");
+
+        setOrders(json.data.orders || []);
+      } catch (err: any) {
+        console.error("farmer dashboard load error:", err);
+        if (err?.message !== "No farmer profile") {
+          setError(err.message || "Failed to load orders");
+        }
+      } finally {
+        setLoading(false);
       }
+    };
 
-      if (!fRes.ok) {
-        const txt = await fRes.text();
-        console.error("by-profile error response:", fRes.status, txt);
-        throw new Error("Failed to load farmer profile");
-      }
-
-      const fJson = await fRes.json();
-      if (!fJson.success || !fJson.data?.farmerId) {
-        throw new Error(fJson.message || "Farmer profile not found");
-      }
-
-      console.log("Farmer profile fetched:", fJson.data.farmerId);
-
-      const farmerId = fJson.data.farmerId as string;
-
-      // 2️⃣ Fetch orders for that farmerId
-      const res = await fetch(
-        `/api/v1/farmers/dashboard/orders?farmerId=${encodeURIComponent(
-          farmerId
-        )}`,
-        { cache: "no-store" }
-      );
-
-      if (!res.ok) {
-        const txt = await res.text();
-        console.error("orders error response:", res.status, txt);
-        throw new Error("Failed to load orders");
-      }
-
-      const json = await res.json();
-      if (!json.success) throw new Error(json.message || "Failed to load orders");
-
-      setOrders(json.data.orders || []);
-    } catch (err: any) {
-      console.error("farmer dashboard load error:", err);
-      // ⛔ only show UI error for *real* failures, not 404-no-profile case
-      if (err?.message !== "No farmer profile") {
-        setError(err.message || "Failed to load orders");
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  load();
-}, [user?.id]);
-
-
+    load();
+  }, [user?.id]);
 
   const filteredOrders = useMemo(() => {
     if (statusFilter === "all") return orders;
@@ -151,9 +158,16 @@ useEffect(() => {
     }
   };
 
-  if (!user) {
-    return null;
-  }
+  const handleRowClick = (orderId: string) => {
+    if (!farmerId) return;
+    router.push(
+      `/farmers/orders/${encodeURIComponent(
+        orderId,
+      )}?farmerId=${encodeURIComponent(farmerId)}`,
+    );
+  };
+
+  if (!user) return null;
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
@@ -183,11 +197,15 @@ useEffect(() => {
             </div>
             <div className="bg-white rounded-xl border border-yellow-100 p-3 sm:p-4">
               <p className="text-xs text-yellow-700">Pending</p>
-              <p className="text-xl font-bold mt-1 text-yellow-800">{stats.pending}</p>
+              <p className="text-xl font-bold mt-1 text-yellow-800">
+                {stats.pending}
+              </p>
             </div>
             <div className="bg-white rounded-xl border border-green-100 p-3 sm:p-4">
               <p className="text-xs text-green-700">Delivered</p>
-              <p className="text-xl font-bold mt-1 text-green-800">{stats.delivered}</p>
+              <p className="text-xl font-bold mt-1 text-green-800">
+                {stats.delivered}
+              </p>
             </div>
             <div className="bg-white rounded-xl border border-blue-100 p-3 sm:p-4">
               <p className="text-xs text-blue-700">Total Revenue (₹)</p>
@@ -222,7 +240,8 @@ useEffect(() => {
             </div>
 
             <div className="text-xs text-stone-500">
-              Showing <span className="font-semibold">{filteredOrders.length}</span> of{" "}
+              Showing{" "}
+              <span className="font-semibold">{filteredOrders.length}</span> of{" "}
               <span className="font-semibold">{orders.length}</span> orders
             </div>
           </div>
@@ -259,7 +278,10 @@ useEffect(() => {
                 <tbody>
                   {loading && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-6 text-center text-xs text-stone-400">
+                      <td
+                        colSpan={7}
+                        className="px-4 py-6 text-center text-xs text-stone-400"
+                      >
                         Loading orders…
                       </td>
                     </tr>
@@ -267,7 +289,10 @@ useEffect(() => {
 
                   {!loading && error && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-6 text-center text-xs text-red-500">
+                      <td
+                        colSpan={7}
+                        className="px-4 py-6 text-center text-xs text-red-500"
+                      >
                         {error}
                       </td>
                     </tr>
@@ -275,7 +300,10 @@ useEffect(() => {
 
                   {!loading && !error && filteredOrders.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-4 py-6 text-center text-xs text-stone-400">
+                      <td
+                        colSpan={7}
+                        className="px-4 py-6 text-center text-xs text-stone-400"
+                      >
                         No orders found for this filter.
                       </td>
                     </tr>
@@ -286,7 +314,8 @@ useEffect(() => {
                     filteredOrders.map((o) => (
                       <tr
                         key={o.id}
-                        className="border-t border-stone-100 hover:bg-stone-50/60 transition"
+                        onClick={() => handleRowClick(o.id)}
+                        className="border-t border-stone-100 hover:bg-stone-50/70 transition cursor-pointer"
                       >
                         <td className="px-4 py-3 whitespace-nowrap">
                           <div className="font-mono text-xs text-stone-600">
@@ -297,16 +326,16 @@ useEffect(() => {
                               ? "Voice"
                               : o.source === "app"
                               ? "App"
-                              : o.source || "Unknown"}
+                              : o.source || "Web"}
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <Link href={`/buyers/profile/${o.buyerId}`}>
                           <div className="text-sm font-medium text-stone-800">
                             {o.customerName || "—"}
                           </div>
-                          </Link>
-                          
+                          <div className="text-xs text-stone-500">
+                            {o.customerPhone || "No phone"}
+                          </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-stone-700">
                           {o.itemsCount} item{o.itemsCount !== 1 ? "s" : ""}
@@ -317,7 +346,7 @@ useEffect(() => {
                         <td className="px-4 py-3">
                           <span
                             className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border ${statusBadgeClass(
-                              o.status
+                              o.status,
                             )}`}
                           >
                             {o.status
@@ -331,11 +360,12 @@ useEffect(() => {
                         <td className="px-4 py-3">
                           <span
                             className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border ${paymentBadgeClass(
-                              o.paymentStatus
+                              o.paymentStatus,
                             )}`}
                           >
                             {o.paymentStatus
-                              ? o.paymentStatus[0].toUpperCase() + o.paymentStatus.slice(1)
+                              ? o.paymentStatus[0].toUpperCase() +
+                                o.paymentStatus.slice(1)
                               : "Unknown"}
                           </span>
                         </td>
