@@ -219,9 +219,10 @@ export default function BuyerProfilePage() {
               <label className="block text-sm text-gray-600">Email</label>
               <input
                 name="email"
-                value={form.email}
+                value={user?.email}
                 onChange={handleChange}
                 className="mt-1 w-full border rounded px-3 py-2"
+                disabled
               />
             </div>
 
