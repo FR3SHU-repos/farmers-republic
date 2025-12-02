@@ -30,19 +30,21 @@ type MongoOrder = {
   updatedAt?: Date;
   items?: MongoOrderItem[];
 };
+type ParamsContext = {
+  params: { id: string } | Promise<{ id: string }>;
+};
 
-// 🔹 GET – single order for a farmer
-export async function GET(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  console.log("🚜 FARMER ORDER DETAIL API HIT", params.id);
+export async function GET(req: NextRequest, context: ParamsContext) {
+  const params = await Promise.resolve(context.params);
+  const { id } = params;
+  console.log("🚜 FARMER ORDER DETAIL API HIT", id);
 
   await mongoDB();
 
   const url = new URL(req.url);
   const farmerId = url.searchParams.get("farmerId");
-  const orderId = params.id;
+  //const orderId = params.id;
+  const orderId = id;
 
   if (!farmerId) {
     return NextResponse.json(
