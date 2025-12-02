@@ -325,7 +325,7 @@ export default function ProfilePage() {
               <Link
                 href={
                   profile
-                    ? `${basePath}/${profile.buyerId}/edit`
+                    ? `${basePath}/edit/${profile.buyerId}`
                     : `${basePath}/create`
                 }
                 className="w-full inline-flex items-center justify-center bg-green-600 text-white py-2.5 rounded-lg font-semibold transition-all hover:bg-green-700 active:scale-[0.98] disabled:opacity-60"
