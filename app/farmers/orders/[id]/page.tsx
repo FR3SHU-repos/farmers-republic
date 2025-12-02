@@ -7,6 +7,7 @@ import { useSearchParams, useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Phone, Mail, Package, CreditCard } from "lucide-react";
 import toast from "react-hot-toast";
+import { useUser } from "@/shared/context/UserContext";
 
 type OrderItem = {
   productId: string;
@@ -15,11 +16,15 @@ type OrderItem = {
   qty: number;
   image?: string;
 
-  // per-item fields
+  // per-item fields from API
   status?: string;
   deliveryCharge?: number;
   extraCharge?: number;
   serviceCharge?: number;
+
+  // optional platform / discount fields
+  platformFeeTotal?: number;
+  discountTotal?: number;
 };
 
 type FarmerOrderDetail = {
@@ -34,9 +39,17 @@ type FarmerOrderDetail = {
   paymentMode: string;
   source: string;
   createdAt: string;
+
   subtotal: number;
   total: number;
   itemsCount: number;
+
+  deliveryTotal?: number;
+  extraTotal?: number;
+  serviceTotal?: number;
+  platformFeeTotal?: number;
+  discountTotal?: number;
+
   items: OrderItem[];
 };
 
@@ -48,6 +61,28 @@ const STATUS_OPTIONS = [
   "cancelled",
 ] as const;
 
+// ✅ NEW: helper to compute overall order status from items
+const STATUS_ORDER = ["pending", "confirmed", "out_for_delivery", "delivered"] as const;
+
+function deriveStatusFromItems(items: OrderItem[], prevStatus: string): string {
+  if (!items.length) return prevStatus;
+
+  // if all items are cancelled → cancelled
+  if (items.every((it) => it.status === "cancelled")) {
+    return "cancelled";
+  }
+
+  let maxIndex = -1;
+  for (const it of items) {
+    const s = (it.status || "") as (typeof STATUS_ORDER)[number];
+    const idx = STATUS_ORDER.indexOf(s);
+    if (idx > maxIndex) maxIndex = idx;
+  }
+
+  if (maxIndex >= 0) return STATUS_ORDER[maxIndex];
+  return prevStatus;
+}
+
 const PAYMENT_STATUS_OPTIONS = ["unpaid", "paid"] as const;
 
 export default function FarmerOrderDetailPage() {
@@ -57,29 +92,48 @@ export default function FarmerOrderDetailPage() {
   const farmerId = searchParams.get("farmerId") || "";
   const router = useRouter();
 
+  const { user } = useUser();
+  const isFarmer = user?.type === "Farmer"; // 🔒 only farmers can edit
+
   const [data, setData] = useState<FarmerOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const calcTotalsForItems = (items: OrderItem[]) => {
-    const subtotal = items.reduce(
-      (sum, it) => sum + it.price * it.qty,
-      0,
-    );
+    let subtotal = 0;
+    let deliveryTotal = 0;
+    let extraTotal = 0;
+    let serviceTotal = 0;
+    let platformFeeTotal = 0;
+    let discountTotal = 0;
 
-    const charges = items.reduce(
-      (sum, it) =>
-        sum +
-        (it.deliveryCharge ?? 0) +
-        (it.extraCharge ?? 0) +
-        (it.serviceCharge ?? 0),
-      0,
-    );
+    for (const it of items) {
+      subtotal += it.price * it.qty;
+      deliveryTotal += it.deliveryCharge ?? 0;
+      extraTotal += it.extraCharge ?? 0;
+      serviceTotal += it.serviceCharge ?? 0;
+      platformFeeTotal += it.platformFeeTotal ?? 0;
+      discountTotal += it.discountTotal ?? 0;
+    }
+
+    // what farmer receives: base + charges - platform fee - discounts
+    const total =
+      subtotal +
+      deliveryTotal +
+      extraTotal +
+      serviceTotal -
+      platformFeeTotal -
+      discountTotal;
 
     return {
       subtotal,
-      total: subtotal + charges,
+      deliveryTotal,
+      extraTotal,
+      serviceTotal,
+      platformFeeTotal,
+      discountTotal,
+      total,
     };
   };
 
@@ -110,7 +164,9 @@ export default function FarmerOrderDetailPage() {
 
         if (!contentType.includes("application/json")) {
           console.error("Non-JSON response from", url, res.status, text);
-          throw new Error(`Unexpected response from server (status ${res.status})`);
+          throw new Error(
+            `Unexpected response from server (status ${res.status})`,
+          );
         }
 
         let json: any;
@@ -127,7 +183,6 @@ export default function FarmerOrderDetailPage() {
 
         const d = json.data as FarmerOrderDetail;
 
-        // Ensure numeric fields
         const safeItems: OrderItem[] = (d.items || []).map((it) => ({
           ...it,
           price: Number(it.price ?? 0),
@@ -135,6 +190,8 @@ export default function FarmerOrderDetailPage() {
           deliveryCharge: Number(it.deliveryCharge ?? 0),
           extraCharge: Number(it.extraCharge ?? 0),
           serviceCharge: Number(it.serviceCharge ?? 0),
+          platformFeeTotal: Number(it.platformFeeTotal ?? 0),
+          discountTotal: Number(it.discountTotal ?? 0),
         }));
 
         const totals = calcTotalsForItems(safeItems);
@@ -144,6 +201,11 @@ export default function FarmerOrderDetailPage() {
           items: safeItems,
           subtotal: totals.subtotal,
           total: totals.total,
+          deliveryTotal: totals.deliveryTotal,
+          extraTotal: totals.extraTotal,
+          serviceTotal: totals.serviceTotal,
+          platformFeeTotal: totals.platformFeeTotal,
+          discountTotal: totals.discountTotal,
         });
       } catch (err: any) {
         console.error("order detail error:", err);
@@ -156,19 +218,35 @@ export default function FarmerOrderDetailPage() {
     load();
   }, [orderId, farmerId]);
 
-  const handleUpdate = async (patch: { status?: string; paymentStatus?: string }) => {
+  /**
+   * 🔄 Optimistic order-level update
+   * Fixes:
+   *  - "Pending" not changing
+   *  - Mark as Paid / Unpaid not reflecting immediately
+   */
+  const handleUpdate = async (patch: {
+    status?: string;
+    paymentStatus?: string;
+  }) => {
     if (!data || !orderId) return;
+    if (!isFarmer) {
+      toast.error("Only farmers can update order status.");
+      return;
+    }
+
+    const prev = data; // keep copy for rollback
+
+    // optimistic update
+    setData((curr) => (curr ? { ...curr, ...patch } : curr));
+
     try {
       setSaving(true);
 
-      const res = await fetch(
-        `/api/v1/orders/${encodeURIComponent(orderId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(patch),
-        },
-      );
+      const res = await fetch(`/api/v1/orders/${encodeURIComponent(orderId)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
 
       const json = await res.json();
       if (!res.ok || !json.success) {
@@ -176,73 +254,100 @@ export default function FarmerOrderDetailPage() {
       }
 
       toast.success("Order updated");
-      setData({ ...data, ...patch });
     } catch (err: any) {
       console.error("update error:", err);
+      // rollback
+      setData(prev);
       toast.error(err?.message || "Failed to update order");
     } finally {
       setSaving(false);
     }
   };
 
-  const handleItemUpdate = async (
-    productId: string,
-    patch: {
-      status?: string;
-      deliveryCharge?: number;
-      extraCharge?: number;
-      serviceCharge?: number;
-    },
-  ) => {
-    if (!data || !orderId || !farmerId) return;
+  /**
+   * 🔄 Optimistic item-level update
+   * Fixes:
+   *  - discount line not changing
+   *  - totals & "You receive" not refreshing
+   *  - per-item status not updating visually
+   */
+// keep function signature the same
+const handleItemUpdate = async (
+  productId: string,
+  patch: {
+    status?: string;
+    deliveryCharge?: number;
+    extraCharge?: number;
+    serviceCharge?: number;
+    discountTotal?: number;
+  },
+) => {
+  if (!data || !orderId || !farmerId) return;
+  if (!isFarmer) {
+    toast.error("Only farmers can update item details.");
+    return;
+  }
 
-    try {
-      setSaving(true);
+  // keep previous snapshot for rollback
+  const prev = data;
 
-      const res = await fetch(
-        `/api/v1/farmers/orders/${encodeURIComponent(
-          orderId,
-        )}?farmerId=${encodeURIComponent(farmerId)}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            productId,
-            ...patch,
-          }),
-        },
-      );
+  // 🔄 optimistic local update
+  setData((curr) => {
+    if (!curr) return curr;
+    const newItems = curr.items.map((it) =>
+      it.productId === productId ? { ...it, ...patch } : it,
+    );
 
-      const json = await res.json();
-      if (!res.ok || !json?.success) {
-        throw new Error(json?.message || "Failed to update item");
-      }
+    const totals = calcTotalsForItems(newItems);
+    const newStatus = deriveStatusFromItems(newItems, curr.status);
 
-      // update local state
-      setData((prev) => {
-        if (!prev) return prev;
+    return {
+      ...curr,
+      status: newStatus, // ✅ order card uses this
+      items: newItems,
+      subtotal: totals.subtotal,
+      total: totals.total,
+      deliveryTotal: totals.deliveryTotal,
+      extraTotal: totals.extraTotal,
+      serviceTotal: totals.serviceTotal,
+      platformFeeTotal: totals.platformFeeTotal,
+      discountTotal: totals.discountTotal,
+    };
+  });
 
-        const newItems = prev.items.map((it) =>
-          it.productId === productId ? { ...it, ...patch } : it,
-        );
-        const totals = calcTotalsForItems(newItems);
+  try {
+    setSaving(true);
 
-        return {
-          ...prev,
-          items: newItems,
-          subtotal: totals.subtotal,
-          total: totals.total,
-        };
-      });
+    const res = await fetch(
+      `/api/v1/farmers/orders/${encodeURIComponent(
+        orderId,
+      )}?farmerId=${encodeURIComponent(farmerId)}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId,
+          ...patch,
+        }),
+      },
+    );
 
-      toast.success("Item updated");
-    } catch (err: any) {
-      console.error("item update error:", err);
-      toast.error(err?.message || "Failed to update item");
-    } finally {
-      setSaving(false);
+    const json = await res.json();
+    if (!res.ok || !json?.success) {
+      throw new Error(json?.message || "Failed to update item");
     }
-  };
+
+    toast.success("Item updated");
+  } catch (err: any) {
+    console.error("item update error:", err);
+    // rollback to previous state if API fails
+    setData(prev);
+    toast.error(err?.message || "Failed to update item");
+  } finally {
+    setSaving(false);
+  }
+};
+
 
   const formatDate = (str: string) => {
     const d = new Date(str);
@@ -288,6 +393,8 @@ export default function FarmerOrderDetailPage() {
     );
   }
 
+  const canEdit = isFarmer;
+
   return (
     <main className="min-h-screen bg-stone-50 pb-10">
       {/* Top bar */}
@@ -302,13 +409,20 @@ export default function FarmerOrderDetailPage() {
             Back to Orders
           </button>
 
-          <div className="text-right">
-            <p className="text-[11px] uppercase tracking-wide text-stone-400">
-              Order
-            </p>
-            <p className="font-mono text-xs bg-stone-100 px-2 py-1 rounded">
-              #{data.orderId.slice(-6).toUpperCase()}
-            </p>
+          <div className="flex items-center gap-3">
+            {!canEdit && (
+              <span className="hidden sm:inline-block text-[11px] text-stone-400">
+                Read only – only farmers can update this order
+              </span>
+            )}
+            <div className="text-right">
+              <p className="text-[11px] uppercase tracking-wide text-stone-400">
+                Order
+              </p>
+              <p className="font-mono text-xs bg-stone-100 px-2 py-1 rounded">
+                #{data.orderId.slice(-6).toUpperCase()}
+              </p>
+            </div>
           </div>
         </div>
       </header>
@@ -371,10 +485,17 @@ export default function FarmerOrderDetailPage() {
 
             {/* Items */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 space-y-4">
-              <h2 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
-                <Package className="w-4 h-4 text-green-700" />
-                Items in this order (for you)
-              </h2>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
+                  <Package className="w-4 h-4 text-green-700" />
+                  Items in this order (for you)
+                </h2>
+                {!canEdit && (
+                  <span className="text-[10px] text-stone-400">
+                    Viewing only. Login as farmer to edit statuses & fees.
+                  </span>
+                )}
+              </div>
 
               <div className="border border-stone-100 rounded-xl overflow-hidden">
                 {/* header row for desktop */}
@@ -397,7 +518,8 @@ export default function FarmerOrderDetailPage() {
                     (it.deliveryCharge ?? 0) +
                     (it.extraCharge ?? 0) +
                     (it.serviceCharge ?? 0);
-                  const lineTotal = baseTotal + charges;
+                  const discount = it.discountTotal ?? 0;
+                  const lineTotal = baseTotal + charges - discount;
 
                   return (
                     <div
@@ -443,13 +565,13 @@ export default function FarmerOrderDetailPage() {
                               </span>
                               <select
                                 value={it.status || data.status}
-                                disabled={saving}
+                                disabled={saving || !canEdit}
                                 onChange={(e) =>
                                   handleItemUpdate(it.productId, {
                                     status: e.target.value,
                                   })
                                 }
-                                className="text-[11px] border border-stone-200 rounded-full px-2 py-1 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                                className="text-[11px] border border-stone-200 rounded-full px-2 py-1 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-stone-100 disabled:text-stone-400"
                               >
                                 {STATUS_OPTIONS.map((s) => (
                                   <option key={s} value={s}>
@@ -465,54 +587,108 @@ export default function FarmerOrderDetailPage() {
                               </select>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
-                              <span>Extra fees</span>
+                            {/* Mobile: extra fees */}
+                            <div className="flex flex-col gap-1 text-[11px] text-stone-500">
+                              <div className="flex items-center justify-between">
+                                <span>Extra fees</span>
+                                <span className="text-[10px] text-stone-400">
+                                  Delivery / Packing / Service
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-end gap-1.5">
+                                {/* Delivery */}
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className="text-[10px] text-stone-400">
+                                    Delivery
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    defaultValue={it.deliveryCharge ?? 0}
+                                    disabled={saving || !canEdit}
+                                    onBlur={(e) =>
+                                      handleItemUpdate(it.productId, {
+                                        deliveryCharge: Number(
+                                          e.target.value || 0,
+                                        ),
+                                      })
+                                    }
+                                    className="w-16 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                                    placeholder="0"
+                                  />
+                                </div>
+
+                                {/* Extra */}
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className="text-[10px] text-stone-400">
+                                    Extra
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    defaultValue={it.extraCharge ?? 0}
+                                    disabled={saving || !canEdit}
+                                    onBlur={(e) =>
+                                      handleItemUpdate(it.productId, {
+                                        extraCharge: Number(
+                                          e.target.value || 0,
+                                        ),
+                                      })
+                                    }
+                                    className="w-16 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                                    placeholder="0"
+                                  />
+                                </div>
+
+                                {/* Service */}
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <span className="text-[10px] text-stone-400">
+                                    Service
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    defaultValue={it.serviceCharge ?? 0}
+                                    disabled={saving || !canEdit}
+                                    onBlur={(e) =>
+                                      handleItemUpdate(it.productId, {
+                                        serviceCharge: Number(
+                                          e.target.value || 0,
+                                        ),
+                                      })
+                                    }
+                                    className="w-16 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                                    placeholder="0"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Mobile: discount */}
+                            <div className="mt-1 flex items-center justify-between text-[11px] text-stone-500">
+                              <span>Discount</span>
                               <div className="flex items-center gap-1.5">
-                                <input
-                                  type="number"
-                                  min={0}
-                                  defaultValue={it.deliveryCharge ?? 0}
-                                  disabled={saving}
-                                  onBlur={(e) =>
-                                    handleItemUpdate(it.productId, {
-                                      deliveryCharge: Number(
-                                        e.target.value || 0,
-                                      ),
-                                    })
-                                  }
-                                  className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
-                                  placeholder="Del"
-                                />
-                                <input
-                                  type="number"
-                                  min={0}
-                                  defaultValue={it.extraCharge ?? 0}
-                                  disabled={saving}
-                                  onBlur={(e) =>
-                                    handleItemUpdate(it.productId, {
-                                      extraCharge: Number(
-                                        e.target.value || 0,
-                                      ),
-                                    })
-                                  }
-                                  className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
-                                  placeholder="Extra"
-                                />
-                                <input
-                                  type="number"
-                                  min={0}
-                                  defaultValue={it.serviceCharge ?? 0}
-                                  disabled={saving}
-                                  onBlur={(e) =>
-                                    handleItemUpdate(it.productId, {
-                                      serviceCharge: Number(
-                                        e.target.value || 0,
-                                      ),
-                                    })
-                                  }
-                                  className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
-                                  placeholder="Serv"
-                                />
+                                <div className="relative w-20">
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-stone-400">
+                                    ₹
+                                  </span>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    defaultValue={it.discountTotal ?? 0}
+                                    disabled={saving || !canEdit}
+                                    onBlur={(e) =>
+                                      handleItemUpdate(it.productId, {
+                                        discountTotal: Number(
+                                          e.target.value || 0,
+                                        ),
+                                      })
+                                    }
+                                    className="w-full border border-stone-200 rounded-full pl-4 pr-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                                    placeholder="0"
+                                  />
+                                </div>
                               </div>
                             </div>
 
@@ -537,81 +713,126 @@ export default function FarmerOrderDetailPage() {
                       </div>
 
                       {/* Desktop totals + controls */}
-                      <div className="hidden sm:flex flex-col items-end justify-center gap-1 text-right text-sm">
+                      <div className="hidden sm:flex flex-col items-end justify-center gap-2 text-right text-sm">
                         <span className="font-semibold text-stone-900">
                           ₹{lineTotal.toFixed(2)}
                         </span>
 
-                        <div className="flex items-center gap-1.5">
-                          <select
-                            value={it.status || data.status}
-                            disabled={saving}
-                            onChange={(e) =>
-                              handleItemUpdate(it.productId, {
-                                status: e.target.value,
-                              })
-                            }
-                            className="text-[11px] border border-stone-200 rounded-full px-2 py-0.5 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-emerald-400"
-                          >
-                            {STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {s
-                                  .split("_")
-                                  .map(
-                                    (p) =>
-                                      p[0].toUpperCase() + p.slice(1),
-                                  )
-                                  .join(" ")}
-                              </option>
-                            ))}
-                          </select>
+                        {/* Status dropdown */}
+                        <select
+                          value={it.status || data.status}
+                          disabled={saving || !canEdit}
+                          onChange={(e) =>
+                            handleItemUpdate(it.productId, {
+                              status: e.target.value,
+                            })
+                          }
+                          className="text-[11px] border border-stone-200 rounded-full px-3 py-1 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-emerald-400 disabled:bg-stone-100 disabled:text-stone-400"
+                        >
+                          {STATUS_OPTIONS.map((s) => (
+                            <option key={s} value={s}>
+                              {s
+                                .split("_")
+                                .map((p) => p[0].toUpperCase() + p.slice(1))
+                                .join(" ")}
+                            </option>
+                          ))}
+                        </select>
 
-                          <input
-                            type="number"
-                            min={0}
-                            defaultValue={it.deliveryCharge ?? 0}
-                            disabled={saving}
-                            onBlur={(e) =>
-                              handleItemUpdate(it.productId, {
-                                deliveryCharge: Number(
-                                  e.target.value || 0,
-                                ),
-                              })
-                            }
-                            className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
-                            placeholder="Del"
-                            title="Delivery charge"
-                          />
-                          <input
-                            type="number"
-                            min={0}
-                            defaultValue={it.extraCharge ?? 0}
-                            disabled={saving}
-                            onBlur={(e) =>
-                              handleItemUpdate(it.productId, {
-                                extraCharge: Number(e.target.value || 0),
-                              })
-                            }
-                            className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
-                            placeholder="Extra"
-                            title="Extra charge"
-                          />
-                          <input
-                            type="number"
-                            min={0}
-                            defaultValue={it.serviceCharge ?? 0}
-                            disabled={saving}
-                            onBlur={(e) =>
-                              handleItemUpdate(it.productId, {
-                                serviceCharge: Number(
-                                  e.target.value || 0,
-                                ),
-                              })
-                            }
-                            className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
-                            placeholder="Serv"
-                            title="Service charge"
-                          />
+                        {/* Fees row with labels + discount */}
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="flex justify-end gap-4 text-[10px] text-stone-400">
+                            <span className="w-16 text-right">Delivery</span>
+                            <span className="w-16 text-right">Extra</span>
+                            <span className="w-16 text-right">Service</span>
+                            <span className="w-16 text-right">Discount</span>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            {/* Delivery */}
+                            <div className="relative w-16">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-stone-400">
+                                ₹
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                defaultValue={it.deliveryCharge ?? 0}
+                                disabled={saving || !canEdit}
+                                onBlur={(e) =>
+                                  handleItemUpdate(it.productId, {
+                                    deliveryCharge: Number(
+                                      e.target.value || 0,
+                                    ),
+                                  })
+                                }
+                                className="w-full border border-stone-200 rounded-full pl-4 pr-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                              />
+                            </div>
+
+                            {/* Extra */}
+                            <div className="relative w-16">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-stone-400">
+                                ₹
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                defaultValue={it.extraCharge ?? 0}
+                                disabled={saving || !canEdit}
+                                onBlur={(e) =>
+                                  handleItemUpdate(it.productId, {
+                                    extraCharge: Number(
+                                      e.target.value || 0,
+                                    ),
+                                  })
+                                }
+                                className="w-full border border-stone-200 rounded-full pl-4 pr-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                              />
+                            </div>
+
+                            {/* Service */}
+                            <div className="relative w-16">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-stone-400">
+                                ₹
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                defaultValue={it.serviceCharge ?? 0}
+                                disabled={saving || !canEdit}
+                                onBlur={(e) =>
+                                  handleItemUpdate(it.productId, {
+                                    serviceCharge: Number(
+                                      e.target.value || 0,
+                                    ),
+                                  })
+                                }
+                                className="w-full border border-stone-200 rounded-full pl-4 pr-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                              />
+                            </div>
+
+                            {/* Discount */}
+                            <div className="relative w-16">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-stone-400">
+                                ₹
+                              </span>
+                              <input
+                                type="number"
+                                min={0}
+                                defaultValue={it.discountTotal ?? 0}
+                                disabled={saving || !canEdit}
+                                onBlur={(e) =>
+                                  handleItemUpdate(it.productId, {
+                                    discountTotal: Number(
+                                      e.target.value || 0,
+                                    ),
+                                  })
+                                }
+                                className="w-full border border-stone-200 rounded-full pl-4 pr-2 py-0.5 text-[11px] text-right bg-stone-50 disabled:bg-stone-100"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -619,23 +840,54 @@ export default function FarmerOrderDetailPage() {
                 })}
               </div>
 
+              {/* Summary – clear breakdown */}
               <div className="flex justify-end pt-3">
-                <div className="text-sm text-right space-y-1">
+                <div className="text-sm text-right space-y-1 w-full max-w-xs">
                   <div className="flex justify-between gap-6">
                     <span className="text-stone-500">Subtotal (items)</span>
                     <span className="font-medium text-stone-900">
                       ₹{data.subtotal.toFixed(2)}
                     </span>
                   </div>
+
                   <div className="flex justify-between gap-6">
-                    <span className="text-stone-500">
-                      Extra fees (delivery + others)
-                    </span>
+                    <span className="text-stone-500">Delivery charges</span>
                     <span className="font-medium text-stone-900">
-                      ₹{(data.total - data.subtotal).toFixed(2)}
+                      ₹{(data.deliveryTotal ?? 0).toFixed(2)}
                     </span>
                   </div>
-                  <div className="flex justify-between gap-6 font-semibold">
+
+                  <div className="flex justify-between gap-6">
+                    <span className="text-stone-500">Extra charges</span>
+                    <span className="font-medium text-stone-900">
+                      ₹{(data.extraTotal ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-6">
+                    <span className="text-stone-500">Service charges</span>
+                    <span className="font-medium text-stone-900">
+                      ₹{(data.serviceTotal ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-6">
+                    <span className="text-stone-500">
+                      Platform fees (FR3SH)
+                    </span>
+                    <span className="font-medium text-rose-600">
+                      -₹{(data.platformFeeTotal ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-6">
+                    <span className="text-stone-500">Discounts</span>
+                    <span className="font-medium text-rose-600">
+                      -₹{(data.discountTotal ?? 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-stone-100 pt-2 mt-2 flex justify-between gap-6 font-semibold">
                     <span className="text-stone-700">You receive</span>
                     <span className="text-stone-900">
                       ₹{data.total.toFixed(2)}
@@ -650,15 +902,20 @@ export default function FarmerOrderDetailPage() {
           <div className="space-y-4">
             {/* Status */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-stone-800">
-                Order Status
-              </h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-stone-800">
+                  Order Status
+                </h3>
+                {!canEdit && (
+                  <span className="text-[10px] text-stone-400">Read only</span>
+                )}
+              </div>
 
               <select
                 value={data.status}
                 onChange={(e) => handleUpdate({ status: e.target.value })}
-                disabled={saving}
-                className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                disabled={saving || !canEdit}
+                className="w-full text-sm border border-stone-200 rounded-lg px-3 py-2 bg-stone-50 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 disabled:bg-stone-100 disabled:text-stone-400"
               >
                 {STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
@@ -678,10 +935,15 @@ export default function FarmerOrderDetailPage() {
 
             {/* Payment */}
             <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 space-y-4">
-              <h3 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-blue-700" />
-                Payment
-              </h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-stone-800 flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-blue-700" />
+                  Payment
+                </h3>
+                {!canEdit && (
+                  <span className="text-[10px] text-stone-400">Read only</span>
+                )}
+              </div>
 
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -703,14 +965,14 @@ export default function FarmerOrderDetailPage() {
                   <button
                     key={pStatus}
                     type="button"
-                    disabled={saving}
+                    disabled={saving || !canEdit}
                     onClick={() => handleUpdate({ paymentStatus: pStatus })}
                     className={`flex-1 px-3 py-1.5 rounded-full text-xs border transition ${
                       data.paymentStatus === pStatus
                         ? pStatus === "paid"
                           ? "bg-emerald-600 text-white border-emerald-600"
                           : "bg-rose-600 text-white border-rose-600"
-                        : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+                        : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50 disabled:bg-stone-100 disabled:text-stone-400"
                     }`}
                   >
                     {pStatus === "paid" ? "Mark as Paid" : "Mark as Unpaid"}

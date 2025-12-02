@@ -17,6 +17,10 @@ type MongoOrderItem = {
   deliveryCharge?: number;
   extraCharge?: number;
   serviceCharge?: number;
+
+  // ✅ NEW: totals stored in DB
+  platformFeeTotal?: number;
+  discountTotal?: number;
 };
 
 type MongoOrder = {
@@ -127,6 +131,10 @@ export async function GET(req: NextRequest, context: ParamsContext) {
           deliveryCharge: it.deliveryCharge ?? 0,
           extraCharge: it.extraCharge ?? 0,
           serviceCharge: it.serviceCharge ?? 0,
+
+          // ✅ NEW: totals so discount/platform show correctly after reload
+          platformFeeTotal: it.platformFeeTotal ?? 0,
+          discountTotal: it.discountTotal ?? 0,
         })),
       },
       "Farmer order detail fetched",
@@ -161,6 +169,7 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
     deliveryCharge,
     extraCharge,
     serviceCharge,
+    discountTotal, // ✅ NEW
   } = body || {};
 
   if (!productId) {
@@ -184,10 +193,16 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
   if (typeof serviceCharge === "number") {
     set["items.$.serviceCharge"] = serviceCharge;
   }
+  // ✅ NEW: support discount updates
+  if (typeof discountTotal === "number") {
+    set["items.$.discountTotal"] = discountTotal;
+  }
 
   if (Object.keys(set).length === 0) {
     return NextResponse.json(
-      failure("Nothing to update (status / deliveryCharge / extraCharge / serviceCharge)"),
+      failure(
+        "Nothing to update (status / deliveryCharge / extraCharge / serviceCharge / discountTotal)",
+      ),
       { status: 400 },
     );
   }
