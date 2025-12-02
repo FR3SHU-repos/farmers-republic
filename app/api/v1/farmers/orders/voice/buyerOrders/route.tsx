@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
+import ProductModel from "@/shared/models/mongodb/products/products";
 import { success, failure } from "@/app/api/v1/utils/responses";
 import type { OrderItem } from "@/shared/interfaces/mongodb/orders/buyerOrders";
 
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/v1/orders/voice/buyerOrders
+// called from cart checkout
 // called from cart checkout
 export async function POST(req: NextRequest) {
   try {
@@ -76,8 +77,8 @@ export async function POST(req: NextRequest) {
       buyerName,
       buyerEmail,
       buyerPhone,
-      paymentMode,
-      paymentStatus,
+      paymentMode: orderPaymentMode,
+      paymentStatus: orderPaymentStatus,
       source,
     } = body || {};
 
@@ -89,103 +90,136 @@ export async function POST(req: NextRequest) {
     }
 
     // 🔐 Normalise items according to new model/interface
-    const safeItems: OrderItem[] = items.map((raw: any): OrderItem => {
-      const price = Number(raw.price ?? 0);
-      const qty = Number(raw.qty ?? 1);
+    const safeItems: OrderItem[] = await Promise.all(
+      items.map(async (raw: any): Promise<OrderItem> => {
+        const price = Number(raw.price ?? 0);
+        const qty = Number(raw.qty ?? 1);
 
-      // Optional arrays – keep flexible but typed on model
-      const platformFees = Array.isArray(raw.platformFees)
-        ? raw.platformFees.map((f: any) => ({
-            type: f.type || "service",
-            label: f.label || undefined,
-            amount: Number(f.amount ?? 0),
-          }))
-        : [];
+        // 🔍 ensure we have farmerId: from payload or from Product
+        let farmerIdRaw: string | undefined = raw.farmerId;
 
-      const discounts = Array.isArray(raw.discounts)
-        ? raw.discounts.map((d: any) => ({
-            type: d.type || "manual",
-            label: d.label || undefined,
-            amount: Number(d.amount ?? 0),
-          }))
-        : [];
+        if (!farmerIdRaw && raw.productId) {
+          try {
+            const product = await ProductModel.findById(raw.productId)
+              .select("farmerId")
+              .lean()
+              .exec();
 
-      // Simple numeric totals; if not sent, default 0
-      const platformFeeTotal = Number(raw.platformFeeTotal ?? 0);
-      const discountTotal = Number(raw.discountTotal ?? 0);
+            if (product && (product as any).farmerId) {
+              farmerIdRaw = String((product as any).farmerId);
+            } else {
+              console.warn(
+                "[buyerOrders POST] product without farmerId",
+                raw.productId
+              );
+            }
+          } catch (e) {
+            console.error(
+              "[buyerOrders POST] error fetching product for farmerId",
+              raw.productId,
+              e
+            );
+          }
+        }
 
-      const deliveryCharge = Number(raw.deliveryCharge ?? 0);
-      const extraCharge = Number(raw.extraCharge ?? 0);
-      const serviceCharge = Number(raw.serviceCharge ?? 0);
+        const platformFees = Array.isArray(raw.platformFees)
+          ? raw.platformFees.map((f: any) => ({
+              type: f.type || "service",
+              label: f.label || undefined,
+              amount: Number(f.amount ?? 0),
+            }))
+          : [];
 
-      const taxAmount = Number(raw.taxAmount ?? 0);
-      const taxBreakup = raw.taxBreakup || {};
+        const discounts = Array.isArray(raw.discounts)
+          ? raw.discounts.map((d: any) => ({
+              type: d.type || "manual",
+              label: d.label || undefined,
+              amount: Number(d.amount ?? 0),
+            }))
+          : [];
 
-      // paidAmount (optional) – if not provided, we’ll calculate on backend later if needed
-      const paidAmount =
-        typeof raw.paidAmount === "number"
-          ? Number(raw.paidAmount)
-          : undefined;
+        const platformFeeTotal = Number(raw.platformFeeTotal ?? 0);
+        const discountTotal = Number(raw.discountTotal ?? 0);
 
-      return {
-        productId: String(raw.productId),
-        name: raw.name,
-        price,
-        image: raw.image || "",
-        qty,
-        farmerId: raw.farmerId ? String(raw.farmerId) : undefined,
+        const deliveryCharge = Number(raw.deliveryCharge ?? 0);
+        const extraCharge = Number(raw.extraCharge ?? 0);
+        const serviceCharge = Number(raw.serviceCharge ?? 0);
 
-        status: raw.status || "pending",
-        deliveryCharge,
-        extraCharge,
-        serviceCharge,
+        const taxAmount = Number(raw.taxAmount ?? 0);
+        const taxBreakup = raw.taxBreakup || {};
 
-        platformFees,
-        platformFeeTotal,
+        // 🔑 If item-level payment not provided, fallback to order-level, then default
+        const itemPaymentMode =
+          (raw.paymentMode as any) || orderPaymentMode || "cod";
+        const itemPaymentStatus =
+          (raw.paymentStatus as any) || orderPaymentStatus || "unpaid";
 
-        discounts,
-        discountTotal,
+        // paidAmount optional – can be calculated later or set explicitly
+        const paidAmount =
+          typeof raw.paidAmount === "number"
+            ? Number(raw.paidAmount)
+            : undefined;
 
-        paymentMode: raw.paymentMode || paymentMode || "cod",
-        paymentStatus: raw.paymentStatus || paymentStatus || "unpaid",
-        paidAmount,
-        currency: raw.currency || "INR",
+        return {
+          productId: String(raw.productId),
+          name: raw.name,
+          price,
+          image: raw.image || "",
+          qty,
+          farmerId: farmerIdRaw, // ✅ now guaranteed when product has it
 
-        taxAmount,
-        taxBreakup: {
-          cgst: Number(taxBreakup.cgst ?? 0),
-          sgst: Number(taxBreakup.sgst ?? 0),
-          igst: Number(taxBreakup.igst ?? 0),
-        },
+          status: raw.status || "pending",
+          deliveryCharge,
+          extraCharge,
+          serviceCharge,
 
-        farmerPayoutAmount: raw.farmerPayoutAmount
-          ? Number(raw.farmerPayoutAmount)
-          : undefined,
-        farmerSettlementStatus: raw.farmerSettlementStatus || "pending",
-        farmerSettlementAt: raw.farmerSettlementAt
-          ? new Date(raw.farmerSettlementAt)
-          : undefined,
-        settlementReferenceId: raw.settlementReferenceId || undefined,
+          platformFees,
+          platformFeeTotal,
 
-        paymentReferenceId: raw.paymentReferenceId || undefined,
-        shipmentTrackingId: raw.shipmentTrackingId || undefined,
-        shipmentProvider: raw.shipmentProvider || undefined,
-        promisedDeliveryDate: raw.promisedDeliveryDate
-          ? new Date(raw.promisedDeliveryDate)
-          : undefined,
-        deliveredAt: raw.deliveredAt
-          ? new Date(raw.deliveredAt)
-          : undefined,
-      };
-    });
+          discounts,
+          discountTotal,
 
-    // 🔢 Recompute subtotal from base prices
+          paymentMode: itemPaymentMode,
+          paymentStatus: itemPaymentStatus,
+          paidAmount,
+          currency: raw.currency || "INR",
+
+          taxAmount,
+          taxBreakup: {
+            cgst: Number(taxBreakup.cgst ?? 0),
+            sgst: Number(taxBreakup.sgst ?? 0),
+            igst: Number(taxBreakup.igst ?? 0),
+          },
+
+          farmerPayoutAmount: raw.farmerPayoutAmount
+            ? Number(raw.farmerPayoutAmount)
+            : undefined,
+          farmerSettlementStatus: raw.farmerSettlementStatus || "pending",
+          farmerSettlementAt: raw.farmerSettlementAt
+            ? new Date(raw.farmerSettlementAt)
+            : undefined,
+          settlementReferenceId: raw.settlementReferenceId || undefined,
+
+          paymentReferenceId: raw.paymentReferenceId || undefined,
+          shipmentTrackingId: raw.shipmentTrackingId || undefined,
+          shipmentProvider: raw.shipmentProvider || undefined,
+          promisedDeliveryDate: raw.promisedDeliveryDate
+            ? new Date(raw.promisedDeliveryDate)
+            : undefined,
+          deliveredAt: raw.deliveredAt
+            ? new Date(raw.deliveredAt)
+            : undefined,
+        };
+      })
+    );
+
+    // subtotal from base price * qty
     const computedSubtotal = safeItems.reduce<number>(
       (sum: number, it: OrderItem) => sum + it.price * it.qty,
       0
     );
 
-    // Extra charges/discounts per item (delivery, extra, service, platform, tax, discounts)
+    // extra charges/discounts per item
     const extraChargesTotal = safeItems.reduce<number>(
       (sum: number, it: OrderItem) =>
         sum +
@@ -199,8 +233,6 @@ export async function POST(req: NextRequest) {
     );
 
     const numericDeliveryFee = Number(deliveryFee ?? 0);
-
-    // Final order total
     const total = computedSubtotal + extraChargesTotal + numericDeliveryFee;
 
     const orderDoc = await OrderModel.create({
@@ -212,8 +244,8 @@ export async function POST(req: NextRequest) {
       deliveryFee: numericDeliveryFee,
       total,
       status: "pending",
-      paymentStatus: paymentStatus || "unpaid",
-      paymentMode: paymentMode || "cod",
+      paymentStatus: orderPaymentStatus || "unpaid",
+      paymentMode: orderPaymentMode || "cod",
       source: source || "web",
       items: safeItems,
     });
