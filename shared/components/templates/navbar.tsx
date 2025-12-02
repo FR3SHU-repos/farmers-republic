@@ -1,12 +1,12 @@
 "use client";
 import React, { useState, useRef, useEffect } from "react";
 import {
-  Leaf,
   Heart,
   ShoppingCart,
   Search,
   ArrowLeft,
   ChevronDown,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
@@ -34,7 +34,7 @@ export default function NavBar({
   const router = useRouter();
   const pathname = usePathname();
   const { user: currentUser } = useUser();
-  const { cartCount } = useCart(); // ✅ get live count
+  const { cartCount } = useCart();
 
   const [showCategories, setShowCategories] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -51,7 +51,7 @@ export default function NavBar({
 
   const showBackButton = pathname !== "/";
 
-  // 👇 Close menu when clicking outside
+  // close categories when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (
@@ -65,9 +65,21 @@ export default function NavBar({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 👉 EXACT REQUIREMENT: go to /orders/<userId>
+  const handleGoToOrders = () => {
+    if (!currentUser?.id) {
+      router.push("/login");
+      return;
+    }
+
+    router.push(`/orders/${currentUser.id}`);
+  };
+
+  const isBuyer = currentUser?.type === "Buyer";
+
   return (
     <>
-      {/* ✅ Mobile Header (with Back Button + Search) */}
+      {/* Mobile header */}
       <header className="md:hidden fixed top-0 left-0 right-0 bg-white shadow z-40 px-3 py-2 flex items-center gap-3">
         {showBackButton && (
           <button
@@ -93,23 +105,21 @@ export default function NavBar({
             {process.env.NEXT_PUBLIC_APP_NAME}
           </Link>
         </div>
-
       </header>
 
-      {/* ✅ Desktop / Tablet Nav */}
+      {/* Desktop / tablet nav */}
       <header className="hidden md:block fixed top-4 left-1/2 -translate-x-1/2 z-40 w-[90%] max-w-4xl">
         <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-full px-6 py-3 flex items-center justify-between border border-stone-200 relative">
           {/* Logo */}
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full text-white flex items-center justify-center">
-              
               <Image
-              src="/fr3sh_logo.svg"
-              alt="Fr3sh Logo"
-              width={20}
-              height={20}
-              className="inline-block"
-            />
+                src="/fr3sh_logo.svg"
+                alt="Fr3sh Logo"
+                width={20}
+                height={20}
+                className="inline-block"
+              />
             </div>
             <Link href="/">
               <span className="font-semibold text-stone-700">
@@ -118,7 +128,7 @@ export default function NavBar({
             </Link>
           </div>
 
-          {/* ✅ Animated Categories Dropdown */}
+          {/* Categories dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setShowCategories((v) => !v)}
@@ -139,9 +149,7 @@ export default function NavBar({
                 >
                   {[
                     { name: "👩‍🌾 Farmers", href: "/farmers/adapted" },
-                   
                     { name: "🛍️ Products", href: "/shop" },
-                    
                   ].map((link) => (
                     <Link
                       key={link.href}
@@ -159,6 +167,7 @@ export default function NavBar({
 
           {/* Actions */}
           <div className="flex items-center gap-3">
+            {/* Search */}
             <div className="hidden lg:flex items-center gap-2 bg-stone-100 rounded-full px-3 py-1">
               <Search className="w-4 h-4 text-stone-500" />
               <input
@@ -179,6 +188,7 @@ export default function NavBar({
               )}
             </div>
 
+            {/* Wishlist */}
             <button
               aria-label="Wishlist"
               className="p-2 rounded-full hover:bg-stone-100"
@@ -186,7 +196,7 @@ export default function NavBar({
               <Heart className="w-5 h-5" />
             </button>
 
-            {/* ✅ Cart */}
+            {/* Cart */}
             <div className="relative">
               <button
                 aria-label="Open cart"
@@ -202,12 +212,26 @@ export default function NavBar({
               </button>
             </div>
 
+            {/* My Orders → /orders/userId */}
+            {isBuyer && (
+              <button
+                type="button"
+                onClick={handleGoToOrders}
+                className="hidden sm:inline-flex items-center gap-1 text-sm text-stone-700 hover:text-green-700"
+              >
+                <Package className="w-4 h-4" />
+                My Orders
+              </button>
+            )}
+
+            {/* Profile / Login */}
             {currentUser?.id ? (
               <button
                 onClick={goProfileOrLogin}
                 className="ml-2 flex items-center gap-2 p-1 rounded-full hover:bg-stone-100"
               >
                 {currentUser.photo ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={currentUser.photo}
                     alt={currentUser.name}
