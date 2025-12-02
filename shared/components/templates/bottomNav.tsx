@@ -9,6 +9,7 @@ import {
   MapPin,
   Box,
   X,
+  ReceiptText,
 } from "lucide-react";
 import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
@@ -141,6 +142,20 @@ export default function BottomNav({
                   <div className="text-xs text-stone-700">Products</div>
                 </div>
               </Link>
+
+            {currentUser?.type === "Buyer" && (
+              <Link
+                href={`/orders/${currentUser?.id}`}
+                onClick={() => setMenuOpen(false)}
+                className="group"
+              >
+                <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
+                  <ReceiptText className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
+                  <div className="text-xs text-stone-700">My Orders</div>
+                </div>
+              </Link>
+            )}
+              
             </div>
           </div>
         )}

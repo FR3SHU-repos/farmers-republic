@@ -4,7 +4,7 @@
 
 import { useUser } from "@/shared/context/UserContext";
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ChangeEvent } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "@/shared/lib/supabase/client";
 import { TELUGU_LANGUAGE } from "@/shared/language/telugu";
@@ -22,29 +22,85 @@ export default function ProfilePage() {
     phoneNumber: "",
     type: "" as string,
   });
+
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  // State for buyer profile (from /api/v1/buyers)
+  const [profile, setProfile] = useState<{ buyerId: string } | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
       router.replace("/auth/login");
       return;
     }
-    // initialize form
+
+    // initialize form with base user
     setForm({
       name: user?.name || "",
       phoneNumber: user?.phoneNumber || "",
       type: user?.type || "",
     });
+
+    // Fetch buyer profile only if user is a buyer
+    const fetchProfile = async () => {
+      if (!user.type || user.type.toLowerCase() !== "buyer") return;
+      if (!user.id) return;
+
+      try {
+        setProfileLoading(true);
+
+        // ✅ This matches your GET handler:
+        // GET /api/v1/buyers?profileId=<auth-user-id>
+        const res = await fetch(
+          `/api/v1/buyers?profileId=${encodeURIComponent(user.id)}`,
+          {
+            credentials: "include",
+          }
+        );
+
+        // If 404, the profile does NOT exist yet -> show "Create"
+        if (res.status === 404) {
+          setProfile(null);
+          return;
+        }
+
+        if (!res.ok) {
+          console.error("Failed to fetch buyer profile, status:", res.status);
+          setProfile(null);
+          return;
+        }
+
+        const json = await res.json();
+
+        // Expected shape:
+        // { success: true, data: { buyerId: string, buyer: {...} } }
+        if (json?.success && json.data?.buyerId) {
+          setProfile({ buyerId: json.data.buyerId });
+        } else {
+          setProfile(null);
+        }
+      } catch (err) {
+        console.error("Failed to load buyer profile", err);
+        setProfile(null);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    fetchProfile();
   }, [user, router]);
 
   if (!user) return null;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
     // simple client-side validation
     if (f && f.size > 5 * 1024 * 1024) {
@@ -83,7 +139,9 @@ export default function ProfilePage() {
         if (uploadError) throw uploadError;
 
         // get public URL (for public bucket). If bucket is private, call server to create signed URL.
-        const { data: publicData } = supabase.storage.from("avatars").getPublicUrl(filePath);
+        const { data: publicData } = supabase.storage
+          .from("avatars")
+          .getPublicUrl(filePath);
         const publicURL = publicData.publicUrl;
 
         // call backend to store photoUrl & path
@@ -126,7 +184,10 @@ export default function ProfilePage() {
   const handleLogout = async () => {
     setLoading(true);
     try {
-      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" });
+      await fetch("/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
       logout();
       router.push("/");
       toast.success("Logged out");
@@ -137,13 +198,24 @@ export default function ProfilePage() {
     }
   };
 
+  // Base path for create/edit:
+  // For buyers -> /buyers/...
+  // For others -> /{type.toLowerCase()}s/...
+  const typeSlug = user?.type?.toLowerCase();
+  const basePath =
+    typeSlug === "buyer" ? "/buyers" : `/${typeSlug ? `${typeSlug}s` : ""}`;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4 py-8">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl">
         <div className="flex items-center gap-4">
           {user.photo ? (
             // you can swap to next/image if you configured remotePatterns
-            <img src={user.photo} alt={user.name} className="w-20 h-20 rounded-full object-cover" />
+            <img
+              src={user.photo}
+              alt={user.name}
+              className="w-20 h-20 rounded-full object-cover"
+            />
           ) : (
             <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center text-2xl font-bold text-green-700">
               {user.name?.charAt(0) || "U"}
@@ -151,12 +223,21 @@ export default function ProfilePage() {
           )}
 
           <div className="flex-1">
-            <h2 className="text-xl font-semibold">{user.name || "Your name"}</h2>
+            <h2 className="text-xl font-semibold">
+              {user.name || "Your name"}
+            </h2>
             <p className="text-sm text-gray-500">{user.email}</p>
             <div className="mt-2 flex gap-2">
               <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
-                <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                <span className="px-3 py-1 bg-stone-100 rounded-md text-sm">Choose Photo</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <span className="px-3 py-1 bg-stone-100 rounded-md text-sm">
+                  Choose Photo
+                </span>
               </label>
               <button
                 onClick={() => {
@@ -178,7 +259,9 @@ export default function ProfilePage() {
 
         <div className="mt-6 grid gap-4">
           <div>
-            <label className="text-sm text-gray-600">Full name ({TELUGU_LANGUAGE.name})</label>
+            <label className="text-sm text-gray-600">
+              Full name ({TELUGU_LANGUAGE.name})
+            </label>
             <input
               name="name"
               value={form.name}
@@ -188,19 +271,28 @@ export default function ProfilePage() {
           </div>
 
           <div>
-            <label className="text-sm text-gray-600">Phone ({TELUGU_LANGUAGE.phone})</label>
+            <label className="text-sm text-gray-600">
+              Phone ({TELUGU_LANGUAGE.phone})
+            </label>
             <input
               name="phoneNumber"
-              value={user?.phoneNumber}
+              value={form.phoneNumber}
               onChange={handleChange}
               className="mt-1 block w-full border rounded-md px-3 py-2"
             />
           </div>
 
           <div>
-            <label className="text-sm text-gray-600">User type ({TELUGU_LANGUAGE.user_type})</label>
-            <select name="type" value={form.type} onChange={handleChange} className="mt-1 block w-full border rounded-md px-3 py-2">
-              <option value="${user?.type}">{user?.type}</option>
+            <label className="text-sm text-gray-600">
+              User type ({TELUGU_LANGUAGE.user_type})
+            </label>
+            <select
+              name="type"
+              value={form.type}
+              onChange={handleChange}
+              className="mt-1 block w-full border rounded-md px-3 py-2"
+            >
+              <option value={user?.type || ""}>{user?.type || "Select"}</option>
             </select>
           </div>
 
@@ -208,7 +300,7 @@ export default function ProfilePage() {
             <button
               onClick={handleSave}
               disabled={loading || uploading}
-              className="flex-1 bg-green-600 text-white py-2 rounded-md font-semibold hover:bg-green-700"
+              className="flex-1 bg-green-600 text-white py-2 rounded-md font-semibold hover:bg-green-700 disabled:opacity-60"
             >
               {loading ? "Saving..." : "Save Changes"}
             </button>
@@ -216,11 +308,12 @@ export default function ProfilePage() {
             <button
               onClick={handleLogout}
               disabled={loading}
-              className="px-4 py-2 rounded-md border text-sm text-red-600"
+              className="px-4 py-2 rounded-md border text-sm text-red-600 disabled:opacity-60"
             >
               Logout
             </button>
           </div>
+
           {/* Additional data */}
           <div className="mt-6 w-full max-w-md">
             <div className="flex flex-col gap-4">
@@ -228,11 +321,20 @@ export default function ProfilePage() {
                 {user?.type}
               </h3>
 
+              {/* If buyer profile exists -> Edit, else -> Create */}
               <Link
-                href={`/${user?.type?.toLowerCase()}s/create`}
-                className="w-full inline-flex items-center justify-center bg-green-600 text-white py-2.5 rounded-lg font-semibold transition-all hover:bg-green-700 active:scale-[0.98]"
+                href={
+                  profile
+                    ? `${basePath}/${profile.buyerId}/edit`
+                    : `${basePath}/create`
+                }
+                className="w-full inline-flex items-center justify-center bg-green-600 text-white py-2.5 rounded-lg font-semibold transition-all hover:bg-green-700 active:scale-[0.98] disabled:opacity-60"
               >
-                Create
+                {profileLoading
+                  ? "Loading..."
+                  : profile
+                  ? "Edit Profile"
+                  : "Create Profile"}
               </Link>
             </div>
           </div>
@@ -241,4 +343,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
