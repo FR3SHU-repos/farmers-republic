@@ -7,7 +7,6 @@ import { useUser } from "@/shared/context/UserContext";
 import ProductGridClient, {
   ProductGridItem,
 } from "@/shared/components/molecules/ProductGridClient";
-import toast from "react-hot-toast";
 
 type AdaptedWithFarmer = {
   id: string;

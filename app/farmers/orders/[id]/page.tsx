@@ -14,6 +14,12 @@ type OrderItem = {
   price: number;
   qty: number;
   image?: string;
+
+  // per-item fields
+  status?: string;
+  deliveryCharge?: number;
+  extraCharge?: number;
+  serviceCharge?: number;
 };
 
 type FarmerOrderDetail = {
@@ -45,17 +51,37 @@ const STATUS_OPTIONS = [
 const PAYMENT_STATUS_OPTIONS = ["unpaid", "paid"] as const;
 
 export default function FarmerOrderDetailPage() {
-  // ✅ useParams for dynamic segment
   const params = useParams<{ id: string }>();
   const orderId = params?.id;
   const searchParams = useSearchParams();
-  const farmerId = searchParams.get("farmerId");
+  const farmerId = searchParams.get("farmerId") || "";
   const router = useRouter();
 
   const [data, setData] = useState<FarmerOrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const calcTotalsForItems = (items: OrderItem[]) => {
+    const subtotal = items.reduce(
+      (sum, it) => sum + it.price * it.qty,
+      0,
+    );
+
+    const charges = items.reduce(
+      (sum, it) =>
+        sum +
+        (it.deliveryCharge ?? 0) +
+        (it.extraCharge ?? 0) +
+        (it.serviceCharge ?? 0),
+      0,
+    );
+
+    return {
+      subtotal,
+      total: subtotal + charges,
+    };
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -82,7 +108,6 @@ export default function FarmerOrderDetailPage() {
         const text = await res.text();
         const contentType = res.headers.get("content-type") || "";
 
-        // If backend is returning HTML, log it instead of crashing JSON.parse
         if (!contentType.includes("application/json")) {
           console.error("Non-JSON response from", url, res.status, text);
           throw new Error(`Unexpected response from server (status ${res.status})`);
@@ -100,7 +125,26 @@ export default function FarmerOrderDetailPage() {
           throw new Error(json.message || "Failed to load order");
         }
 
-        setData(json.data as FarmerOrderDetail);
+        const d = json.data as FarmerOrderDetail;
+
+        // Ensure numeric fields
+        const safeItems: OrderItem[] = (d.items || []).map((it) => ({
+          ...it,
+          price: Number(it.price ?? 0),
+          qty: Number(it.qty ?? 0),
+          deliveryCharge: Number(it.deliveryCharge ?? 0),
+          extraCharge: Number(it.extraCharge ?? 0),
+          serviceCharge: Number(it.serviceCharge ?? 0),
+        }));
+
+        const totals = calcTotalsForItems(safeItems);
+
+        setData({
+          ...d,
+          items: safeItems,
+          subtotal: totals.subtotal,
+          total: totals.total,
+        });
       } catch (err: any) {
         console.error("order detail error:", err);
         setError(err?.message || "Failed to load order");
@@ -136,6 +180,65 @@ export default function FarmerOrderDetailPage() {
     } catch (err: any) {
       console.error("update error:", err);
       toast.error(err?.message || "Failed to update order");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleItemUpdate = async (
+    productId: string,
+    patch: {
+      status?: string;
+      deliveryCharge?: number;
+      extraCharge?: number;
+      serviceCharge?: number;
+    },
+  ) => {
+    if (!data || !orderId || !farmerId) return;
+
+    try {
+      setSaving(true);
+
+      const res = await fetch(
+        `/api/v1/farmers/orders/${encodeURIComponent(
+          orderId,
+        )}?farmerId=${encodeURIComponent(farmerId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            productId,
+            ...patch,
+          }),
+        },
+      );
+
+      const json = await res.json();
+      if (!res.ok || !json?.success) {
+        throw new Error(json?.message || "Failed to update item");
+      }
+
+      // update local state
+      setData((prev) => {
+        if (!prev) return prev;
+
+        const newItems = prev.items.map((it) =>
+          it.productId === productId ? { ...it, ...patch } : it,
+        );
+        const totals = calcTotalsForItems(newItems);
+
+        return {
+          ...prev,
+          items: newItems,
+          subtotal: totals.subtotal,
+          total: totals.total,
+        };
+      });
+
+      toast.success("Item updated");
+    } catch (err: any) {
+      console.error("item update error:", err);
+      toast.error(err?.message || "Failed to update item");
     } finally {
       setSaving(false);
     }
@@ -212,7 +315,6 @@ export default function FarmerOrderDetailPage() {
 
       {/* Content */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 space-y-6">
-        {/* primary info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {/* left: buyer + items */}
           <div className="md:col-span-2 space-y-4">
@@ -275,61 +377,262 @@ export default function FarmerOrderDetailPage() {
               </h2>
 
               <div className="border border-stone-100 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-stone-50 text-xs text-stone-500 border-b border-stone-100">
-                    <tr>
-                      <th className="text-left px-3 py-2">Product</th>
-                      <th className="text-right px-3 py-2">Qty</th>
-                      <th className="text-right px-3 py-2">Price (₹)</th>
-                      <th className="text-right px-3 py-2">Total (₹)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.items.map((it) => (
-                      <tr
-                        key={it.productId}
-                        className="border-t border-stone-100 last:border-b-0"
-                      >
-                        <td className="px-3 py-2">
-                          <div className="font-medium text-stone-800">
-                            {it.name}
-                          </div>
-                          <div className="text-[11px] text-stone-400">
-                            #{it.productId.slice(-6).toUpperCase()}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 text-right text-stone-800">
-                          {it.qty}
-                        </td>
-                        <td className="px-3 py-2 text-right text-stone-800">
-                          ₹{it.price.toFixed(2)}
-                        </td>
-                        <td className="px-3 py-2 text-right font-semibold text-stone-900">
-                          ₹{(it.price * it.qty).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
+                {/* header row for desktop */}
+                <div className="hidden sm:grid sm:grid-cols-[minmax(0,2fr)_auto_auto_auto] bg-stone-50 text-xs text-stone-500 border-b border-stone-100 px-3 py-2">
+                  <div>Product</div>
+                  <div className="text-right">Qty</div>
+                  <div className="text-right">Price (₹)</div>
+                  <div className="text-right">Total (₹)</div>
+                </div>
 
-                    {data.items.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="px-3 py-4 text-center text-xs text-stone-400"
-                        >
-                          No items for you in this order.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                {data.items.length === 0 && (
+                  <div className="px-3 py-4 text-center text-xs text-stone-400">
+                    No items for you in this order.
+                  </div>
+                )}
+
+                {data.items.map((it) => {
+                  const baseTotal = it.price * it.qty;
+                  const charges =
+                    (it.deliveryCharge ?? 0) +
+                    (it.extraCharge ?? 0) +
+                    (it.serviceCharge ?? 0);
+                  const lineTotal = baseTotal + charges;
+
+                  return (
+                    <div
+                      key={it.productId}
+                      className="flex flex-col sm:grid sm:grid-cols-[minmax(0,2fr)_auto_auto_auto] gap-3 px-3 py-3 sm:py-2.5 bg-white border-t border-stone-100 last:border-b-0"
+                    >
+                      {/* Left: product info */}
+                      <div className="flex items-start gap-3">
+                        {it.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={it.image}
+                            alt={it.name}
+                            className="hidden sm:block w-12 h-12 rounded-xl object-cover bg-stone-100 border border-stone-100"
+                          />
+                        ) : (
+                          <div className="hidden sm:flex w-12 h-12 rounded-xl items-center justify-center bg-stone-50 border border-stone-100 text-xs text-stone-500">
+                            No image
+                          </div>
+                        )}
+                        <div className="space-y-1 min-w-0">
+                          <p className="text-sm font-medium text-stone-900 truncate">
+                            {it.name}
+                          </p>
+                          <p className="text-[11px] text-stone-400 font-mono">
+                            #{it.productId.slice(-6).toUpperCase()}
+                          </p>
+
+                          {/* Mobile quick info */}
+                          <div className="mt-1 flex sm:hidden items-center justify-between text-[11px] text-stone-500">
+                            <span>Qty: {it.qty}</span>
+                            <span>₹{it.price.toFixed(2)}</span>
+                            <span className="font-semibold text-stone-900">
+                              ₹{baseTotal.toFixed(2)}
+                            </span>
+                          </div>
+
+                          {/* Mobile status + charges */}
+                          <div className="mt-2 space-y-1 sm:hidden">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[11px] text-stone-500">
+                                Item status
+                              </span>
+                              <select
+                                value={it.status || data.status}
+                                disabled={saving}
+                                onChange={(e) =>
+                                  handleItemUpdate(it.productId, {
+                                    status: e.target.value,
+                                  })
+                                }
+                                className="text-[11px] border border-stone-200 rounded-full px-2 py-1 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                              >
+                                {STATUS_OPTIONS.map((s) => (
+                                  <option key={s} value={s}>
+                                    {s
+                                      .split("_")
+                                      .map(
+                                        (p) =>
+                                          p[0].toUpperCase() + p.slice(1),
+                                      )
+                                      .join(" ")}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 text-[11px] text-stone-500">
+                              <span>Extra fees</span>
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="number"
+                                  min={0}
+                                  defaultValue={it.deliveryCharge ?? 0}
+                                  disabled={saving}
+                                  onBlur={(e) =>
+                                    handleItemUpdate(it.productId, {
+                                      deliveryCharge: Number(
+                                        e.target.value || 0,
+                                      ),
+                                    })
+                                  }
+                                  className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
+                                  placeholder="Del"
+                                />
+                                <input
+                                  type="number"
+                                  min={0}
+                                  defaultValue={it.extraCharge ?? 0}
+                                  disabled={saving}
+                                  onBlur={(e) =>
+                                    handleItemUpdate(it.productId, {
+                                      extraCharge: Number(
+                                        e.target.value || 0,
+                                      ),
+                                    })
+                                  }
+                                  className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
+                                  placeholder="Extra"
+                                />
+                                <input
+                                  type="number"
+                                  min={0}
+                                  defaultValue={it.serviceCharge ?? 0}
+                                  disabled={saving}
+                                  onBlur={(e) =>
+                                    handleItemUpdate(it.productId, {
+                                      serviceCharge: Number(
+                                        e.target.value || 0,
+                                      ),
+                                    })
+                                  }
+                                  className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
+                                  placeholder="Serv"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between text-[11px] text-stone-500 mt-1">
+                              <span>Line total</span>
+                              <span className="font-semibold text-stone-900">
+                                ₹{lineTotal.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Desktop qty */}
+                      <div className="hidden sm:flex flex-col justify-center text-right text-sm text-stone-800">
+                        {it.qty}
+                      </div>
+
+                      {/* Desktop price */}
+                      <div className="hidden sm:flex flex-col justify-center text-right text-sm text-stone-800">
+                        ₹{it.price.toFixed(2)}
+                      </div>
+
+                      {/* Desktop totals + controls */}
+                      <div className="hidden sm:flex flex-col items-end justify-center gap-1 text-right text-sm">
+                        <span className="font-semibold text-stone-900">
+                          ₹{lineTotal.toFixed(2)}
+                        </span>
+
+                        <div className="flex items-center gap-1.5">
+                          <select
+                            value={it.status || data.status}
+                            disabled={saving}
+                            onChange={(e) =>
+                              handleItemUpdate(it.productId, {
+                                status: e.target.value,
+                              })
+                            }
+                            className="text-[11px] border border-stone-200 rounded-full px-2 py-0.5 bg-stone-50 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+                          >
+                            {STATUS_OPTIONS.map((s) => (
+                              <option key={s} value={s}>
+                                {s
+                                  .split("_")
+                                  .map(
+                                    (p) =>
+                                      p[0].toUpperCase() + p.slice(1),
+                                  )
+                                  .join(" ")}
+                              </option>
+                            ))}
+                          </select>
+
+                          <input
+                            type="number"
+                            min={0}
+                            defaultValue={it.deliveryCharge ?? 0}
+                            disabled={saving}
+                            onBlur={(e) =>
+                              handleItemUpdate(it.productId, {
+                                deliveryCharge: Number(
+                                  e.target.value || 0,
+                                ),
+                              })
+                            }
+                            className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
+                            placeholder="Del"
+                            title="Delivery charge"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            defaultValue={it.extraCharge ?? 0}
+                            disabled={saving}
+                            onBlur={(e) =>
+                              handleItemUpdate(it.productId, {
+                                extraCharge: Number(e.target.value || 0),
+                              })
+                            }
+                            className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
+                            placeholder="Extra"
+                            title="Extra charge"
+                          />
+                          <input
+                            type="number"
+                            min={0}
+                            defaultValue={it.serviceCharge ?? 0}
+                            disabled={saving}
+                            onBlur={(e) =>
+                              handleItemUpdate(it.productId, {
+                                serviceCharge: Number(
+                                  e.target.value || 0,
+                                ),
+                              })
+                            }
+                            className="w-14 border border-stone-200 rounded-full px-2 py-0.5 text-[11px] text-right bg-stone-50"
+                            placeholder="Serv"
+                            title="Service charge"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
-              <div className="flex justify-end pt-2">
+              <div className="flex justify-end pt-3">
                 <div className="text-sm text-right space-y-1">
                   <div className="flex justify-between gap-6">
-                    <span className="text-stone-500">Subtotal</span>
+                    <span className="text-stone-500">Subtotal (items)</span>
                     <span className="font-medium text-stone-900">
                       ₹{data.subtotal.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-6">
+                    <span className="text-stone-500">
+                      Extra fees (delivery + others)
+                    </span>
+                    <span className="font-medium text-stone-900">
+                      ₹{(data.total - data.subtotal).toFixed(2)}
                     </span>
                   </div>
                   <div className="flex justify-between gap-6 font-semibold">
@@ -414,6 +717,10 @@ export default function FarmerOrderDetailPage() {
                   </button>
                 ))}
               </div>
+
+              <p className="text-[11px] text-stone-400">
+                Payment status applies to the whole order, not just your items.
+              </p>
             </div>
           </div>
         </div>

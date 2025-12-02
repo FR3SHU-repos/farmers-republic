@@ -59,7 +59,7 @@ export default function BuyerOrdersPage() {
 
       try {
         const res = await fetch(
-          `/api/v1/orders/voice/buyerOrders?buyerId=${encodeURIComponent(
+          `/api/v1/farmers/orders/voice/buyerOrders?buyerId=${encodeURIComponent(
             user.id
           )}`,
           { cache: "no-store" }

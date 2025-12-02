@@ -54,7 +54,7 @@ const handleCheckout = async () => {
       source: "web",
     };
 
-    const res = await fetch("/api/v1/orders/voice/buyerOrders", {
+    const res = await fetch("/api/v1/farmers/orders/voice/buyerOrders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

@@ -1,5 +1,3 @@
-// app/shared/interfaces/mongodb/orders/buyerOrders.tsx
-
 export type OrderItem = {
   productId: string;
   name: string;
@@ -7,6 +5,12 @@ export type OrderItem = {
   image?: string;
   qty: number;
   farmerId?: string;
+
+  // ✨ NEW per-item fields
+  status?: string;          // "pending", "confirmed", etc. (defaults to order.status)
+  deliveryCharge?: number;  // delivery charge for THIS item
+  extraCharge?: number;     // any extra (packing, handling)
+  serviceCharge?: number;   // platform/service fee for this item
 };
 
 export type Order = {
@@ -18,7 +22,7 @@ export type Order = {
   subtotal: number;
   deliveryFee: number;
   total: number;
-  status: string;        // "pending", "confirmed", etc.
+  status: string;        // overall order status
   paymentStatus: string; // "unpaid", "paid"
   paymentMode: string;   // "cod", "online"
   source?: string;       // "web", "app", "voice"
