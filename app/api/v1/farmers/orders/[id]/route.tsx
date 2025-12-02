@@ -111,11 +111,10 @@ export async function GET(req: NextRequest, context: ParamsContext) {
 }
 
 // 🔹 PATCH – update status / paymentStatus
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  console.log("🚜 FARMER ORDER UPDATE API HIT", params.id);
+  export async function PATCH(req: NextRequest, context: ParamsContext) {
+  const params = await Promise.resolve(context.params);
+  const { id } = params;
+  console.log("🚜 FARMER ORDER DETAIL API HIT", id);
 
   await mongoDB();
   const body = await req.json();
