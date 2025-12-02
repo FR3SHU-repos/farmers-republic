@@ -175,11 +175,44 @@ export async function POST(req: NextRequest) {
 }
 
 // ---------- LIST FARMERS (GET) ----------
+// ---------- GET FARMER(S) (GET) ----------
 export async function GET(req: NextRequest) {
   try {
     await mongoDB();
 
     const url = new URL(req.url);
+
+    // 🔹 NEW: support single farmer fetch
+    const id = url.searchParams.get("id");
+    const profileId = url.searchParams.get("profileId");
+
+    if (id || profileId) {
+      const query: any = {};
+      if (id) query._id = id;
+      if (profileId) query.profileId = profileId;
+
+      const farmer = await FarmerModel.findOne(query).lean();
+
+      if (!farmer) {
+        return NextResponse.json(
+          failure("Farmer not found"),
+          { status: 404 },
+        );
+      }
+
+      return NextResponse.json(
+        success(
+          {
+            farmerId: String((farmer as any)._id),
+            farmer,
+          },
+          "Farmer fetched",
+        ),
+        { status: 200 },
+      );
+    }
+
+    // 🔹 If no id/profileId → fall back to LIST (your old logic)
     const pageParam = parseInt(url.searchParams.get("page") ?? "1", 10);
     const limitParam = parseInt(
       url.searchParams.get("limit") ?? String(DEFAULT_LIMIT),
@@ -297,6 +330,118 @@ export async function GET(req: NextRequest) {
     console.error("Fetch farmers error:", err);
     return NextResponse.json(
       failure("Failed to fetch farmers", err?.message || err),
+      { status: 500 },
+    );
+  }
+}
+
+
+
+// ---------- UPDATE FARMER (PATCH) ----------
+export async function PATCH(req: NextRequest) {
+  try {
+    await mongoDB();
+
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+    const profileId = url.searchParams.get("profileId");
+
+    if (!id && !profileId) {
+      return NextResponse.json(
+        failure("Either id or profileId is required"),
+        { status: 400 },
+      );
+    }
+
+    const body = await req.json();
+    const update: any = {};
+
+    // Keep it simple: allow updating these main fields
+    const simpleFields = [
+      "name",
+      "fatherName",
+      "gender",
+      "dateOfBirth",
+      "phone",
+      "alternatePhone",
+      "email",
+      "whatsappNumber",
+      "addressLine1",
+      "addressLine2",
+      "village",
+      "mandal",
+      "district",
+      "state",
+      "pincode",
+      "farmName",
+      "farmArea",
+      "category",
+      "about",
+      "experienceDescription",
+      "avatar",
+      "photoPath",
+    ];
+
+    for (const key of simpleFields) {
+      if (body[key] !== undefined) {
+        update[key] = body[key];
+      }
+    }
+
+    // Arrays
+    if (body.subCategories !== undefined) {
+      update.subCategories = Array.isArray(body.subCategories)
+        ? body.subCategories
+        : typeof body.subCategories === "string"
+        ? body.subCategories.split(",").map((s: string) => s.trim()).filter(Boolean)
+        : [];
+    }
+
+    if (body.seasonalCrops !== undefined) {
+      update.seasonalCrops = Array.isArray(body.seasonalCrops)
+        ? body.seasonalCrops
+        : typeof body.seasonalCrops === "string"
+        ? body.seasonalCrops.split(",").map((s: string) => s.trim()).filter(Boolean)
+        : [];
+    }
+
+    if (body.perennialCrops !== undefined) {
+      update.perennialCrops = Array.isArray(body.perennialCrops)
+        ? body.perennialCrops
+        : typeof body.perennialCrops === "string"
+        ? body.perennialCrops.split(",").map((s: string) => s.trim()).filter(Boolean)
+        : [];
+    }
+
+    const query: any = {};
+    if (id) query._id = id;
+    if (profileId) query.profileId = profileId;
+
+    const farmer = await FarmerModel.findOneAndUpdate(query, update, {
+      new: true,
+    }).lean();
+
+    if (!farmer) {
+      return NextResponse.json(
+        failure("Farmer not found"),
+        { status: 404 },
+      );
+    }
+
+    return NextResponse.json(
+      success(
+        {
+          farmerId: String((farmer as any)._id),
+          farmer,
+        },
+        "Farmer updated",
+      ),
+      { status: 200 },
+    );
+  } catch (err: any) {
+    console.error("Update farmer error:", err);
+    return NextResponse.json(
+      failure("Failed to update farmer", err?.message || err),
       { status: 500 },
     );
   }

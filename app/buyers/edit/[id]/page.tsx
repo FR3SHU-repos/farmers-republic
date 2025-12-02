@@ -50,10 +50,14 @@ export default function EditBuyerPage() {
     const loadBuyer = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`/api/v1/buyers?id=${encodeURIComponent(buyerId)}`, {
-          credentials: "include",
-        });
+        const res = await fetch(
+          `/api/v1/buyers?id=${encodeURIComponent(buyerId)}`,
+          {
+            credentials: "include",
+          }
+        );
 
+        // If API returns error / 404
         if (!res.ok) {
           const json = await res.json().catch(() => null);
           toast.error(json?.message || "Failed to load buyer profile");
@@ -125,14 +129,17 @@ export default function EditBuyerPage() {
     try {
       setSaving(true);
 
-      const res = await fetch(`/api/v1/buyers?id=${encodeURIComponent(buyerId)}`, {
-        method: "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(form),
-      });
+      const res = await fetch(
+        `/api/v1/buyers?id=${encodeURIComponent(buyerId)}`,
+        {
+          method: "PATCH",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(form),
+        }
+      );
 
       const json = await res.json();
 

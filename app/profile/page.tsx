@@ -15,8 +15,6 @@ export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  console.log("User in profile page:", user?.phoneNumber);
-
   const [form, setForm] = useState({
     name: "",
     phoneNumber: "",
@@ -26,8 +24,9 @@ export default function ProfilePage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  // State for buyer profile (from /api/v1/buyers)
-  const [profile, setProfile] = useState<{ buyerId: string } | null>(null);
+  // Buyer + Farmer profiles
+  const [buyerProfile, setBuyerProfile] = useState<{ buyerId: string } | null>(null);
+  const [farmerProfile, setFarmerProfile] = useState<{ farmerId: string } | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
@@ -36,60 +35,96 @@ export default function ProfilePage() {
       return;
     }
 
-    // initialize form with base user
+    // init form
     setForm({
       name: user?.name || "",
       phoneNumber: user?.phoneNumber || "",
       type: user?.type || "",
     });
 
-    // Fetch buyer profile only if user is a buyer
-    const fetchProfile = async () => {
+    const fetchBuyer = async () => {
       if (!user.type || user.type.toLowerCase() !== "buyer") return;
       if (!user.id) return;
 
       try {
         setProfileLoading(true);
-
-        // ✅ This matches your GET handler:
-        // GET /api/v1/buyers?profileId=<auth-user-id>
         const res = await fetch(
           `/api/v1/buyers?profileId=${encodeURIComponent(user.id)}`,
-          {
-            credentials: "include",
-          }
+          { credentials: "include" },
         );
 
-        // If 404, the profile does NOT exist yet -> show "Create"
         if (res.status === 404) {
-          setProfile(null);
+          setBuyerProfile(null);
           return;
         }
 
         if (!res.ok) {
           console.error("Failed to fetch buyer profile, status:", res.status);
-          setProfile(null);
+          setBuyerProfile(null);
           return;
         }
 
         const json = await res.json();
-
-        // Expected shape:
-        // { success: true, data: { buyerId: string, buyer: {...} } }
         if (json?.success && json.data?.buyerId) {
-          setProfile({ buyerId: json.data.buyerId });
+          setBuyerProfile({ buyerId: json.data.buyerId });
         } else {
-          setProfile(null);
+          setBuyerProfile(null);
         }
       } catch (err) {
         console.error("Failed to load buyer profile", err);
-        setProfile(null);
+        setBuyerProfile(null);
       } finally {
         setProfileLoading(false);
       }
     };
 
-    fetchProfile();
+    const fetchFarmer = async () => {
+      if (!user.type || user.type.toLowerCase() !== "farmer") return;
+      if (!user.id) return;
+
+      try {
+        setProfileLoading(true);
+
+        // 🔥 IMPORTANT: use helper route, NOT /farmers?profileId=...
+        const res = await fetch(
+          `/api/v1/helper/by-profile/${encodeURIComponent(user.id)}`,
+          { credentials: "include" },
+        );
+
+        if (res.status === 404) {
+          setFarmerProfile(null);
+          return;
+        }
+
+        if (!res.ok) {
+          console.error("Failed to fetch farmer profile, status:", res.status);
+          setFarmerProfile(null);
+          return;
+        }
+
+        const json = await res.json();
+
+        // From your helper route:
+        // { success: true, data: { farmerId: string, farmer: {...} } }
+        if (json?.success && json.data?.farmerId) {
+          setFarmerProfile({ farmerId: json.data.farmerId });
+        } else {
+          setFarmerProfile(null);
+        }
+      } catch (err) {
+        console.error("Failed to load farmer profile", err);
+        setFarmerProfile(null);
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+
+    // call based on type
+    if (user.type?.toLowerCase() === "buyer") {
+      fetchBuyer();
+    } else if (user.type?.toLowerCase() === "farmer") {
+      fetchFarmer();
+    }
   }, [user, router]);
 
   if (!user) return null;
@@ -102,7 +137,6 @@ export default function ProfilePage() {
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
-    // simple client-side validation
     if (f && f.size > 5 * 1024 * 1024) {
       toast.error("Image must be < 5MB");
       return;
@@ -113,7 +147,6 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // 1) update fields (name/phone/type)
       const res = await fetch("/api/v1/user/update", {
         method: "PATCH",
         credentials: "include",
@@ -125,8 +158,8 @@ export default function ProfilePage() {
         throw new Error(json.message || "Failed to update profile");
       }
 
-      // 2) If file selected, upload to Supabase and save photo URL
       let updatedUser = json.data;
+
       if (file) {
         setUploading(true);
         const ext = file.name.split(".").pop();
@@ -138,13 +171,11 @@ export default function ProfilePage() {
 
         if (uploadError) throw uploadError;
 
-        // get public URL (for public bucket). If bucket is private, call server to create signed URL.
         const { data: publicData } = supabase.storage
           .from("avatars")
           .getPublicUrl(filePath);
         const publicURL = publicData.publicUrl;
 
-        // call backend to store photoUrl & path
         const photoRes = await fetch("/api/v1/user/photo", {
           method: "PATCH",
           credentials: "include",
@@ -160,7 +191,6 @@ export default function ProfilePage() {
         setUploading(false);
       }
 
-      // 3) Update local context so NavBar updates immediately
       const mapped = {
         id: updatedUser.id ?? updatedUser._id ?? String(updatedUser._id ?? ""),
         name: updatedUser.name,
@@ -198,19 +228,32 @@ export default function ProfilePage() {
     }
   };
 
-  // Base path for create/edit:
-  // For buyers -> /buyers/...
-  // For others -> /{type.toLowerCase()}s/...
   const typeSlug = user?.type?.toLowerCase();
-  const basePath =
-    typeSlug === "buyer" ? "/buyers" : `/${typeSlug ? `${typeSlug}s` : ""}`;
+
+  const isBuyer = typeSlug === "buyer";
+  const isFarmer = typeSlug === "farmer";
+
+  let profileIdForLink: string | undefined;
+  let createPath = "";
+  let editPath = "";
+
+  if (isBuyer) {
+    profileIdForLink = buyerProfile?.buyerId;
+    createPath = "/buyers/create";
+    editPath = profileIdForLink ? `/buyers/edit/${profileIdForLink}` : "";
+  } else if (isFarmer) {
+    profileIdForLink = farmerProfile?.farmerId;
+    createPath = "/farmers/create";
+    editPath = profileIdForLink ? `/farmers/edit/${profileIdForLink}` : "";
+  }
+
+  const finalHref = profileIdForLink ? editPath : createPath;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4 py-8">
       <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl">
         <div className="flex items-center gap-4">
           {user.photo ? (
-            // you can swap to next/image if you configured remotePatterns
             <img
               src={user.photo}
               alt={user.name}
@@ -241,7 +284,6 @@ export default function ProfilePage() {
               </label>
               <button
                 onClick={() => {
-                  // show preview if file selected
                   if (file) {
                     const url = URL.createObjectURL(file);
                     window.open(url);
@@ -305,7 +347,7 @@ export default function ProfilePage() {
               {loading ? "Saving..." : "Save Changes"}
             </button>
 
-            <button
+          <button
               onClick={handleLogout}
               disabled={loading}
               className="px-4 py-2 rounded-md border text-sm text-red-600 disabled:opacity-60"
@@ -315,29 +357,26 @@ export default function ProfilePage() {
           </div>
 
           {/* Additional data */}
-          <div className="mt-6 w-full max-w-md">
-            <div className="flex flex-col gap-4">
-              <h3 className="text-xl font-bold text-gray-800">
-                {user?.type}
-              </h3>
+          {(isBuyer || isFarmer) && (
+            <div className="mt-6 w-full max-w-md">
+              <div className="flex flex-col gap-4">
+                <h3 className="text-xl font-bold text-gray-800">
+                  {user?.type}
+                </h3>
 
-              {/* If buyer profile exists -> Edit, else -> Create */}
-              <Link
-                href={
-                  profile
-                    ? `${basePath}/edit/${profile.buyerId}`
-                    : `${basePath}/create`
-                }
-                className="w-full inline-flex items-center justify-center bg-green-600 text-white py-2.5 rounded-lg font-semibold transition-all hover:bg-green-700 active:scale-[0.98] disabled:opacity-60"
-              >
-                {profileLoading
-                  ? "Loading..."
-                  : profile
-                  ? "Edit Profile"
-                  : "Create Profile"}
-              </Link>
+                <Link
+                  href={finalHref}
+                  className="w-full inline-flex items-center justify-center bg-green-600 text-white py-2.5 rounded-lg font-semibold transition-all hover:bg-green-700 active:scale-[0.98] disabled:opacity-60"
+                >
+                  {profileLoading
+                    ? "Loading..."
+                    : profileIdForLink
+                    ? "Edit Profile"
+                    : "Create Profile"}
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
