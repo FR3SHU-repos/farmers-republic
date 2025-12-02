@@ -1,18 +1,49 @@
+// shared/models/mongodb/orders/buyerOrders.ts
+
 import mongoose, { Schema } from "mongoose";
 import type { Order } from "@/shared/interfaces/mongodb/orders/buyerOrders";
 
+// 🔹 Sub-schema for per-item discounts (incl. festive)
+const orderItemDiscountSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: ["festive", "coupon", "farmer", "bulk", "manual"],
+      default: "manual",
+    },
+    label: { type: String }, // e.g. "Diwali Offer", "WELCOME10"
+    amount: { type: Number, default: 0 }, // positive = discount amount
+  },
+  { _id: false }
+);
+
+// 🔹 Sub-schema for per-item platform fees
+const orderItemPlatformFeeSchema = new Schema(
+  {
+    type: {
+      type: String,
+      enum: ["service", "listing", "payment_gateway", "other"],
+      default: "service",
+    },
+    label: { type: String }, // e.g. "FR3SH fee", "UPI gateway"
+    amount: { type: Number, default: 0 }, // positive = fee amount
+  },
+  { _id: false }
+);
+
+// 🔹 Item schema – each product behaves like a mini-order line
 const orderItemSchema = new Schema(
   {
     productId: { type: String, required: true },
-    name:     { type: String, required: true },
-    price:    { type: Number, required: true },
-    image:    { type: String },
-    qty:      { type: Number, required: true },
-    farmerId: { type: String },
+    name:      { type: String, required: true },
+    price:     { type: Number, required: true }, // base price per unit
+    image:     { type: String },
+    qty:       { type: Number, required: true },
+    farmerId:  { type: String },
 
     // ✨ per-item lifecycle + charges
     status: {
-      type: String,
+      type: String,          // "pending", "confirmed", "out_for_delivery", etc.
       default: "pending",
       index: true,
     },
@@ -28,10 +59,93 @@ const orderItemSchema = new Schema(
       type: Number,
       default: 0,
     },
+
+    // 💰 Platform fees per item
+    platformFees: {
+      type: [orderItemPlatformFeeSchema],
+      default: [],
+    },
+    platformFeeTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    // 🎉 Discounts per item (incl. festive offers, coupons, etc.)
+    discounts: {
+      type: [orderItemDiscountSchema],
+      default: [],
+    },
+    discountTotal: {
+      type: Number,
+      default: 0,
+    },
+
+    // 💳 Payment per item (overrides order-level when needed)
+    paymentMode: {
+      type: String, // "cod" | "online" (not enforced here to stay flexible)
+    },
+    paymentStatus: {
+      type: String, // "unpaid", "paid", "refund_pending", "refunded", ...
+    },
+    paidAmount: {
+      type: Number,
+      default: 0,   // total actually charged for this item line
+    },
+    currency: {
+      type: String,
+      default: "INR",
+    },
+
+    // 🧾 Tax per item
+    taxAmount: {
+      type: Number,
+      default: 0,
+    },
+    taxBreakup: {
+      cgst: { type: Number, default: 0 },
+      sgst: { type: Number, default: 0 },
+      igst: { type: Number, default: 0 },
+    },
+
+    // 💸 Payout to farmer for this item
+    farmerPayoutAmount: {
+      type: Number,
+      default: 0,
+    },
+    farmerSettlementStatus: {
+      type: String,
+      enum: ["pending", "scheduled", "settled", "on_hold"],
+      default: "pending",
+      index: true,
+    },
+    farmerSettlementAt: {
+      type: Date,
+    },
+    settlementReferenceId: {
+      type: String,
+    },
+
+    // 🔗 References, logistics
+    paymentReferenceId: {
+      type: String, // per-item payment ref if you ever need it
+    },
+    shipmentTrackingId: {
+      type: String,
+    },
+    shipmentProvider: {
+      type: String,
+    },
+    promisedDeliveryDate: {
+      type: Date,
+    },
+    deliveredAt: {
+      type: Date,
+    },
   },
-  { _id: false },
+  { _id: false }
 );
 
+// 🔹 Order schema – overall order + array of items
 const orderSchema = new Schema<Order>(
   {
     buyerId:    { type: String, index: true },
@@ -39,18 +153,21 @@ const orderSchema = new Schema<Order>(
     buyerEmail: { type: String },
     buyerPhone: { type: String },
 
-    subtotal:    { type: Number, required: true },
-    deliveryFee: { type: Number, default: 0 },
-    total:       { type: Number, required: true },
+    subtotal:    { type: Number, required: true }, // sum of item base price*qty
+    deliveryFee: { type: Number, default: 0 },     // any global delivery fee
+    total:       { type: Number, required: true }, // final buyer total
 
     status:        { type: String, default: "pending", index: true },
     paymentStatus: { type: String, default: "unpaid", index: true },
     paymentMode:   { type: String, default: "cod" },
     source:        { type: String, default: "web" },
 
+    // optional global payment reference if you use a single transaction
+    paymentReferenceId: { type: String },
+
     items: { type: [orderItemSchema], required: true },
   },
-  { timestamps: true },
+  { timestamps: true }
 );
 
 const OrderModel =
