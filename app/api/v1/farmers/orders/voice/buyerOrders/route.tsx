@@ -267,92 +267,92 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    await mongoDB();
+// export async function PATCH(
+//   req: NextRequest,
+//   { params }: { params: { id: string } }
+// ) {
+//   try {
+//     await mongoDB();
 
-    const orderId = params.id;
-    const url = new URL(req.url);
-    const farmerId = url.searchParams.get("farmerId");
-    const body = await req.json();
+//     const orderId = params.id;
+//     const url = new URL(req.url);
+//     const farmerId = url.searchParams.get("farmerId");
+//     const body = await req.json();
 
-    const { productId } = body || {};
-    const {
-      status,
-      deliveryCharge,
-      extraCharge,
-      serviceCharge,
-      discountTotal,
-    } = body || {};
+//     const { productId } = body || {};
+//     const {
+//       status,
+//       deliveryCharge,
+//       extraCharge,
+//       serviceCharge,
+//       discountTotal,
+//     } = body || {};
 
-    if (!farmerId) {
-      return NextResponse.json(failure("farmerId is required"), {
-        status: 400,
-      });
-    }
+//     if (!farmerId) {
+//       return NextResponse.json(failure("farmerId is required"), {
+//         status: 400,
+//       });
+//     }
 
-    if (!productId) {
-      return NextResponse.json(failure("productId is required"), {
-        status: 400,
-      });
-    }
+//     if (!productId) {
+//       return NextResponse.json(failure("productId is required"), {
+//         status: 400,
+//       });
+//     }
 
-    const $set: Record<string, any> = {};
+//     const $set: Record<string, any> = {};
 
-    if (typeof status === "string") {
-      $set["items.$.status"] = status;
-    }
-    if (typeof deliveryCharge === "number") {
-      $set["items.$.deliveryCharge"] = deliveryCharge;
-    }
-    if (typeof extraCharge === "number") {
-      $set["items.$.extraCharge"] = extraCharge;
-    }
-    if (typeof serviceCharge === "number") {
-      $set["items.$.serviceCharge"] = serviceCharge;
-    }
-    // ✅ NEW: allow discountTotal to be updated
-    if (typeof discountTotal === "number") {
-      $set["items.$.discountTotal"] = discountTotal;
-    }
+//     if (typeof status === "string") {
+//       $set["items.$.status"] = status;
+//     }
+//     if (typeof deliveryCharge === "number") {
+//       $set["items.$.deliveryCharge"] = deliveryCharge;
+//     }
+//     if (typeof extraCharge === "number") {
+//       $set["items.$.extraCharge"] = extraCharge;
+//     }
+//     if (typeof serviceCharge === "number") {
+//       $set["items.$.serviceCharge"] = serviceCharge;
+//     }
+//     // ✅ NEW: allow discountTotal to be updated
+//     if (typeof discountTotal === "number") {
+//       $set["items.$.discountTotal"] = discountTotal;
+//     }
 
-    if (Object.keys($set).length === 0) {
-      return NextResponse.json(
-        failure(
-          "Nothing to update (status / deliveryCharge / extraCharge / serviceCharge / discountTotal)"
-        ),
-        { status: 400 }
-      );
-    }
+//     if (Object.keys($set).length === 0) {
+//       return NextResponse.json(
+//         failure(
+//           "Nothing to update (status / deliveryCharge / extraCharge / serviceCharge / discountTotal)"
+//         ),
+//         { status: 400 }
+//       );
+//     }
 
-    const result = await OrderModel.updateOne(
-      {
-        _id: orderId,
-        "items.productId": productId,
-        "items.farmerId": farmerId,
-      },
-      { $set }
-    );
+//     const result = await OrderModel.updateOne(
+//       {
+//         _id: orderId,
+//         "items.productId": productId,
+//         "items.farmerId": farmerId,
+//       },
+//       { $set }
+//     );
 
-    if (!result.matchedCount) {
-      return NextResponse.json(
-        failure("Order item not found for this farmer"),
-        { status: 404 }
-      );
-    }
+//     if (!result.matchedCount) {
+//       return NextResponse.json(
+//         failure("Order item not found for this farmer"),
+//         { status: 404 }
+//       );
+//     }
 
-    return NextResponse.json(success(null, "Farmer item updated"), {
-      status: 200,
-    });
-  } catch (err: any) {
-    console.error("farmer order PATCH error:", err);
-    return NextResponse.json(
-      failure(err?.message || "Failed to update order item"),
-      { status: 500 }
-    );
-  }
-}
+//     return NextResponse.json(success(null, "Farmer item updated"), {
+//       status: 200,
+//     });
+//   } catch (err: any) {
+//     console.error("farmer order PATCH error:", err);
+//     return NextResponse.json(
+//       failure(err?.message || "Failed to update order item"),
+//       { status: 500 }
+//     );
+//   }
+// }
 
