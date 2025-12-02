@@ -1,6 +1,7 @@
 // This is the productcard for displaying individual products of a farmer
 
 // shared/components/molecules/FarmerProductCard.tsx
+import { useUser } from "@/shared/context/UserContext";
 import Link from "next/link";
 
 interface Product {
@@ -15,6 +16,7 @@ interface FarmerProductCardProps {
 }
 
 const FarmerProductCard = ({ products }: FarmerProductCardProps) => {
+    const {user} = useUser();
     return (
         <>
             {/* Products Section */}
@@ -52,9 +54,12 @@ const FarmerProductCard = ({ products }: FarmerProductCardProps) => {
             {products.length === 0 && (
                 <div className="bg-white p-3 rounded-xl shadow-sm text-sm text-stone-400">
                     No products added for this farmer.
+                    {user?.type === 'Farmer' && (
                     <Link href="/products/create" className="text-green-600 underline ml-1">
                         Add Products
                     </Link>
+                    )}
+                    
                 </div>
             )}
         </>
