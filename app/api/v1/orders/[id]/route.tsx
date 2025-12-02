@@ -17,6 +17,40 @@ type MongoOrder = {
   paymentStatus?: string;
 };
 
+
+// GET – fetch one full buyer order
+export async function GET(req: NextRequest, context: ParamsContext) {
+  const { id } = await Promise.resolve(context.params);
+  const orderId = id;
+
+  console.log("🧾 ORDER GET API HIT", orderId);
+
+  try {
+    await mongoDB();
+
+    const orderDoc = await OrderModel.findById(orderId).lean().exec();
+
+    if (!orderDoc) {
+      return NextResponse.json(
+        failure("Order not found"),
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(
+      success(orderDoc, "Order fetched"),
+      { status: 200 }
+    );
+  } catch (err: any) {
+    console.error("order GET error:", err);
+    return NextResponse.json(
+      failure(err?.message || "Failed to fetch order"),
+      { status: 500 }
+    );
+  }
+}
+
+
 export async function PATCH(req: NextRequest, context: ParamsContext) {
   const { id } = await Promise.resolve(context.params);
   const orderId = id;

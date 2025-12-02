@@ -5,6 +5,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useUser } from "@/shared/context/UserContext";
+import { useRouter } from "next/navigation"; // 👈 add this
 
 type OrderItem = {
   productId: string;
@@ -45,6 +46,7 @@ type StatusFilter = (typeof STATUS_FILTERS)[number];
 
 export default function BuyerOrdersPage() {
   const { user, loading: userLoading } = useUser();
+  const router = useRouter(); // 👈 add this
 
   const [orders, setOrders] = useState<BuyerOrder[]>([]);
   const [loading, setLoading] = useState(false);
@@ -303,10 +305,13 @@ export default function BuyerOrdersPage() {
                         .join(", ");
 
                       return (
-                        <tr
-                          key={o._id}
-                          className="border-t border-stone-100 hover:bg-stone-50/60 transition"
-                        >
+                     
+                          <tr
+                            key={o._id}
+                            onClick={() => router.push(`/orders/details/${o._id}`)} // 👈 navigate to details page
+                            className="border-t border-stone-100 hover:bg-stone-50/60 transition cursor-pointer"
+                          >
+
                           <td className="px-4 py-3 whitespace-nowrap">
                             <div className="font-mono text-xs text-stone-600">
                               #{shortId(o._id)}
