@@ -1,11 +1,11 @@
-// components/ProductDetail.tsx
+// shared/components/templates/productDetail.tsx
 "use client";
 
 import React, { useMemo, useState } from "react";
 import Image from "next/image";
 import { Heart, Star, ShoppingCart } from "lucide-react";
 import { cx } from "@/shared/lib/utils";
-import type { Product as ProductBase } from "@/shared/interfaces/mongodb/products/product";
+import type { Product as ProductType } from "@/shared/interfaces/mongodb/products/product";
 import Link from "next/link";
 import { ProductHealthAndQuality } from "../molecules/productCards/ProductHealthAndQuality";
 import { ProductPricingAndTax } from "../molecules/productCards/ProductpricingAndTax";
@@ -14,28 +14,11 @@ import { ProductCategoryAndMerch } from "../molecules/productCards/ProductCatego
 import { ProductLogisticsAndShipping } from "../molecules/productCards/ProductLogisticsAndShipping";
 import { useUser } from "@/shared/context/UserContext";
 
-// 👉 local type for populated farmer (what your API actually returns here)
-type PopulatedFarmer = {
-  name?: string;
-  avatar?: string;
-  farmName?: string;
-  location?: string;
-  phone?: string;
-  about?: string;
-};
-
-// 👉 override the `farmer` field only for this component
-type ProductDetail = Omit<ProductBase, "farmer"> & {
-  farmer?: PopulatedFarmer;
-};
-
 function Rating({ value, count }: { value: number; count?: number }) {
   const safeValue = Number.isFinite(value) ? value : 0;
   const stars = new Array(5)
     .fill(0)
     .map((_, i) => i + 1 <= Math.round(safeValue));
-
-
 
   return (
     <div className="flex items-center gap-3">
@@ -59,10 +42,10 @@ function Rating({ value, count }: { value: number; count?: number }) {
   );
 }
 
-export default function ProductDetail({ product }: { product: ProductDetail }) {
+export default function ProductDetail({ product }: { product: ProductType }) {
   const [qty, setQty] = useState<number>(1);
   const [wish, setWish] = useState(false);
-  const { user, login, logout } = useUser();
+  const { user } = useUser();
 
   const mainImage =
     product.image || product.images?.[0] || "/placeholder.png";
@@ -94,14 +77,14 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
       ? `${product.unitQuantity} ${product.unit}`
       : product.unit || "";
 
-  const farmer = product.farmer; // nicely typed as PopulatedFarmer | undefined
+  const farmerName = typeof product.farmer === "string" ? product.farmer : "";
+  const farmerInitial = farmerName?.[0] ?? "F";
 
   return (
     <div
       className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
       style={{
-        paddingBottom:
-          "calc(56px + env(safe-area-inset-bottom, 0px))",
+        paddingBottom: "calc(56px + env(safe-area-inset-bottom, 0px))",
       }}
     >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -147,11 +130,16 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-stone-900">
               {product.name}
-
             </h1>
-            <Link href={`/products/${product.id}/edit`} className="hover:underline">
-            Edit Product
-            </Link>
+
+            {product.id && (
+              <Link
+                href={`/products/${product.id}/edit`}
+                className="text-sm text-green-700 hover:underline"
+              >
+                Edit Product
+              </Link>
+            )}
 
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               {product.slug && (
@@ -268,24 +256,15 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
             <h3 className="font-semibold text-stone-800">Farmer / Source</h3>
             <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="w-16 h-16 rounded-full overflow-hidden bg-stone-100 flex-none relative">
-                {farmer?.avatar ? (
-                  <Image
-                    src={farmer.avatar}
-                    alt={farmer.name || product.name}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center h-full text-stone-500">
-                    {product.farmerId ? (
-                      <Link href={`/farmers/${product.farmerId}`}>
-                        {farmer?.name?.[0] ?? "F"}
-                      </Link>
-                    ) : (
-                      farmer?.name?.[0] ?? "F"
-                    )}
-                  </div>
-                )}
+                <div className="flex items-center justify-center h-full text-stone-500 text-lg font-semibold">
+                  {product.farmerId ? (
+                    <Link href={`/farmers/${product.farmerId}`}>
+                      {farmerInitial}
+                    </Link>
+                  ) : (
+                    farmerInitial
+                  )}
+                </div>
               </div>
 
               <div>
@@ -295,27 +274,13 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
                     className="hover:underline"
                   >
                     <div className="font-medium">
-                      {farmer?.name || product.farmerId}
+                      {farmerName || product.farmerId}
                     </div>
                   </Link>
                 ) : (
                   <div className="font-medium">
-                    {farmer?.name || product.farmerId}
+                    {farmerName || product.farmerId}
                   </div>
-                )}
-
-                {farmer?.farmName && (
-                  <div className="text-sm text-stone-500">
-                    {farmer.farmName}
-                  </div>
-                )}
-                {farmer?.location && (
-                  <div className="text-sm text-stone-500 mt-1">
-                    📍 {farmer.location}
-                  </div>
-                )}
-                {farmer?.phone && (
-                  <div className="text-sm mt-1">📞 {farmer.phone}</div>
                 )}
               </div>
 
@@ -339,12 +304,6 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
                 </div>
               </div>
             </div>
-
-            {farmer?.about && (
-              <p className="mt-3 text-sm text-stone-600">
-                {farmer.about}
-              </p>
-            )}
           </div>
 
           {/* Description */}
@@ -367,27 +326,19 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
             </div>
           )}
 
-          {/* Health & product info & pricing/tax/inventory/logistics/SEO */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ProductHealthAndQuality product={product} />
+          {/* Health & product info & pricing/tax/inventory/logistics */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ProductHealthAndQuality product={product} />
 
-            {/* Product meta / category / inventory */}
             <div className="space-y-4">
-              {/* Pricing & Tax */}
               <ProductPricingAndTax product={product} unitLabel={unitLabel} />
-
-              {/* Inventory */}
               <ProductInventoryAndQty product={product} />
-
             </div>
           </div>
 
-          {/* Category / Merch / Logistics / SEO */}
+          {/* Category / Merch / Logistics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Category / Merch + Tags */}
             <ProductCategoryAndMerch product={product} />
-
-            {/* Logistics */}
             <ProductLogisticsAndShipping product={product} />
           </div>
 
@@ -401,9 +352,7 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
               <div className="mt-3 text-sm text-stone-600 space-y-2">
                 {product.seoTitle && (
                   <div>
-                    <span className="text-stone-500">
-                      SEO title:{" "}
-                    </span>
+                    <span className="text-stone-500">SEO title: </span>
                     {product.seoTitle}
                   </div>
                 )}
@@ -428,121 +377,110 @@ export default function ProductDetail({ product }: { product: ProductDetail }) {
             </div>
           )}
 
-          {/* Attributes (if you use them) */}
+          {/* Attributes */}
           {product.attributes &&
             Object.keys(product.attributes).length > 0 && (
               <div className="bg-white p-4 rounded-lg shadow-sm">
                 <h4 className="font-semibold">Additional attributes</h4>
                 <div className="mt-3 text-sm text-stone-600 space-y-1">
-                  {Object.entries(product.attributes).map(
-                    ([key, value]) => (
-                      <div key={key}>
-                        <span className="text-stone-500 capitalize">
-                          {key}:{" "}
-                        </span>
-                        {String(value)}
-                      </div>
-                    ),
-                  )}
+                  {Object.entries(product.attributes).map(([key, value]) => (
+                    <div key={key}>
+                      <span className="text-stone-500 capitalize">
+                        {key}:{" "}
+                      </span>
+                      {String(value)}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
           {/* Desktop action row */}
           {user?.type === "buyer" && (
-            
-          <div className="hidden md:flex items-center gap-4">
-            <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-white">
-              <button
-                aria-label="Decrease"
-                onClick={dec}
-                className="px-3 py-1 rounded-md border hover:bg-stone-50"
-              >
-                -
-              </button>
-              <div className="w-12 text-center font-medium">
-                {qty}
-              </div>
-              <button
-                aria-label="Increase"
-                onClick={inc}
-                className="px-3 py-1 rounded-md border hover:bg-stone-50"
-              >
-                +
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 ml-auto">
-              <button className="px-4 py-2 rounded-full bg-white border hover:bg-stone-50 flex items-center gap-2">
-                <ShoppingCart className="w-4 h-4" /> Add to cart
-              </button>
-
-              <button className="px-5 py-2 rounded-full bg-green-600 text-white font-semibold hover:bg-green-700">
-                Buy now — ₹{subtotal.toFixed(2)}
-              </button>
-            </div>
-          </div>
-
-          )}
-
-          {/* Mobile buy bar (in-flow) */}
-          {user?.type === "buyer" && (
-          <div className="md:hidden mt-6 mb-20">
-            <div className="bg-white border-t shadow-lg p-3 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 relative rounded-md overflow-hidden bg-stone-100 flex-shrink-0">
-                  <Image
-                    src={mainImage}
-                    alt={product.name}
-                    fill
-                    className="object-cover"
-                  />
-                </div>
-
-                <div className="flex-1">
-                  <div className="text-sm font-semibold">
-                    {product.name}
-                  </div>
-                  <div className="text-xs text-stone-500">
-                    ₹{(product.price ?? 0).toFixed(2)}
-                  </div>
-                </div>
-              </div>
-
-              
-              <div className="mt-3 flex items-center gap-3 justify-between">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={dec}
-                    aria-label="Decrease"
-                    className="px-3 py-1 border rounded"
-                  >
-                    -
-                  </button>
-                  <div className="w-10 text-center">{qty}</div>
-                  <button
-                    onClick={inc}
-                    aria-label="Increase"
-                    className="px-3 py-1 border rounded"
-                  >
-                    +
-                  </button>
-                </div>
-
-                <button className="px-4 py-2 rounded-full bg-green-600 text-white font-semibold">
-                  Buy — ₹{subtotal.toFixed(2)}
+            <div className="hidden md:flex items-center gap-4">
+              <div className="flex items-center gap-2 border rounded-lg px-3 py-2 bg-white">
+                <button
+                  aria-label="Decrease"
+                  onClick={dec}
+                  className="px-3 py-1 rounded-md border hover:bg-stone-50"
+                >
+                  -
+                </button>
+                <div className="w-12 text-center font-medium">{qty}</div>
+                <button
+                  aria-label="Increase"
+                  onClick={inc}
+                  className="px-3 py-1 rounded-md border hover:bg-stone-50"
+                >
+                  +
                 </button>
               </div>
-              
 
+              <div className="flex items-center gap-3 ml-auto">
+                <button className="px-4 py-2 rounded-full bg-white border hover:bg-stone-50 flex items-center gap-2">
+                  <ShoppingCart className="w-4 h-4" /> Add to cart
+                </button>
+
+                <button className="px-5 py-2 rounded-full bg-green-600 text-white font-semibold hover:bg-green-700">
+                  Buy now — ₹{subtotal.toFixed(2)}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* Mobile buy bar */}
+          {user?.type === "buyer" && (
+            <div className="md:hidden mt-6 mb-20">
+              <div className="bg-white border-t shadow-lg p-3 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 relative rounded-md overflow-hidden bg-stone-100 flex-shrink-0">
+                    <Image
+                      src={mainImage}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+
+                  <div className="flex-1">
+                    <div className="text-sm font-semibold">
+                      {product.name}
+                    </div>
+                    <div className="text-xs text-stone-500">
+                      ₹{(product.price ?? 0).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-3 flex items-center gap-3 justify-between">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={dec}
+                      aria-label="Decrease"
+                      className="px-3 py-1 border rounded"
+                    >
+                      -
+                    </button>
+                    <div className="w-10 text-center">{qty}</div>
+                    <button
+                      onClick={inc}
+                      aria-label="Increase"
+                      className="px-3 py-1 border rounded"
+                    >
+                      +
+                    </button>
+                  </div>
+
+                  <button className="px-4 py-2 rounded-full bg-green-600 text-white font-semibold">
+                    Buy — ₹{subtotal.toFixed(2)}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
           {/* end mobile buy bar */}
         </div>
       </div>
-    
-</div>
-    
+    </div>
   );
 }
