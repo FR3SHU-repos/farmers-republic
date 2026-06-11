@@ -3,10 +3,7 @@
 // This is for database connection using mongodb
 
 import * as mongoose from "mongoose";
-// Loading ENV variables
-require("dotenv").config();
 
-// connect the db
 const MONGODB_URI = process.env.MONGODB_URI as string;
 
 export const mongoDB = () => {
