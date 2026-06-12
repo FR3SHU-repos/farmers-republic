@@ -11,62 +11,62 @@ import type {
   ProductType,
 } from "@/shared/interfaces/mongodb/products/product";
 import { useUser } from "@/shared/context/UserContext";
+import {
+  ArrowLeft,
+  BadgeCheck,
+  Box,
+  Leaf,
+  LayoutGrid,
+  Search,
+  Tag,
+  Truck,
+  Upload,
+  X,
+} from "lucide-react";
+import { cx } from "@/shared/lib/utils";
+
+// ─── Types ────────────────────────────────────────────────────
 
 type FormState = {
-  // General / basic
   name: string;
   slug: string;
   sku: string;
   description?: string;
   shortDescription?: string;
-
-  // Pricing
   price: number | "";
   mrp: number | "";
   currency: string;
   hsnCode?: string;
   gstRate: number | "";
   gstIncludedInPrice: boolean;
-
-  // Unit
   unit: string;
   unitQuantity: number | "";
-
-  // Qty / inventory
   stockQty: number | "";
   inStock: boolean;
   minOrderQty: number | "";
   maxOrderQty: number | "";
   stepQty: number | "";
   allowBackorder: boolean;
-
-  // Category / merchandising
   category?: string;
   subCategory?: string;
-  tags?: string; // comma separated
+  tags?: string;
   badge?: string;
   label?: string;
   status: ProductStatus;
   isFeatured: boolean;
   sortPriority: number | "";
-
-  // Health / quality
-  healthBenefits?: string; // comma separated
+  healthBenefits?: string;
   swadeshiPercent: number | "";
   shelfLife?: string;
   storageInstructions?: string;
-  ingredients?: string; // comma separated
+  ingredients?: string;
   originCountry?: string;
   isOrganic: boolean;
-  certifications?: string; // comma separated
+  certifications?: string;
   timeToSupply?: string;
-
-  // Farmer / source
   sourceFrom?: string;
   farmer?: string;
   farmerId?: string;
-
-  // Logistics
   productType: ProductType;
   weightGrams: number | "";
   lengthCm: number | "";
@@ -75,18 +75,16 @@ type FormState = {
   fragile: boolean;
   perishable: boolean;
   codAvailable: boolean;
-
-  // SEO
   seoTitle?: string;
   seoDescription?: string;
-  searchKeywords?: string; // comma separated
+  searchKeywords?: string;
 };
 
 type FarmerOption = {
-  id: string; // Farmer document _id
+  id: string;
   name: string;
   farmName?: string;
-  profileId?: string; // auth user id (user.id)
+  profileId?: string;
 };
 
 type TabKey =
@@ -98,30 +96,46 @@ type TabKey =
   | "logistics"
   | "seo";
 
+// ─── Constants ───────────────────────────────────────────────
+
+const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
+  { key: "general", label: "General", icon: <LayoutGrid className="h-3.5 w-3.5" /> },
+  { key: "pricing", label: "Pricing", icon: <Tag className="h-3.5 w-3.5" /> },
+  { key: "inventory", label: "Inventory", icon: <Box className="h-3.5 w-3.5" /> },
+  { key: "category", label: "Category", icon: <BadgeCheck className="h-3.5 w-3.5" /> },
+  { key: "health", label: "Health", icon: <Leaf className="h-3.5 w-3.5" /> },
+  { key: "logistics", label: "Logistics", icon: <Truck className="h-3.5 w-3.5" /> },
+  { key: "seo", label: "SEO", icon: <Search className="h-3.5 w-3.5" /> },
+];
+
+const INPUT_CLASS =
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground-heading placeholder:text-foreground-muted outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10";
+
+const SELECT_CLASS =
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground-heading outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10 cursor-pointer";
+
+const LABEL_CLASS = "block text-xs font-semibold uppercase tracking-wide text-foreground-muted";
+
 const initialForm: FormState = {
   name: "",
   slug: "",
   sku: "",
   description: "",
   shortDescription: "",
-
   price: "",
   mrp: "",
   currency: "INR",
   hsnCode: "",
   gstRate: "",
   gstIncludedInPrice: true,
-
   unit: "",
   unitQuantity: "",
-
   stockQty: "",
   inStock: true,
   minOrderQty: 1,
   maxOrderQty: "",
   stepQty: 1,
   allowBackorder: false,
-
   category: "",
   subCategory: "",
   tags: "",
@@ -130,7 +144,6 @@ const initialForm: FormState = {
   status: "draft",
   isFeatured: false,
   sortPriority: "",
-
   healthBenefits: "",
   swadeshiPercent: "",
   shelfLife: "",
@@ -140,11 +153,9 @@ const initialForm: FormState = {
   isOrganic: false,
   certifications: "",
   timeToSupply: "",
-
   sourceFrom: "",
   farmer: "",
   farmerId: "",
-
   productType: "physical",
   weightGrams: "",
   lengthCm: "",
@@ -153,22 +164,17 @@ const initialForm: FormState = {
   fragile: false,
   perishable: false,
   codAvailable: true,
-
   seoTitle: "",
   seoDescription: "",
   searchKeywords: "",
 };
 
-// Simple helper to generate a SKU from the product name
+// ─── Helpers ─────────────────────────────────────────────────
+
 function generateSkuFromName(name: string): string {
   if (!name) return "";
-
   const words = name.trim().split(/\s+/);
-
-  // First 4 letters of the first word (e.g., Banginapalli → BANG)
   const main = words[0].slice(0, 4).toUpperCase().replace(/[^A-Z0-9]/g, "");
-
-  // First 3 letters of the last word (e.g., mango → MAN)
   const last =
     words.length > 1
       ? words[words.length - 1]
@@ -176,13 +182,52 @@ function generateSkuFromName(name: string): string {
           .toUpperCase()
           .replace(/[^A-Z0-9]/g, "")
       : "";
-
-  // Random 3 digits (clean, numeric)
-  const rand = Math.floor(100 + Math.random() * 900); // 100-999
-
-  if (last) return `${main}-${last}-${rand}`;
-  return `${main}-${rand}`;
+  const rand = Math.floor(100 + Math.random() * 900);
+  return last ? `${main}-${last}-${rand}` : `${main}-${rand}`;
 }
+
+// ─── Toggle switch ────────────────────────────────────────────
+
+function Toggle({
+  id,
+  checked,
+  onChange,
+  label,
+}: {
+  id: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label htmlFor={id} className="flex cursor-pointer items-center gap-3">
+      <div className="relative">
+        <input
+          id={id}
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+          className="sr-only"
+        />
+        <div
+          className={cx(
+            "h-5 w-9 rounded-full transition-colors",
+            checked ? "bg-primary" : "bg-tertiary"
+          )}
+        />
+        <div
+          className={cx(
+            "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+            checked ? "translate-x-4" : "translate-x-0.5"
+          )}
+        />
+      </div>
+      <span className="text-sm text-foreground-body">{label}</span>
+    </label>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────
 
 export default function ProductCreatePage() {
   const router = useRouter();
@@ -193,118 +238,75 @@ export default function ProductCreatePage() {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const MAX_FILES = 6;
-  const MAX_SIZE = 6 * 1024 * 1024; // 6MB
-
   const [farmers, setFarmers] = useState<FarmerOption[]>([]);
   const [farmersLoading, setFarmersLoading] = useState(false);
   const [farmersError, setFarmersError] = useState<string | null>(null);
-
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
-  // Fetch farmers
+  const MAX_FILES = 6;
+  const MAX_SIZE = 6 * 1024 * 1024;
+
   useEffect(() => {
     async function loadFarmers() {
       setFarmersLoading(true);
       setFarmersError(null);
       try {
-        const res = await fetch(
-          "/api/v1/farmers?page=1&limit=100&sort=name_asc",
-        );
+        const res = await fetch("/api/v1/farmers?page=1&limit=100&sort=name_asc");
         const json = await res.json();
-
-        if (!res.ok || !json?.success) {
+        if (!res.ok || !json?.success)
           throw new Error(json?.message || "Failed to load farmers");
-        }
-
         const items: any[] = json.data?.items ?? [];
-        const mapped: FarmerOption[] = items.map((f) => ({
-          id: String(f.id ?? f._id ?? ""),
-          name: f.name ?? "",
-          farmName: f.farmName ?? "",
-          profileId: f.profileId ?? "",
-        }));
-
-        setFarmers(mapped);
+        setFarmers(
+          items.map((f) => ({
+            id: String(f.id ?? f._id ?? ""),
+            name: f.name ?? "",
+            farmName: f.farmName ?? "",
+            profileId: f.profileId ?? "",
+          }))
+        );
       } catch (err: any) {
-        console.error("Load farmers error:", err);
         setFarmersError(err?.message || "Failed to load farmers");
       } finally {
         setFarmersLoading(false);
       }
     }
-
     loadFarmers();
   }, []);
 
-  // For farmer users, auto-fill readable name (UI only)
   useEffect(() => {
     if (user?.type === "Farmer" && user.id && farmers.length) {
       const myFarmer = farmers.find((f) => f.profileId === user.id);
       if (myFarmer) {
-        setForm((prev) => ({
-          ...prev,
-          farmerId: myFarmer.id, // we'll override in handleCreate anyway, but keeps UI consistent
-          farmer: myFarmer.name,
-        }));
+        setForm((prev) => ({ ...prev, farmerId: myFarmer.id, farmer: myFarmer.name }));
       }
     }
   }, [user, farmers]);
 
   const handleChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-
-    // Special handling: when product name changes, auto-suggest SKU + slug if empty
     if (name === "name") {
       setForm((prev) => {
         const next = { ...prev, name: value };
-
-        // Auto-generate SKU only if it's empty
-        if (!prev.sku || prev.sku.trim() === "") {
-          next.sku = generateSkuFromName(value);
-        }
-
-        // Also auto-fill slug if empty
-        if (!prev.slug || prev.slug.trim() === "") {
+        if (!prev.sku || prev.sku.trim() === "") next.sku = generateSkuFromName(value);
+        if (!prev.slug || prev.slug.trim() === "")
           next.slug = value
             .toLowerCase()
             .trim()
             .replace(/[^a-z0-9]+/g, "-")
             .replace(/^-+|-+$/g, "");
-        }
-
         return next;
       });
       return;
     }
-
     const numericFields: (keyof FormState)[] = [
-      "price",
-      "mrp",
-      "gstRate",
-      "unitQuantity",
-      "stockQty",
-      "minOrderQty",
-      "maxOrderQty",
-      "stepQty",
-      "swadeshiPercent",
-      "weightGrams",
-      "lengthCm",
-      "widthCm",
-      "heightCm",
-      "sortPriority",
+      "price", "mrp", "gstRate", "unitQuantity", "stockQty",
+      "minOrderQty", "maxOrderQty", "stepQty", "swadeshiPercent",
+      "weightGrams", "lengthCm", "widthCm", "heightCm", "sortPriority",
     ];
-
     if (numericFields.includes(name as keyof FormState)) {
-      setForm((s) => ({
-        ...s,
-        [name]: value === "" ? "" : Number(value),
-      }));
+      setForm((s) => ({ ...s, [name]: value === "" ? "" : Number(value) }));
     } else {
       setForm((s) => ({ ...s, [name]: value }));
     }
@@ -314,37 +316,36 @@ export default function ProductCreatePage() {
     const fl = e.target.files;
     if (!fl) return;
     const arr = Array.from(fl).slice(0, MAX_FILES);
-
     for (const f of arr) {
       if (f.size > MAX_SIZE) {
         toast.error(`${f.name} is too large (max 6MB)`);
         return;
       }
     }
-
     setFiles(arr);
     setPreviewUrls(arr.map((f) => URL.createObjectURL(f)));
   };
 
+  const removeImage = (idx: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== idx));
+    setPreviewUrls((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   async function uploadFilesToSupabase(productIdForPath = "new") {
     if (!files || files.length === 0) return { urls: [], paths: [] };
-
     setUploading(true);
     try {
       const bucket = "product-images";
       const uploadedUrls: string[] = [];
       const uploadedPaths: string[] = [];
-
       for (const file of files) {
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
         const safeName = `${productIdForPath}/${Date.now()}-${Math.random()
           .toString(36)
           .slice(2, 8)}.${ext}`;
-        const filePath = safeName;
-
         const { error: uploadError } = await supabase.storage
           .from(bucket)
-          .upload(filePath, file, {
+          .upload(safeName, file, {
             cacheControl: "3600",
             upsert: false,
             metadata: {
@@ -352,22 +353,13 @@ export default function ProductCreatePage() {
               original_name: file.name,
             },
           });
-
-        if (uploadError) {
-          console.error("Upload error:", uploadError);
-          throw uploadError;
-        }
-
-        const { data: publicData } = supabase.storage
-          .from(bucket)
-          .getPublicUrl(filePath);
+        if (uploadError) throw uploadError;
+        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(safeName);
         uploadedUrls.push(publicData.publicUrl);
-        uploadedPaths.push(filePath);
+        uploadedPaths.push(safeName);
       }
-
       return { urls: uploadedUrls, paths: uploadedPaths };
     } catch (err: any) {
-      console.error("Supabase upload error:", err);
       toast.error(err?.message || "Image upload failed");
       return { urls: [], paths: [] };
     } finally {
@@ -381,17 +373,10 @@ export default function ProductCreatePage() {
       setActiveTab("general");
       return;
     }
-
-    // ✅ Ensure SKU exists
     let sku = form.sku;
-    if (!sku || sku.trim() === "") {
-      sku = generateSkuFromName(form.name);
-    }
-
-    // ✅ Ensure farmerId is a Farmer _id, NOT user.id
+    if (!sku || sku.trim() === "") sku = generateSkuFromName(form.name);
     let finalFarmerId: string | undefined = form.farmerId || undefined;
     let finalFarmerName: string | undefined = form.farmer || undefined;
-
     if (user?.type === "Farmer" && user.id) {
       const myFarmer = farmers.find((f) => f.profileId === user.id);
       if (myFarmer) {
@@ -399,62 +384,36 @@ export default function ProductCreatePage() {
         finalFarmerName = myFarmer.name;
       }
     }
-
     setSaving(true);
     try {
-      // 1) upload images
       const uploadResult = await uploadFilesToSupabase(
-        form.slug ||
-          form.name.replace(/\s+/g, "-").toLowerCase() ||
-          "new-product",
+        form.slug || form.name.replace(/\s+/g, "-").toLowerCase() || "new-product"
       );
       const images = uploadResult.urls;
       const mainImage = images.length ? images[0] : undefined;
-
-      // helper to split comma strings into arrays
       const toArray = (val?: string) =>
-        val
-          ? val
-              .split(",")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [];
+        val ? val.split(",").map((s) => s.trim()).filter(Boolean) : [];
 
-      // 2) build payload (matches extended Product model + route)
       const payload: any = {
-        // identity / basic
         name: form.name,
         slug: form.slug || undefined,
-        sku, // ✅ use ensured SKU
-
-        // media
+        sku,
         image: mainImage,
         images,
-
-        // pricing
         price: Number(form.price),
         mrp: form.mrp === "" ? undefined : Number(form.mrp),
         currency: form.currency || "INR",
         hsnCode: form.hsnCode || undefined,
         gstRate: form.gstRate === "" ? undefined : Number(form.gstRate),
         gstIncludedInPrice: form.gstIncludedInPrice,
-
-        // unit
         unit: form.unit || undefined,
-        unitQuantity:
-          form.unitQuantity === "" ? undefined : Number(form.unitQuantity),
-
-        // qty / inventory
+        unitQuantity: form.unitQuantity === "" ? undefined : Number(form.unitQuantity),
         stockQty: form.stockQty === "" ? undefined : Number(form.stockQty),
         inStock: form.inStock,
-        minOrderQty:
-          form.minOrderQty === "" ? undefined : Number(form.minOrderQty),
-        maxOrderQty:
-          form.maxOrderQty === "" ? undefined : Number(form.maxOrderQty),
+        minOrderQty: form.minOrderQty === "" ? undefined : Number(form.minOrderQty),
+        maxOrderQty: form.maxOrderQty === "" ? undefined : Number(form.maxOrderQty),
         stepQty: form.stepQty === "" ? undefined : Number(form.stepQty),
         allowBackorder: form.allowBackorder,
-
-        // category / merchandising
         category: form.category || undefined,
         subCategory: form.subCategory || undefined,
         tags: toArray(form.tags),
@@ -462,15 +421,9 @@ export default function ProductCreatePage() {
         label: form.label || undefined,
         status: form.status || "draft",
         isFeatured: form.isFeatured,
-        sortPriority:
-          form.sortPriority === "" ? undefined : Number(form.sortPriority),
-
-        // health / quality
+        sortPriority: form.sortPriority === "" ? undefined : Number(form.sortPriority),
         healthBenefits: toArray(form.healthBenefits),
-        swadeshiPercent:
-          form.swadeshiPercent === ""
-            ? undefined
-            : Number(form.swadeshiPercent),
+        swadeshiPercent: form.swadeshiPercent === "" ? undefined : Number(form.swadeshiPercent),
         shelfLife: form.shelfLife || undefined,
         storageInstructions: form.storageInstructions || undefined,
         ingredients: toArray(form.ingredients),
@@ -478,35 +431,20 @@ export default function ProductCreatePage() {
         isOrganic: form.isOrganic,
         certifications: toArray(form.certifications),
         timeToSupply: form.timeToSupply || undefined,
-
-        // farmer / source
         sourceFrom: form.sourceFrom || undefined,
         farmer: finalFarmerName,
         farmerId: finalFarmerId,
-
-        // logistics
         productType: form.productType || "physical",
-        weightGrams:
-          form.weightGrams === "" ? undefined : Number(form.weightGrams),
+        weightGrams: form.weightGrams === "" ? undefined : Number(form.weightGrams),
         dimensionsCm:
-          form.lengthCm !== "" &&
-          form.widthCm !== "" &&
-          form.heightCm !== ""
-            ? {
-                length: Number(form.lengthCm),
-                width: Number(form.widthCm),
-                height: Number(form.heightCm),
-              }
+          form.lengthCm !== "" && form.widthCm !== "" && form.heightCm !== ""
+            ? { length: Number(form.lengthCm), width: Number(form.widthCm), height: Number(form.heightCm) }
             : undefined,
         fragile: form.fragile,
         perishable: form.perishable,
         codAvailable: form.codAvailable,
-
-        // content
         description: form.description || undefined,
         shortDescription: form.shortDescription || undefined,
-
-        // SEO
         seoTitle: form.seoTitle || undefined,
         seoDescription: form.seoDescription || undefined,
         searchKeywords: toArray(form.searchKeywords),
@@ -517,22 +455,12 @@ export default function ProductCreatePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-
       const json = await res.json();
-      if (!res.ok) {
-        console.error("API error", json);
-        throw new Error(json?.message || "Failed to create product");
-      }
-
-      toast.success("Product created");
+      if (!res.ok) throw new Error(json?.message || "Failed to create product");
+      toast.success("Product created!");
       const newId = json?.data?.id ?? json?.id ?? null;
-      if (newId) {
-        router.push(`/products/${String(newId)}`);
-      } else {
-        router.push("/products");
-      }
+      router.push(newId ? `/products/${String(newId)}` : "/products");
     } catch (err: any) {
-      console.error("Create product error:", err);
       toast.error(err?.message || "Save failed");
     } finally {
       setSaving(false);
@@ -546,909 +474,503 @@ export default function ProductCreatePage() {
     setActiveTab("general");
   };
 
-  const tabButtonClasses = (tab: TabKey) =>
-    [
-      "px-3 py-1.5 text-xs md:text-sm rounded-full border transition-all",
-      activeTab === tab
-        ? "bg-green-600 text-white border-green-600 shadow-sm"
-        : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50",
-    ].join(" ");
-
   return (
-    <div className="min-h-screen p-6 bg-green-50">
-      <div className="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow">
-        {/* Header + Tabs */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
-          <h1 className="text-xl font-semibold text-green-700">
-            Create product
-          </h1>
-
-          <div className="flex flex-wrap gap-2">
-            <button
-              className={tabButtonClasses("general")}
-              onClick={() => setActiveTab("general")}
-            >
-              General
-            </button>
-            <button
-              className={tabButtonClasses("pricing")}
-              onClick={() => setActiveTab("pricing")}
-            >
-              Pricing
-            </button>
-            <button
-              className={tabButtonClasses("inventory")}
-              onClick={() => setActiveTab("inventory")}
-            >
-              Qty / Inventory
-            </button>
-            <button
-              className={tabButtonClasses("category")}
-              onClick={() => setActiveTab("category")}
-            >
-              Category
-            </button>
-            <button
-              className={tabButtonClasses("health")}
-              onClick={() => setActiveTab("health")}
-            >
-              Health
-            </button>
-            <button
-              className={tabButtonClasses("logistics")}
-              onClick={() => setActiveTab("logistics")}
-            >
-              Logistics
-            </button>
-            <button
-              className={tabButtonClasses("seo")}
-              onClick={() => setActiveTab("seo")}
-            >
-              SEO
-            </button>
+    <div className="min-h-screen bg-background pb-16">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="mb-8 flex items-center gap-4">
+          <button
+            onClick={() => router.back()}
+            className="group flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-card text-foreground-muted transition hover:text-foreground-heading"
+          >
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-0.5" />
+          </button>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground-heading">
+              New Product
+            </h1>
+            <p className="mt-0.5 text-sm text-foreground-muted">
+              Fill in the details to list a new product
+            </p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* LEFT: Images */}
-          <div className="md:col-span-1">
-            <label className="block text-sm font-medium text-gray-700">
-              Images
-            </label>
-            <div className="mt-2 grid grid-cols-1 gap-2">
-              <div className="w-full h-44 rounded-md bg-stone-100 overflow-hidden flex items-center justify-center">
-                {previewUrls.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2 p-2 w-full">
-                    {previewUrls.map((u, i) => (
-                      <img
-                        key={i}
-                        src={u}
-                        className="w-full h-20 object-cover rounded"
-                        alt={`preview-${i}`}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-stone-500 text-sm">
-                    No images selected
-                  </div>
-                )}
-              </div>
+        <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
+          {/* ── Left: Image upload ──────────────────── */}
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-border bg-surface-card p-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+                Product Images
+              </p>
 
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFiles}
-                className="mt-2 text-sm"
-              />
-              <div className="text-xs text-stone-500">
-                Up to {MAX_FILES} images. Max 6MB each.
-              </div>
-              {uploading && (
-                <p className="text-sm text-gray-500 mt-2">
-                  Uploading images...
+              {/* Drop zone */}
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-border bg-surface py-8 transition hover:border-primary hover:bg-surface/80">
+                <Upload className="mb-2 h-6 w-6 text-foreground-muted" />
+                <p className="text-sm font-medium text-foreground-body">
+                  Click to upload
                 </p>
+                <p className="mt-0.5 text-xs text-foreground-muted">
+                  Up to {MAX_FILES} images · 6MB each
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleFiles}
+                  className="sr-only"
+                />
+              </label>
+
+              {/* Previews */}
+              {previewUrls.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {previewUrls.map((u, i) => (
+                    <div key={i} className="group relative aspect-square overflow-hidden rounded-xl bg-surface">
+                      <img
+                        src={u}
+                        alt={`preview-${i}`}
+                        className="h-full w-full object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(i)}
+                        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-status-danger-surface text-status-danger opacity-0 transition group-hover:opacity-100"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               )}
+
+              {uploading && (
+                <div className="mt-3 flex items-center gap-2 text-xs text-foreground-muted">
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+                  Uploading…
+                </div>
+              )}
+            </div>
+
+            {/* Progress indicator */}
+            <div className="rounded-2xl border border-border bg-surface-card p-5">
+              <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted">
+                Completion
+              </p>
+              <div className="space-y-2.5">
+                {[
+                  { label: "Name & Unit", done: !!form.name && !!form.unit },
+                  { label: "Price set", done: form.price !== "" },
+                  { label: "Images added", done: previewUrls.length > 0 },
+                  { label: "Category", done: !!form.category },
+                  { label: "Description", done: !!form.description },
+                ].map(({ label, done }) => (
+                  <div key={label} className="flex items-center gap-2.5">
+                    <div
+                      className={cx(
+                        "h-2 w-2 rounded-full",
+                        done ? "bg-status-success" : "bg-tertiary"
+                      )}
+                    />
+                    <span
+                      className={cx(
+                        "text-xs",
+                        done ? "text-status-success" : "text-foreground-muted"
+                      )}
+                    >
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* RIGHT: Tabbed content */}
-          <div className="md:col-span-2">
-            {/* GENERAL TAB */}
-            {activeTab === "general" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Product name *
-                  </label>
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Mango"
-                  />
-                </div>
+          {/* ── Right: Tabs + form ──────────────────── */}
+          <div className="min-w-0">
+            {/* Tab bar */}
+            <div className="mb-5 flex flex-wrap gap-2">
+              {TABS.map(({ key, label, icon }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setActiveTab(key)}
+                  className={cx(
+                    "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
+                    activeTab === key
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-surface-card text-foreground-body hover:bg-surface"
+                  )}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
+            </div>
 
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    SKU (internal code)
-                  </label>
-                  <input
-                    name="sku"
-                    value={form.sku}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: MNG-1KG-001"
-                  />
+            {/* Form panel */}
+            <div className="rounded-2xl border border-border bg-surface-card p-6">
+              {/* GENERAL */}
+              {activeTab === "general" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Product name *</label>
+                    <input name="name" value={form.name} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Ex: Alphonso Mango" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>SKU</label>
+                    <input name="sku" value={form.sku} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Auto-generated" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Unit *</label>
+                    <input name="unit" value={form.unit} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="kg, packet, dozen…" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Unit quantity</label>
+                    <input name="unitQuantity" value={form.unitQuantity} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="1" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Status</label>
+                    <select name="status" value={form.status} onChange={handleChange} className={SELECT_CLASS}>
+                      <option value="draft">Draft</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="out_of_stock">Out of stock</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Short description</label>
+                    <input name="shortDescription" value={form.shortDescription} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Shown on product cards (1–2 lines)" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Full description</label>
+                    <textarea name="description" value={form.description} onChange={handleChange}
+                      className={cx(INPUT_CLASS, "resize-none")} rows={5}
+                      placeholder="Story, growing method, taste, etc." />
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Unit *
-                  </label>
-                  <input
-                    name="unit"
-                    value={form.unit}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: kg, packet"
-                  />
+              {/* PRICING */}
+              {activeTab === "pricing" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Price (₹) *</label>
+                    <input name="price" value={form.price} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="200" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>MRP (₹)</label>
+                    <input name="mrp" value={form.mrp} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="Optional" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Currency</label>
+                    <input name="currency" value={form.currency} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="INR" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>HSN Code</label>
+                    <input name="hsnCode" value={form.hsnCode} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Ex: 1006" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>GST Rate (%)</label>
+                    <input name="gstRate" value={form.gstRate} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="5" />
+                  </div>
+                  <div className="flex items-end pb-1.5">
+                    <Toggle
+                      id="gstIncludedInPrice"
+                      checked={form.gstIncludedInPrice}
+                      onChange={(v) => setForm((s) => ({ ...s, gstIncludedInPrice: v }))}
+                      label="Price includes GST"
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Unit quantity
-                  </label>
-                  <input
-                    name="unitQuantity"
-                    value={form.unitQuantity}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 1 (for 1kg)"
-                  />
+              {/* INVENTORY */}
+              {activeTab === "inventory" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Stock quantity</label>
+                    <input name="stockQty" value={form.stockQty} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="100" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Min order qty</label>
+                    <input name="minOrderQty" value={form.minOrderQty} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="1" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Max order qty</label>
+                    <input name="maxOrderQty" value={form.maxOrderQty} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="Optional" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Step qty</label>
+                    <input name="stepQty" value={form.stepQty} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="1" />
+                  </div>
+                  <div className="flex items-center">
+                    <Toggle
+                      id="inStock"
+                      checked={form.inStock}
+                      onChange={(v) => setForm((s) => ({ ...s, inStock: v }))}
+                      label="In stock"
+                    />
+                  </div>
+                  <div className="flex items-center">
+                    <Toggle
+                      id="allowBackorder"
+                      checked={form.allowBackorder}
+                      onChange={(v) => setForm((s) => ({ ...s, allowBackorder: v }))}
+                      label="Allow backorder"
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Short description
-                  </label>
-                  <input
-                    name="shortDescription"
-                    value={form.shortDescription}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Shown on product cards"
-                  />
-                </div>
+              {/* CATEGORY */}
+              {activeTab === "category" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Category</label>
+                    <select name="category" value={form.category} onChange={handleChange} className={SELECT_CLASS}>
+                      <option value="">Select category</option>
+                      {categoriesList.map((cat) => (
+                        <option key={cat.name} value={cat.name}>{cat.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Sub-category</label>
+                    <input name="subCategory" value={form.subCategory} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Optional" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Tags (comma separated)</label>
+                    <input name="tags" value={form.tags} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Chemical Free, Tasty, Premium…" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Badge</label>
+                    <input name="badge" value={form.badge} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Organic, Bestseller…" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Label</label>
+                    <input name="label" value={form.label} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Festive Offer…" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Sort priority</label>
+                    <input name="sortPriority" value={form.sortPriority} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="Higher = show earlier" />
+                  </div>
+                  <div className="flex items-center">
+                    <Toggle
+                      id="isFeatured"
+                      checked={form.isFeatured}
+                      onChange={(v) => setForm((s) => ({ ...s, isFeatured: v }))}
+                      label="Featured product"
+                    />
+                  </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Full description
-                  </label>
-                  <textarea
-                    name="description"
-                    value={form.description}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    rows={4}
-                    placeholder="Story, how it's grown, etc."
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* PRICING TAB */}
-            {activeTab === "pricing" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Price (₹) *
-                  </label>
-                  <input
-                    name="price"
-                    value={form.price}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 200"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    MRP (₹)
-                  </label>
-                  <input
-                    name="mrp"
-                    value={form.mrp}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Currency
-                  </label>
-                  <input
-                    name="currency"
-                    value={form.currency}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="INR"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    HSN Code
-                  </label>
-                  <input
-                    name="hsnCode"
-                    value={form.hsnCode}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 1006"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    GST Rate (%)
-                  </label>
-                  <input
-                    name="gstRate"
-                    value={form.gstRate}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 5"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 mt-4">
-                  <input
-                    id="gstIncludedInPrice"
-                    type="checkbox"
-                    checked={form.gstIncludedInPrice}
-                    onChange={(e) =>
-                      setForm((s) => ({
-                        ...s,
-                        gstIncludedInPrice: e.target.checked,
-                      }))
-                    }
-                  />
-                  <label
-                    htmlFor="gstIncludedInPrice"
-                    className="text-sm text-gray-600"
-                  >
-                    Price includes GST
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* INVENTORY TAB */}
-            {activeTab === "inventory" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Stock quantity
-                  </label>
-                  <input
-                    name="stockQty"
-                    value={form.stockQty}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 100"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 mt-6">
-                  <input
-                    id="inStock"
-                    type="checkbox"
-                    checked={form.inStock}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, inStock: e.target.checked }))
-                    }
-                  />
-                  <label htmlFor="inStock" className="text-sm text-gray-600">
-                    In stock
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Min order quantity
-                  </label>
-                  <input
-                    name="minOrderQty"
-                    value={form.minOrderQty}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Default: 1"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Max order quantity
-                  </label>
-                  <input
-                    name="maxOrderQty"
-                    value={form.maxOrderQty}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Step quantity
-                  </label>
-                  <input
-                    name="stepQty"
-                    value={form.stepQty}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 1"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 mt-6">
-                  <input
-                    id="allowBackorder"
-                    type="checkbox"
-                    checked={form.allowBackorder}
-                    onChange={(e) =>
-                      setForm((s) => ({
-                        ...s,
-                        allowBackorder: e.target.checked,
-                      }))
-                    }
-                  />
-                  <label
-                    htmlFor="allowBackorder"
-                    className="text-sm text-gray-600"
-                  >
-                    Allow backorder
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* CATEGORY TAB */}
-            {activeTab === "category" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Category
-                  </label>
-                  <select
-                    name="category"
-                    value={form.category}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2 bg-white"
-                  >
-                    <option value="">Select a category</option>
-                    {categoriesList.map((cat) => (
-                      <option key={cat.name} value={cat.name}>
-                        {cat.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Sub-category
-                  </label>
-                  <input
-                    name="subCategory"
-                    value={form.subCategory}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Optional"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Tags (comma separated)
-                  </label>
-                  <input
-                    name="tags"
-                    value={form.tags}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Chemical Free, Tasty"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Badge
-                  </label>
-                  <input
-                    name="badge"
-                    value={form.badge}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Organic, Bestseller"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Label
-                  </label>
-                  <input
-                    name="label"
-                    value={form.label}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Festive Offer"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Status
-                  </label>
-                  <select
-                    name="status"
-                    value={form.status}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2 bg-white"
-                  >
-                    <option value="draft">Draft</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="out_of_stock">Out of stock</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </div>
-
-                <div className="flex items-center gap-2 mt-6">
-                  <input
-                    id="isFeatured"
-                    type="checkbox"
-                    checked={form.isFeatured}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, isFeatured: e.target.checked }))
-                    }
-                  />
-                  <label
-                    htmlFor="isFeatured"
-                    className="text-sm text-gray-600"
-                  >
-                    Featured product
-                  </label>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Sort priority
-                  </label>
-                  <input
-                    name="sortPriority"
-                    value={form.sortPriority}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Higher = show earlier"
-                  />
-                </div>
-
-                {/* Farmer selection */}
-                <div className="md:col-span-2">
-                  {user?.type === "Admin" ? (
-                    // ---------- ADMIN VIEW: Show dropdown ----------
-                    <div>
-                      <label className="block text-sm text-gray-600">
-                        Farmer
-                      </label>
+                  {/* Farmer selection */}
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Farmer</label>
+                    {user?.type === "Admin" ? (
                       <select
                         name="farmerId"
                         value={form.farmerId || ""}
                         onChange={(e) => {
                           const id = e.target.value;
                           const selected = farmers.find((f) => f.id === id);
-
-                          setForm((s) => ({
-                            ...s,
-                            farmerId: id || "",
-                            farmer: selected?.name || "",
-                          }));
+                          setForm((s) => ({ ...s, farmerId: id || "", farmer: selected?.name || "" }));
                         }}
-                        className="mt-1 w-full border rounded px-3 py-2 bg-white"
+                        className={SELECT_CLASS}
                       >
                         <option value="">
-                          {farmersLoading
-                            ? "Loading farmers..."
-                            : "Select farmer"}
+                          {farmersLoading ? "Loading farmers…" : "Select farmer"}
                         </option>
-
-                        {farmersError && (
-                          <option value="" disabled>
-                            {farmersError}
-                          </option>
-                        )}
-
+                        {farmersError && <option value="" disabled>{farmersError}</option>}
                         {farmers.map((f) => (
                           <option key={f.id} value={f.id}>
-                            {f.name}
-                            {f.farmName ? ` — ${f.farmName}` : ""}
+                            {f.name}{f.farmName ? ` — ${f.farmName}` : ""}
                           </option>
                         ))}
                       </select>
-                    </div>
-                  ) : (
-                    // ---------- FARMER VIEW: Auto-assign, no dropdown ----------
-                    <div>
-                      <label className="block text-sm text-gray-600">
-                        Farmer
-                      </label>
+                    ) : (
                       <input
                         type="text"
                         readOnly
                         value={form.farmer || user?.name || "My Profile"}
-                        className="mt-1 w-full border rounded px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
+                        className={cx(INPUT_CLASS, "cursor-not-allowed opacity-70")}
                       />
-                    </div>
-                  )}
-
-                  {farmersError && (
-                    <p className="mt-1 text-xs text-red-500">
-                      Couldn’t load farmers. You can still create the product
-                      without selecting one.
-                    </p>
-                  )}
+                    )}
+                    {farmersError && (
+                      <p className="mt-1.5 text-xs text-status-danger">
+                        Couldn&apos;t load farmers — product can still be saved.
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* HEALTH TAB */}
-            {activeTab === "health" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Health benefits (comma separated)
-                  </label>
-                  <input
-                    name="healthBenefits"
-                    value={form.healthBenefits}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Good for gut health"
-                  />
+              {/* HEALTH */}
+              {activeTab === "health" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Health benefits (comma separated)</label>
+                    <input name="healthBenefits" value={form.healthBenefits} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Rich in Vitamin C, Good for gut health…" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Swadeshi %</label>
+                    <input name="swadeshiPercent" value={form.swadeshiPercent} onChange={handleChange}
+                      type="number" min={0} max={100} className={INPUT_CLASS} placeholder="100" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Shelf life</label>
+                    <input name="shelfLife" value={form.shelfLife} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="10 days" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Storage instructions</label>
+                    <input name="storageInstructions" value={form.storageInstructions} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Keep refrigerated" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Ingredients (comma separated)</label>
+                    <input name="ingredients" value={form.ingredients} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Milk, Cocoa, Jaggery…" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Origin country</label>
+                    <input name="originCountry" value={form.originCountry} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="India" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Certifications (comma separated)</label>
+                    <input name="certifications" value={form.certifications} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="NPOP, PGS…" />
+                  </div>
+                  <div className="flex items-center">
+                    <Toggle
+                      id="isOrganic"
+                      checked={form.isOrganic}
+                      onChange={(v) => setForm((s) => ({ ...s, isOrganic: v }))}
+                      label="Organic product"
+                    />
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Swadeshi %
-                  </label>
-                  <input
-                    name="swadeshiPercent"
-                    value={form.swadeshiPercent}
-                    onChange={handleChange}
-                    type="number"
-                    min={0}
-                    max={100}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 100"
-                  />
+              {/* LOGISTICS */}
+              {activeTab === "logistics" && (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className={LABEL_CLASS}>Product type</label>
+                    <select name="productType" value={form.productType} onChange={handleChange} className={SELECT_CLASS}>
+                      <option value="physical">Physical</option>
+                      <option value="digital">Digital</option>
+                      <option value="service">Service</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Weight (grams)</label>
+                    <input name="weightGrams" value={form.weightGrams} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} placeholder="1000" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Length (cm)</label>
+                    <input name="lengthCm" value={form.lengthCm} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Width (cm)</label>
+                    <input name="widthCm" value={form.widthCm} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Height (cm)</label>
+                    <input name="heightCm" value={form.heightCm} onChange={handleChange}
+                      type="number" className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Time to supply</label>
+                    <input name="timeToSupply" value={form.timeToSupply} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="2–4 days" />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={LABEL_CLASS}>Source from (location)</label>
+                    <input name="sourceFrom" value={form.sourceFrom} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="Vizag, Andhra Pradesh" />
+                  </div>
+                  <div className="flex items-center">
+                    <Toggle id="fragile" checked={form.fragile}
+                      onChange={(v) => setForm((s) => ({ ...s, fragile: v }))} label="Fragile" />
+                  </div>
+                  <div className="flex items-center">
+                    <Toggle id="perishable" checked={form.perishable}
+                      onChange={(v) => setForm((s) => ({ ...s, perishable: v }))} label="Perishable" />
+                  </div>
+                  <div className="flex items-center">
+                    <Toggle id="codAvailable" checked={form.codAvailable}
+                      onChange={(v) => setForm((s) => ({ ...s, codAvailable: v }))} label="COD available" />
+                  </div>
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Shelf life
-                  </label>
-                  <input
-                    name="shelfLife"
-                    value={form.shelfLife}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 10 days"
-                  />
+              {/* SEO */}
+              {activeTab === "seo" && (
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
+                    <label className={LABEL_CLASS}>Slug (URL)</label>
+                    <input name="slug" value={form.slug} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="organic-mango-1kg" />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>SEO title</label>
+                    <input name="seoTitle" value={form.seoTitle} onChange={handleChange}
+                      className={INPUT_CLASS} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>SEO description</label>
+                    <textarea name="seoDescription" value={form.seoDescription} onChange={handleChange}
+                      className={cx(INPUT_CLASS, "resize-none")} rows={3} />
+                  </div>
+                  <div>
+                    <label className={LABEL_CLASS}>Search keywords (comma separated)</label>
+                    <input name="searchKeywords" value={form.searchKeywords} onChange={handleChange}
+                      className={INPUT_CLASS} placeholder="mango, organic mango, vizag fruits" />
+                  </div>
                 </div>
+              )}
+            </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Storage instructions
-                  </label>
-                  <input
-                    name="storageInstructions"
-                    value={form.storageInstructions}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Keep refrigerated"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Ingredients (comma separated)
-                  </label>
-                  <input
-                    name="ingredients"
-                    value={form.ingredients}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Milk, Cocoa, Jaggery"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Origin country
-                  </label>
-                  <input
-                    name="originCountry"
-                    value={form.originCountry}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: India"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 mt-6">
-                  <input
-                    id="isOrganic"
-                    type="checkbox"
-                    checked={form.isOrganic}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, isOrganic: e.target.checked }))
-                    }
-                  />
-                  <label
-                    htmlFor="isOrganic"
-                    className="text-sm text-gray-600"
-                  >
-                    Organic
-                  </label>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Certifications (comma separated)
-                  </label>
-                  <input
-                    name="certifications"
-                    value={form.certifications}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: NPOP, PGS"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* LOGISTICS TAB */}
-            {activeTab === "logistics" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-gray-600">
-                    Product type
-                  </label>
-                  <select
-                    name="productType"
-                    value={form.productType}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2 bg-white"
-                  >
-                    <option value="physical">Physical</option>
-                    <option value="digital">Digital</option>
-                    <option value="service">Service</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-sm text-gray-600">
-                    Weight (grams)
-                  </label>
-                  <input
-                    name="weightGrams"
-                    value={form.weightGrams}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 1000"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm text-gray-600">
-                    Length (cm)
-                  </label>
-                  <input
-                    name="lengthCm"
-                    value={form.lengthCm}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm text-gray-600">
-                    Width (cm)
-                  </label>
-                  <input
-                    name="widthCm"
-                    value={form.widthCm}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm text-gray-600">
-                    Height (cm)
-                  </label>
-                  <input
-                    name="heightCm"
-                    value={form.heightCm}
-                    onChange={handleChange}
-                    type="number"
-                    className="mt-1 w-full border rounded px-3 py-2"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Source from (location)
-                  </label>
-                  <input
-                    name="sourceFrom"
-                    value={form.sourceFrom}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: Vizag"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Time to supply
-                  </label>
-                  <input
-                    name="timeToSupply"
-                    value={form.timeToSupply}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: 2–4 days"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 mt-4">
-                  <input
-                    id="fragile"
-                    type="checkbox"
-                    checked={form.fragile}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, fragile: e.target.checked }))
-                    }
-                  />
-                  <label htmlFor="fragile" className="text-sm text-gray-600">
-                    Fragile
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-2 mt-4">
-                  <input
-                    id="perishable"
-                    type="checkbox"
-                    checked={form.perishable}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, perishable: e.target.checked }))
-                    }
-                  />
-                  <label htmlFor="perishable" className="text-sm text-gray-600">
-                    Perishable
-                  </label>
-                </div>
-
-                <div className="flex items-center gap-2 mt-4">
-                  <input
-                    id="codAvailable"
-                    type="checkbox"
-                    checked={form.codAvailable}
-                    onChange={(e) =>
-                      setForm((s) => ({ ...s, codAvailable: e.target.checked }))
-                    }
-                  />
-                  <label
-                    htmlFor="codAvailable"
-                    className="text-sm text-gray-600"
-                  >
-                    COD available
-                  </label>
-                </div>
-              </div>
-            )}
-
-            {/* SEO TAB */}
-            {activeTab === "seo" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Slug (URL)
-                  </label>
-                  <input
-                    name="slug"
-                    value={form.slug}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: organic-mango-1kg"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    SEO title
-                  </label>
-                  <input
-                    name="seoTitle"
-                    value={form.seoTitle}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    SEO description
-                  </label>
-                  <textarea
-                    name="seoDescription"
-                    value={form.seoDescription}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    rows={3}
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm text-gray-600">
-                    Search keywords (comma separated)
-                  </label>
-                  <input
-                    name="searchKeywords"
-                    value={form.searchKeywords}
-                    onChange={handleChange}
-                    className="mt-1 w-full border rounded px-3 py-2"
-                    placeholder="Ex: mango, organic mango, vizag fruits"
-                  />
-                </div>
-              </div>
-            )}
-
-            {/* ACTION BUTTONS */}
-            <div className="mt-6 flex gap-3">
+            {/* Action buttons */}
+            <div className="mt-5 flex items-center gap-3">
               <button
                 onClick={handleCreate}
                 disabled={saving || uploading}
-                className="px-4 py-2 bg-green-600 text-white rounded-md text-sm font-semibold hover:bg-green-700 disabled:opacity-60"
+                className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover disabled:opacity-50"
               >
-                {saving ? "Saving..." : "Create product"}
+                {(saving || uploading) && (
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                )}
+                {saving ? "Creating…" : uploading ? "Uploading…" : "Create product"}
               </button>
-
               <button
                 onClick={handleReset}
-                className="px-4 py-2 border rounded-md text-sm"
+                className="rounded-full border border-border bg-surface-card px-5 py-3 text-sm font-medium text-foreground-body transition hover:bg-surface"
               >
                 Reset
               </button>

@@ -1,11 +1,10 @@
-// app/orders/[id]/page.tsx
-
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowRight, BadgeCheck, Clock, Package, ShoppingBag, Wallet } from "lucide-react";
 import { useUser } from "@/shared/context/UserContext";
-import { useRouter } from "next/navigation"; // 👈 add this
+import { useRouter } from "next/navigation";
 
 type OrderItem = {
   productId: string;
@@ -41,12 +40,67 @@ type OrdersResponse = {
   totalPages: number;
 };
 
-const STATUS_FILTERS = ["all", "pending", "confirmed", "out_for_delivery", "delivered", "cancelled"] as const;
+const STATUS_FILTERS = [
+  "all",
+  "pending",
+  "confirmed",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
+
+function statusBadgeClass(status: string) {
+  switch (status) {
+    case "pending":
+      return "bg-status-warning-surface text-status-warning border-status-warning/30";
+    case "confirmed":
+    case "out_for_delivery":
+      return "bg-status-info-surface text-status-info border-status-info/30";
+    case "delivered":
+      return "bg-status-success-surface text-status-success border-status-success/30";
+    case "cancelled":
+      return "bg-status-danger-surface text-status-danger border-status-danger/30";
+    default:
+      return "bg-surface text-foreground-muted border-border";
+  }
+}
+
+function paymentBadgeClass(status: string) {
+  switch (status) {
+    case "paid":
+      return "bg-status-success-surface text-status-success border-status-success/30";
+    case "unpaid":
+      return "bg-status-danger-surface text-status-danger border-status-danger/30";
+    default:
+      return "bg-surface text-foreground-muted border-border";
+  }
+}
+
+function formatDate(dateStr?: string) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function shortId(id?: string) {
+  return id ? id.slice(-6).toUpperCase() : "";
+}
+
+function labelFor(s: string) {
+  return s
+    .split("_")
+    .map((p) => p[0].toUpperCase() + p.slice(1))
+    .join(" ");
+}
 
 export default function BuyerOrdersPage() {
   const { user, loading: userLoading } = useUser();
-  const router = useRouter(); // 👈 add this
+  const router = useRouter();
 
   const [orders, setOrders] = useState<BuyerOrder[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,33 +112,23 @@ export default function BuyerOrdersPage() {
       if (!user?.id) return;
       setLoading(true);
       setError(null);
-
       try {
         const res = await fetch(
-          `/api/v1/farmers/orders/voice/buyerOrders?buyerId=${encodeURIComponent(
-            user.id
-          )}`,
+          `/api/v1/farmers/orders/voice/buyerOrders?buyerId=${encodeURIComponent(user.id)}`,
           { cache: "no-store" }
         );
-
         const json = await res.json();
-        if (!res.ok || !json?.success) {
+        if (!res.ok || !json?.success)
           throw new Error(json?.message || "Failed to load orders");
-        }
-
         const data: OrdersResponse = json.data;
         setOrders(data.orders || []);
       } catch (err: any) {
-        console.error("buyer orders error:", err);
         setError(err?.message || "Failed to load orders");
       } finally {
         setLoading(false);
       }
     };
-
-    if (!userLoading && user?.id) {
-      load();
-    }
+    if (!userLoading && user?.id) load();
   }, [user?.id, userLoading]);
 
   const filteredOrders = useMemo(() => {
@@ -92,64 +136,26 @@ export default function BuyerOrdersPage() {
     return orders.filter((o) => o.status === statusFilter);
   }, [orders, statusFilter]);
 
-  const stats = useMemo(() => {
-    const totalOrders = orders.length;
-    const pending = orders.filter((o) => o.status === "pending").length;
-    const delivered = orders.filter((o) => o.status === "delivered").length;
-    const spent = orders.reduce((sum, o) => sum + (o.total || 0), 0);
-    return { totalOrders, pending, delivered, spent };
-  }, [orders]);
-
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return "—";
-    const d = new Date(dateStr);
-    return d.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const shortId = (id?: string) => (id ? id.slice(-6).toUpperCase() : "");
-
-  const statusBadgeClass = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
-      case "confirmed":
-      case "out_for_delivery":
-        return "bg-blue-50 text-blue-700 border-blue-200";
-      case "delivered":
-        return "bg-green-50 text-green-700 border-green-200";
-      case "cancelled":
-        return "bg-red-50 text-red-700 border-red-200";
-      default:
-        return "bg-stone-50 text-stone-700 border-stone-200";
-    }
-  };
-
-  const paymentBadgeClass = (status: string) => {
-    switch (status) {
-      case "paid":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
-      case "unpaid":
-        return "bg-rose-50 text-rose-700 border-rose-200";
-      default:
-        return "bg-stone-50 text-stone-700 border-stone-200";
-    }
-  };
+  const stats = useMemo(() => ({
+    total: orders.length,
+    pending: orders.filter((o) => o.status === "pending").length,
+    delivered: orders.filter((o) => o.status === "delivered").length,
+    spent: orders.reduce((sum, o) => sum + (o.total || 0), 0),
+  }), [orders]);
 
   if (!user && !userLoading) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="text-center text-sm text-stone-600">
-          <p>You need to log in to see your orders.</p>
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <ShoppingBag className="mx-auto h-12 w-12 text-brand" />
+          <p className="text-sm text-foreground-muted">
+            You need to log in to see your orders.
+          </p>
           <Link
             href="/login"
-            className="mt-3 inline-block px-4 py-2 rounded-full bg-green-600 text-white text-xs font-semibold"
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover"
           >
-            Go to login
+            Sign in
           </Link>
         </div>
       </div>
@@ -157,53 +163,74 @@ export default function BuyerOrdersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
+    <div className="min-h-screen bg-background pb-20 text-foreground">
       <main className="py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground-heading sm:text-3xl">
                 My Orders
               </h1>
-              <p className="text-sm text-stone-500 mt-1">
-                Track all orders you have placed on FR3SH.
+              <p className="mt-1 text-sm text-foreground-muted">
+                Track all orders you have placed.
               </p>
             </div>
             {user && (
-              <div className="hidden sm:flex flex-col items-end text-right text-xs text-stone-500">
-                <span>Buyer</span>
-                <span className="font-semibold text-stone-800">
+              <div className="hidden flex-col items-end text-right sm:flex">
+                <span className="text-xs text-foreground-muted">Buyer</span>
+                <span className="text-sm font-semibold text-foreground-heading">
                   {user.name || user.email}
                 </span>
               </div>
             )}
           </div>
 
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-xl border border-stone-100 p-3 sm:p-4">
-              <p className="text-xs text-stone-500">Total Orders</p>
-              <p className="text-xl font-bold mt-1">{stats.totalOrders}</p>
-            </div>
-            <div className="bg-white rounded-xl border border-yellow-100 p-3 sm:p-4">
-              <p className="text-xs text-yellow-700">Pending</p>
-              <p className="text-xl font-bold mt-1 text-yellow-800">
-                {stats.pending}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl border border-green-100 p-3 sm:p-4">
-              <p className="text-xs text-green-700">Delivered</p>
-              <p className="text-xl font-bold mt-1 text-green-800">
-                {stats.delivered}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl border border-blue-100 p-3 sm:p-4">
-              <p className="text-xs text-blue-700">Total Spent (₹)</p>
-              <p className="text-xl font-bold mt-1 text-blue-800">
-                {stats.spent.toFixed(0)}
-              </p>
-            </div>
+          {/* Stat cards */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {[
+              {
+                icon: Package,
+                label: "Total Orders",
+                value: stats.total,
+                cls: "text-brand",
+                iconBg: "bg-surface",
+              },
+              {
+                icon: Clock,
+                label: "Pending",
+                value: stats.pending,
+                cls: "text-status-warning",
+                iconBg: "bg-status-warning-surface",
+              },
+              {
+                icon: BadgeCheck,
+                label: "Delivered",
+                value: stats.delivered,
+                cls: "text-status-success",
+                iconBg: "bg-status-success-surface",
+              },
+              {
+                icon: Wallet,
+                label: "Total Spent",
+                value: `₹${stats.spent.toFixed(0)}`,
+                cls: "text-status-info",
+                iconBg: "bg-status-info-surface",
+              },
+            ].map(({ icon: Icon, label, value, cls, iconBg }) => (
+              <div
+                key={label}
+                className="rounded-2xl border border-border bg-surface-card p-4"
+              >
+                <div
+                  className={`mb-3 flex h-9 w-9 items-center justify-center rounded-xl ${iconBg}`}
+                >
+                  <Icon className={`h-4.5 w-4.5 ${cls}`} />
+                </div>
+                <p className={`text-xl font-bold ${cls}`}>{loading ? "—" : value}</p>
+                <p className="mt-0.5 text-xs text-foreground-muted">{label}</p>
+              </div>
+            ))}
           </div>
 
           {/* Filters */}
@@ -214,53 +241,47 @@ export default function BuyerOrdersPage() {
                   key={s}
                   type="button"
                   onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                  className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
                     statusFilter === s
-                      ? "bg-green-600 text-white border-green-600"
-                      : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-surface-card text-foreground-body hover:bg-surface"
                   }`}
                 >
-                  {s === "all"
-                    ? "All"
-                    : s
-                        .split("_")
-                        .map((p) => p[0].toUpperCase() + p.slice(1))
-                        .join(" ")}
+                  {s === "all" ? "All" : labelFor(s)}
                 </button>
               ))}
             </div>
-
-            <div className="text-xs text-stone-500">
+            <p className="text-xs text-foreground-muted">
               Showing{" "}
-              <span className="font-semibold">{filteredOrders.length}</span> of{" "}
-              <span className="font-semibold">{orders.length}</span> orders
-            </div>
+              <span className="font-semibold text-foreground-body">
+                {filteredOrders.length}
+              </span>{" "}
+              of{" "}
+              <span className="font-semibold text-foreground-body">
+                {orders.length}
+              </span>{" "}
+              orders
+            </p>
           </div>
 
-          {/* Orders list */}
-          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+          {/* Table */}
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface-card shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-stone-50 border-b border-stone-100">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
-                      Order
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
-                      Items
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-stone-500">
-                      Total (₹)
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
-                      Status
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
-                      Payment
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
-                      Placed
-                    </th>
+                <thead>
+                  <tr className="border-b border-border bg-surface">
+                    {["Order", "Items", "Total (₹)", "Status", "Payment", "Placed"].map(
+                      (h, i) => (
+                        <th
+                          key={h}
+                          className={`px-4 py-3 text-xs font-semibold text-foreground-muted ${
+                            i === 2 ? "text-right" : "text-left"
+                          }`}
+                        >
+                          {h}
+                        </th>
+                      )
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -268,8 +289,9 @@ export default function BuyerOrdersPage() {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-6 text-center text-xs text-stone-400"
+                        className="px-4 py-10 text-center text-sm text-foreground-muted"
                       >
+                        <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-[2.5px] border-primary border-t-transparent" />
                         Loading your orders…
                       </td>
                     </tr>
@@ -279,7 +301,7 @@ export default function BuyerOrdersPage() {
                     <tr>
                       <td
                         colSpan={6}
-                        className="px-4 py-6 text-center text-xs text-red-500"
+                        className="px-4 py-8 text-center text-sm text-status-danger"
                       >
                         {error}
                       </td>
@@ -288,11 +310,20 @@ export default function BuyerOrdersPage() {
 
                   {!loading && !error && filteredOrders.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-6 text-center text-xs text-stone-400"
-                      >
-                        You haven&apos;t placed any orders yet.
+                      <td colSpan={6} className="px-4 py-12 text-center">
+                        <ShoppingBag className="mx-auto mb-3 h-8 w-8 text-tertiary-foreground" />
+                        <p className="text-sm text-foreground-muted">
+                          {statusFilter === "all"
+                            ? "You haven't placed any orders yet."
+                            : `No ${labelFor(statusFilter).toLowerCase()} orders.`}
+                        </p>
+                        <Link
+                          href="/shop"
+                          className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                        >
+                          Start shopping
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
                       </td>
                     </tr>
                   )}
@@ -305,50 +336,37 @@ export default function BuyerOrdersPage() {
                         .join(", ");
 
                       return (
-                     
-                          <tr
-                            key={o._id}
-                            onClick={() => router.push(`/orders/details/${o._id}`)} // 👈 navigate to details page
-                            className="border-t border-stone-100 hover:bg-stone-50/60 transition cursor-pointer"
-                          >
-
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <div className="font-mono text-xs text-stone-600">
+                        <tr
+                          key={o._id}
+                          onClick={() => router.push(`/orders/details/${o._id}`)}
+                          className="cursor-pointer border-t border-border transition hover:bg-surface/60"
+                        >
+                          <td className="px-4 py-3">
+                            <p className="font-mono text-xs font-semibold text-foreground-heading">
                               #{shortId(o._id)}
-                            </div>
-                            <div className="text-[11px] text-stone-400">
-                              {o.source === "voice"
-                                ? "Voice"
-                                : o.source === "app"
-                                ? "App"
-                                : "Web"}
-                            </div>
+                            </p>
+                            <p className="text-[11px] text-foreground-muted capitalize">
+                              {o.source || "web"}
+                            </p>
                           </td>
-                          <td className="px-4 py-3 text-xs text-stone-700 max-w-xs">
+                          <td className="max-w-xs px-4 py-3 text-xs text-foreground-body">
                             {itemsSummary}
                           </td>
-                          <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                          <td className="px-4 py-3 text-right text-sm font-semibold text-foreground-heading">
                             ₹{(o.total ?? 0).toFixed(2)}
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border ${statusBadgeClass(
+                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${statusBadgeClass(
                                 o.status
                               )}`}
                             >
-                              {o.status
-                                ? o.status
-                                    .split("_")
-                                    .map(
-                                      (p) => p[0].toUpperCase() + p.slice(1)
-                                    )
-                                    .join(" ")
-                                : "Unknown"}
+                              {o.status ? labelFor(o.status) : "Unknown"}
                             </span>
                           </td>
                           <td className="px-4 py-3">
                             <span
-                              className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border ${paymentBadgeClass(
+                              className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${paymentBadgeClass(
                                 o.paymentStatus
                               )}`}
                             >
@@ -358,7 +376,7 @@ export default function BuyerOrdersPage() {
                                 : "Unknown"}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">
+                          <td className="whitespace-nowrap px-4 py-3 text-xs text-foreground-muted">
                             {formatDate(o.createdAt)}
                           </td>
                         </tr>
@@ -369,15 +387,13 @@ export default function BuyerOrdersPage() {
             </div>
           </div>
 
-          {/* Back to shopping */}
-          <div className="pt-2 text-xs text-stone-500">
-            <Link
-              href="/products"
-              className="inline-flex items-center gap-1 text-green-700 hover:underline"
-            >
-              ← Continue shopping
-            </Link>
-          </div>
+          <Link
+            href="/products"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+          >
+            <ArrowRight className="h-3.5 w-3.5 rotate-180" />
+            Continue shopping
+          </Link>
         </div>
       </main>
     </div>

@@ -1,10 +1,21 @@
-// app/orders/details/[id]/page.tsx
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  ArrowLeft,
+  Calendar,
+  ChevronDown,
+  CircleDollarSign,
+  CreditCard,
+  FileText,
+  ImageOff,
+  MessageCircle,
+  Package,
+  Phone,
+  ShoppingBag,
+} from "lucide-react";
 
 type OrderItem = {
   productId: string;
@@ -13,14 +24,11 @@ type OrderItem = {
   image?: string;
   qty: number;
   farmerId?: string;
-
   status?: string;
   deliveryCharge?: number;
   extraCharge?: number;
   serviceCharge?: number;
   discountTotal?: number;
-
-  // optional per-item payment info
   paymentStatus?: string;
   paymentMode?: string;
 };
@@ -43,6 +51,43 @@ type BuyerOrder = {
   updatedAt?: string;
 };
 
+function formatDate(dateStr?: string) {
+  if (!dateStr) return "—";
+  return new Date(dateStr).toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function shortId(id?: string) {
+  return id ? id.slice(-6).toUpperCase() : "";
+}
+
+function itemStatusClass(status: string) {
+  const s = status.toLowerCase();
+  if (s.includes("delivered") || s.includes("completed"))
+    return "bg-status-success-surface text-status-success border-status-success/30";
+  if (s.includes("shipped") || s.includes("transit"))
+    return "bg-status-info-surface text-status-info border-status-info/30";
+  if (s.includes("cancelled") || s.includes("failed"))
+    return "bg-status-danger-surface text-status-danger border-status-danger/30";
+  return "bg-status-warning-surface text-status-warning border-status-warning/30";
+}
+
+function itemPaymentClass(status: string) {
+  const s = status.toLowerCase();
+  if (s === "paid" || s === "success")
+    return "bg-status-success-surface text-status-success border-status-success/30";
+  if (s === "refunded")
+    return "bg-status-info-surface text-status-info border-status-info/30";
+  if (s === "failed")
+    return "bg-status-danger-surface text-status-danger border-status-danger/30";
+  return "bg-status-warning-surface text-status-warning border-status-warning/30";
+}
+
 export default function OrderDetailsPage() {
   const params = useParams<{ id: string }>();
   const orderId = params?.id;
@@ -58,81 +103,30 @@ export default function OrderDetailsPage() {
       if (!orderId) return;
       setLoading(true);
       setError(null);
-
       try {
-        const res = await fetch(`/api/v1/orders/${encodeURIComponent(orderId)}`, {
-          cache: "no-store",
-        });
-
+        const res = await fetch(
+          `/api/v1/orders/${encodeURIComponent(orderId)}`,
+          { cache: "no-store" }
+        );
         const json = await res.json();
-        if (!res.ok || !json?.success) {
+        if (!res.ok || !json?.success)
           throw new Error(json?.message || "Failed to load order");
-        }
-
         setOrder(json.data as BuyerOrder);
       } catch (err: any) {
-        console.error("order detail error:", err);
         setError(err?.message || "Failed to load order");
       } finally {
         setLoading(false);
       }
     };
-
     load();
   }, [orderId]);
 
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return "—";
-    const d = new Date(dateStr);
-    return d.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const shortId = (id?: string) => (id ? id.slice(-6).toUpperCase() : "");
-
-  // Color helpers for per-item status/payment pills only (no order-level usage)
-  const getItemStatusClasses = (status: string) => {
-    const s = status.toLowerCase();
-    if (s.includes("delivered") || s.includes("completed")) {
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    }
-    if (s.includes("shipped") || s.includes("transit")) {
-      return "bg-sky-50 text-sky-700 border-sky-200";
-    }
-    if (s.includes("cancelled") || s.includes("failed")) {
-      return "bg-rose-50 text-rose-700 border-rose-200";
-    }
-    if (s.includes("processing") || s.includes("pending")) {
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    }
-    return "bg-stone-50 text-stone-700 border-stone-200";
-  };
-
-  const getItemPaymentClasses = (status: string) => {
-    const s = status.toLowerCase();
-    if (s === "paid" || s === "success") {
-      return "bg-emerald-50 text-emerald-700 border-emerald-200";
-    }
-    if (s === "refunded") {
-      return "bg-sky-50 text-sky-700 border-sky-200";
-    }
-    if (s === "failed") {
-      return "bg-rose-50 text-rose-700 border-rose-200";
-    }
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  };
-
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 flex items-center justify-center">
-        <div className="text-center space-y-3">
-          <div className="w-12 h-12 border-[3px] border-green-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm text-stone-600 font-medium tracking-wide">
+      <main className="flex min-h-screen items-center justify-center bg-background">
+        <div className="space-y-3 text-center">
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
+          <p className="text-sm font-medium text-foreground-muted">
             Fetching your order details…
           </p>
         </div>
@@ -142,28 +136,22 @@ export default function OrderDetailsPage() {
 
   if (error || !order) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-stone-50 to-stone-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl border border-red-100 px-8 py-8 max-w-md w-full">
-          <div className="w-14 h-14 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              />
-            </svg>
+      <main className="flex min-h-screen items-center justify-center bg-background p-4">
+        <div className="w-full max-w-md rounded-2xl border border-status-danger/30 bg-surface-card p-8 shadow-sm">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-status-danger-surface">
+            <Package className="h-7 w-7 text-status-danger" />
           </div>
-          <h2 className="text-xl font-bold text-stone-900 text-center mb-2">
+          <h2 className="text-center text-xl font-semibold text-foreground-heading">
             Order Not Found
           </h2>
-          <p className="text-sm text-stone-600 text-center mb-6">
-            {error || "The order you're looking for doesn't exist or has been removed."}
+          <p className="mt-2 text-center text-sm text-foreground-muted">
+            {error ||
+              "The order you're looking for doesn't exist or has been removed."}
           </p>
           <button
             type="button"
             onClick={() => router.push("/orders")}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-4 rounded-xl transition-colors duration-200"
+            className="mt-6 w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary-hover"
           >
             Back to My Orders
           </button>
@@ -190,36 +178,29 @@ export default function OrderDetailsPage() {
   );
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-stone-50 via-stone-50 to-stone-100 pb-20">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Back Button */}
+    <main className="min-h-screen bg-background pb-20">
+      <div className="mx-auto max-w-6xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        {/* Back */}
         <button
           type="button"
           onClick={() => router.push("/orders")}
-          className="inline-flex items-center gap-2 text-sm text-stone-600 hover:text-stone-900 font-medium transition-colors group"
+          className="group inline-flex items-center gap-2 text-sm font-medium text-foreground-muted transition hover:text-foreground-heading"
         >
-          <svg
-            className="w-4 h-4 group-hover:-translate-x-1 transition-transform"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
+          <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
           Back to Orders
         </button>
 
-        {/* HEADER / HERO CARD */}
-        <section className="bg-white/80 backdrop-blur rounded-2xl shadow-lg border border-stone-200 p-6 sm:p-8">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-            {/* Left: order meta */}
-            <div className="space-y-3">
+        {/* ── Header card ──────────────────────────────── */}
+        <section className="rounded-2xl border border-border bg-surface-card p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+            {/* Left: meta */}
+            <div className="space-y-4">
               <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-2xl sm:text-3xl font-bold text-stone-900 tracking-tight">
+                <h1 className="text-2xl font-semibold tracking-tight text-foreground-heading sm:text-3xl">
                   Order #{shortId(order._id)}
                 </h1>
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-stone-100 text-xs font-semibold uppercase tracking-wide text-stone-600 border border-stone-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1 text-xs font-semibold text-foreground-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
                   {order.source === "voice"
                     ? "Voice Order"
                     : order.source === "app"
@@ -228,68 +209,36 @@ export default function OrderDetailsPage() {
                 </span>
               </div>
 
-              <div className="flex flex-wrap gap-3 text-xs sm:text-sm text-stone-600">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-50 border border-stone-200">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                    />
-                  </svg>
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-foreground-muted">
+                  <Calendar className="h-3.5 w-3.5" />
                   <span className="font-medium">Placed</span>
                   <span>• {formatDate(order.createdAt)}</span>
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-50 border border-stone-200">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 8h14M5 16h14M5 12h8"
-                    />
-                  </svg>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-foreground-muted">
+                  <ShoppingBag className="h-3.5 w-3.5" />
                   <span className="font-medium">Items</span>
                   <span>• {order.items.length}</span>
-                </div>
-
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-stone-50 border border-stone-200">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M7 8h10M7 12h4m1 8a9 9 0 100-18 9 9 0 000 18z"
-                    />
-                  </svg>
-                  <span className="font-medium">Order ID</span>
-                  <span>• {order._id}</span>
-                </div>
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-mono text-foreground-muted">
+                  ID: {order._id}
+                </span>
               </div>
 
-              <div className="pt-2">
-                <p className="text-xs text-stone-500 font-semibold uppercase tracking-wide mb-1">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-foreground-muted">
                   Customer
                 </p>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 text-sm">
-                  <span className="font-semibold text-stone-900">
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                  <span className="font-semibold text-foreground-heading">
                     {order.buyerName || order.buyerEmail}
                   </span>
                   {order.buyerEmail && (
-                    <span className="text-stone-500 truncate">{order.buyerEmail}</span>
+                    <span className="text-foreground-muted">{order.buyerEmail}</span>
                   )}
                   {order.buyerPhone && (
-                    <span className="inline-flex items-center gap-1 text-stone-600">
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 5h2l2 5-2 2c1 3 3 5 6 6l2-2 5 2v2"
-                        />
-                      </svg>
+                    <span className="inline-flex items-center gap-1 text-foreground-muted">
+                      <Phone className="h-3.5 w-3.5" />
                       {order.buyerPhone}
                     </span>
                   )}
@@ -297,75 +246,58 @@ export default function OrderDetailsPage() {
               </div>
             </div>
 
-            {/* Right: total summary only (no status/payment) */}
-            <div className="w-full md:w-64">
-              <div className="rounded-2xl border border-green-100 bg-gradient-to-br from-emerald-50 via-emerald-50 to-green-100 px-4 py-4 sm:px-5 sm:py-5 shadow-sm">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+            {/* Right: total */}
+            <div className="w-full md:w-60">
+              <div className="rounded-2xl border border-border bg-surface p-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs font-semibold uppercase tracking-wide text-brand">
                     Order Total
                   </span>
-                  <svg className="w-5 h-5 text-emerald-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
+                  <CircleDollarSign className="h-5 w-5 text-brand" />
                 </div>
-                <p className="text-2xl sm:text-3xl font-extrabold text-emerald-900">
+                <p className="text-3xl font-extrabold text-foreground-heading">
                   ₹{order.total.toFixed(2)}
                 </p>
-                <p className="text-xs text-emerald-800/80 mt-1">
-                  Inclusive of all delivery, extra & service charges and discounts.
+                <p className="mt-1 text-xs text-foreground-muted">
+                  Inclusive of all charges and discounts.
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ITEMS SECTION */}
-        <section className="bg-white rounded-2xl shadow-lg border border-stone-200 p-6 sm:p-8">
-          <div className="flex items-center justify-between gap-3 mb-6">
-            <div className="flex items-center gap-2">
-              <svg className="w-6 h-6 text-stone-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                />
-              </svg>
-              <div>
-                <h2 className="text-xl font-bold text-stone-900">Items in this order</h2>
-                <p className="text-xs text-stone-500">
-                  {order.items.length} product{order.items.length !== 1 ? "s" : ""} · tap any row for a detailed breakdown
-                </p>
-              </div>
+        {/* ── Items section ─────────────────────────────── */}
+        <section className="rounded-2xl border border-border bg-surface-card p-6 shadow-sm sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <Package className="h-6 w-6 text-brand" />
+            <div>
+              <h2 className="text-xl font-semibold text-foreground-heading">
+                Items in this order
+              </h2>
+              <p className="text-xs text-foreground-muted">
+                {order.items.length} product{order.items.length !== 1 ? "s" : ""}{" "}
+                · tap any row for a detailed breakdown
+              </p>
             </div>
           </div>
 
-          <div className="border border-stone-200 rounded-xl overflow-hidden">
-            {/* Desktop Header */}
-            <div className="hidden sm:grid sm:grid-cols-[minmax(0,2.3fr)_auto_auto_auto] bg-gradient-to-r from-stone-50 to-stone-100 text-xs font-semibold text-stone-600 uppercase tracking-wide border-b border-stone-200 px-4 py-3">
+          <div className="overflow-hidden rounded-xl border border-border">
+            {/* Desktop header */}
+            <div className="hidden grid-cols-[minmax(0,2.3fr)_auto_auto_auto] border-b border-border bg-surface px-4 py-3 text-xs font-semibold uppercase tracking-wide text-foreground-muted sm:grid">
               <div>Product</div>
               <div className="text-right">Quantity</div>
               <div className="text-right">Unit Price</div>
               <div className="text-right">Line Total</div>
             </div>
 
-            {/* Items */}
             {order.items.map((it, idx) => {
               const baseTotal = it.price * it.qty;
               const delivery = it.deliveryCharge ?? 0;
               const extra = it.extraCharge ?? 0;
               const service = it.serviceCharge ?? 0;
-              const charges = delivery + extra + service;
               const discount = it.discountTotal ?? 0;
-              const lineTotal = baseTotal + charges - discount;
-
+              const lineTotal = baseTotal + delivery + extra + service - discount;
               const isExpanded = expandedItemId === it.productId;
-
               const itemStatus = it.status || "pending";
               const itemPaymentStatus = it.paymentStatus || "unpaid";
               const itemPaymentMode = it.paymentMode || order.paymentMode || "COD";
@@ -373,7 +305,7 @@ export default function OrderDetailsPage() {
               return (
                 <div
                   key={it.productId}
-                  className={`${idx !== 0 ? "border-t border-stone-200" : ""} transition-colors hover:bg-stone-50/80`}
+                  className={`${idx !== 0 ? "border-t border-border" : ""} transition-colors hover:bg-surface/50`}
                 >
                   <div
                     onClick={() =>
@@ -381,243 +313,182 @@ export default function OrderDetailsPage() {
                         prev === it.productId ? null : it.productId
                       )
                     }
-                    className="flex flex-col sm:grid sm:grid-cols-[minmax(0,2.3fr)_auto_auto_auto] gap-4 px-4 py-4 cursor-pointer"
+                    className="flex cursor-pointer flex-col gap-4 px-4 py-4 sm:grid sm:grid-cols-[minmax(0,2.3fr)_auto_auto_auto]"
                   >
-                    {/* Product Info */}
+                    {/* Product info */}
                     <div className="flex items-start gap-4">
                       {it.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
                         <img
                           src={it.image}
                           alt={it.name}
-                          className="w-16 h-16 sm:w-14 sm:h-14 rounded-xl object-cover bg-stone-100 border border-stone-200 shadow-sm flex-shrink-0"
+                          className="h-16 w-16 flex-shrink-0 rounded-xl border border-border object-cover shadow-sm sm:h-14 sm:w-14"
                         />
                       ) : (
-                        <div className="w-16 h-16 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center bg-gradient-to-br from-stone-100 to-stone-200 border border-stone-200 flex-shrink-0">
-                          <svg
-                            className="w-6 h-6 text-stone-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
+                        <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl border border-border bg-surface sm:h-14 sm:w-14">
+                          <ImageOff className="h-6 w-6 text-tertiary-foreground" />
                         </div>
                       )}
 
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <p className="text-sm sm:text-base font-semibold text-stone-900 line-clamp-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="line-clamp-2 text-sm font-semibold text-foreground-heading sm:text-base">
                           {it.name}
                         </p>
-                        <p className="text-xs text-stone-500 font-mono">
-                          Product ID: {it.productId.slice(-6).toUpperCase()}
+                        <p className="font-mono text-xs text-foreground-muted">
+                          ID: {it.productId.slice(-6).toUpperCase()}
                         </p>
-
-                        {/* Status + Payment pills (visible on both mobile & desktop) */}
-                        <div className="flex flex-wrap items-center gap-2 pt-2">
+                        <div className="flex flex-wrap gap-2 pt-1">
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${getItemStatusClasses(
-                              itemStatus
-                            )}`}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${itemStatusClass(itemStatus)}`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
                             {itemStatus.split("_").join(" ")}
                           </span>
                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${getItemPaymentClasses(
-                              itemPaymentStatus
-                            )}`}
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${itemPaymentClass(itemPaymentStatus)}`}
                           >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                              />
-                            </svg>
-                            {itemPaymentStatus.charAt(0).toUpperCase() +
-                              itemPaymentStatus.slice(1)}
+                            <CreditCard className="h-3.5 w-3.5" />
+                            {itemPaymentStatus[0].toUpperCase() +
+                              itemPaymentStatus.slice(1)}{" "}
+                            ·{" "}
                             <span className="text-[10px] uppercase opacity-80">
-                              • {itemPaymentMode}
+                              {itemPaymentMode}
                             </span>
                           </span>
                         </div>
 
-                        {/* Mobile-only quick totals */}
-                        <div className="sm:hidden space-y-1.5 pt-3 border-t border-stone-200 mt-2">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-stone-600">Quantity</span>
-                            <span className="font-semibold text-stone-900">{it.qty}</span>
+                        {/* Mobile: qty + line total */}
+                        <div className="mt-3 space-y-1.5 border-t border-border pt-3 sm:hidden">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-foreground-muted">Quantity</span>
+                            <span className="font-semibold text-foreground-heading">
+                              {it.qty}
+                            </span>
                           </div>
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-stone-600">Unit Price</span>
-                            <span className="font-semibold text-stone-900">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-foreground-muted">Unit Price</span>
+                            <span className="font-semibold text-foreground-heading">
                               ₹{it.price.toFixed(2)}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-sm pt-1">
-                            <span className="font-medium text-stone-700">Line Total</span>
-                            <span className="font-bold text-stone-900">
+                          <div className="flex justify-between pt-1 text-sm">
+                            <span className="font-medium text-foreground-body">
+                              Line Total
+                            </span>
+                            <span className="font-bold text-foreground-heading">
                               ₹{lineTotal.toFixed(2)}
                             </span>
                           </div>
-                          <button className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center gap-1 mt-2">
-                            {isExpanded ? "Hide" : "View"} full breakdown
-                            <svg
-                              className={`w-3 h-3 transition-transform ${
-                                isExpanded ? "rotate-180" : ""
-                              }`}
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M19 9l-7 7-7-7"
-                              />
-                            </svg>
+                          <button className="mt-2 flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+                            {isExpanded ? "Hide" : "View"} breakdown
+                            <ChevronDown
+                              className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                            />
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    {/* Desktop Columns */}
-                    <div className="hidden sm:flex items-center justify-end text-base font-medium text-stone-900">
+                    {/* Desktop columns */}
+                    <div className="hidden items-center justify-end text-base font-medium text-foreground-heading sm:flex">
                       {it.qty}
                     </div>
-
-                    <div className="hidden sm:flex items-center justify-end text-base font-medium text-stone-900">
+                    <div className="hidden items-center justify-end text-base font-medium text-foreground-heading sm:flex">
                       ₹{it.price.toFixed(2)}
                     </div>
-
-                    <div className="hidden sm:flex flex-col items-end justify-center">
-                      <span className="text-base font-bold text-stone-900">
+                    <div className="hidden flex-col items-end justify-center sm:flex">
+                      <span className="text-base font-bold text-foreground-heading">
                         ₹{lineTotal.toFixed(2)}
                       </span>
-                      <button className="text-xs text-green-600 hover:text-green-700 font-medium mt-1 flex items-center gap-1">
+                      <button className="mt-1 flex items-center gap-1 text-xs font-medium text-primary hover:underline">
                         {isExpanded ? "Hide" : "Show"} breakdown
-                        <svg
-                          className={`w-3 h-3 transition-transform ${
-                            isExpanded ? "rotate-180" : ""
-                          }`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
+                        <ChevronDown
+                          className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        />
                       </button>
                     </div>
                   </div>
 
-                  {/* Expanded Details */}
+                  {/* Expanded breakdown */}
                   {isExpanded && (
-                    <div className="px-4 pb-4 pt-2 bg-stone-50 border-t border-stone-200">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        <div className="bg-white rounded-lg p-3 border border-stone-200">
-                          <p className="text-xs font-semibold text-stone-500 mb-2 uppercase tracking-wide">
+                    <div className="border-t border-border bg-surface px-4 pb-4 pt-4">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        <div className="rounded-xl border border-border bg-surface-card p-3">
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
                             Item Status
                           </p>
-                          <div
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${getItemStatusClasses(
-                              itemStatus
-                            )}`}
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${itemStatusClass(itemStatus)}`}
                           >
-                            <span className="w-1.5 h-1.5 rounded-full bg-current" />
+                            <span className="h-1.5 w-1.5 rounded-full bg-current" />
                             {itemStatus.split("_").join(" ")}
-                          </div>
+                          </span>
                         </div>
 
-                        <div className="bg-white rounded-lg p-3 border border-stone-200">
-                          <p className="text-xs font-semibold text-stone-500 mb-2 uppercase tracking-wide">
-                            Payment for this item
+                        <div className="rounded-xl border border-border bg-surface-card p-3">
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
+                            Payment
                           </p>
-                          <div
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold ${getItemPaymentClasses(
-                              itemPaymentStatus
-                            )}`}
+                          <span
+                            className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${itemPaymentClass(itemPaymentStatus)}`}
                           >
-                            <svg
-                              className="w-3.5 h-3.5"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
-                              />
-                            </svg>
-                            {itemPaymentStatus.charAt(0).toUpperCase() +
-                              itemPaymentStatus.slice(1)}
-                            <span className="text-[10px] uppercase opacity-80">
-                              • {itemPaymentMode}
-                            </span>
-                          </div>
+                            <CreditCard className="h-3.5 w-3.5" />
+                            {itemPaymentStatus[0].toUpperCase() +
+                              itemPaymentStatus.slice(1)}{" "}
+                            · {itemPaymentMode.toUpperCase()}
+                          </span>
                         </div>
 
-                        <div className="bg-white rounded-lg p-3 border border-stone-200 sm:col-span-2 lg:col-span-1">
-                          <p className="text-xs font-semibold text-stone-500 mb-2 uppercase tracking-wide">
+                        <div className="rounded-xl border border-border bg-surface-card p-3 sm:col-span-2 lg:col-span-1">
+                          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-foreground-muted">
                             Price Breakdown
                           </p>
                           <div className="space-y-1.5 text-xs">
                             <div className="flex justify-between">
-                              <span className="text-stone-600">
+                              <span className="text-foreground-muted">
                                 Base ({it.qty} × ₹{it.price.toFixed(2)})
                               </span>
-                              <span className="font-medium text-stone-900">
+                              <span className="font-medium text-foreground-heading">
                                 ₹{baseTotal.toFixed(2)}
                               </span>
                             </div>
-                            <div className="flex justify-between">
-                              <span className="text-stone-600">Delivery</span>
-                              <span className="font-medium text-stone-900">
-                                ₹{delivery.toFixed(2)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-stone-600">Extra charges</span>
-                              <span className="font-medium text-stone-900">
-                                ₹{extra.toFixed(2)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-stone-600">Service</span>
-                              <span className="font-medium text-stone-900">
-                                ₹{service.toFixed(2)}
-                              </span>
-                            </div>
-                            {discount > 0 && (
+                            {delivery > 0 && (
                               <div className="flex justify-between">
-                                <span className="text-stone-600">Discount</span>
-                                <span className="font-medium text-rose-600">
-                                  -₹{discount.toFixed(2)}
+                                <span className="text-foreground-muted">Delivery</span>
+                                <span className="font-medium text-foreground-heading">
+                                  ₹{delivery.toFixed(2)}
                                 </span>
                               </div>
                             )}
-                            <div className="pt-1 mt-1 border-t border-dashed border-stone-200 flex justify-between font-semibold">
-                              <span className="text-stone-800">Line Total</span>
-                              <span className="text-stone-900">₹{lineTotal.toFixed(2)}</span>
+                            {extra > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-foreground-muted">Extra</span>
+                                <span className="font-medium text-foreground-heading">
+                                  ₹{extra.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            {service > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-foreground-muted">Service</span>
+                                <span className="font-medium text-foreground-heading">
+                                  ₹{service.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            {discount > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-foreground-muted">Discount</span>
+                                <span className="font-medium text-status-danger">
+                                  −₹{discount.toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex justify-between border-t border-dashed border-border pt-1.5 font-semibold">
+                              <span className="text-foreground-body">Line Total</span>
+                              <span className="text-foreground-heading">
+                                ₹{lineTotal.toFixed(2)}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -629,102 +500,76 @@ export default function OrderDetailsPage() {
             })}
           </div>
 
-          {/* Summary */}
-          <div className="mt-8 pt-6 border-t border-stone-200">
-            <div className="flex justify-end">
-              <div className="w-full max-w-md space-y-3">
-                <div className="flex justify-between items-center text-sm">
-                  <span className="text-stone-600">Subtotal (items)</span>
-                  <span className="font-semibold text-stone-900">
-                    ₹{order.subtotal.toFixed(2)}
+          {/* Summary totals */}
+          <div className="mt-8 flex justify-end border-t border-border pt-6">
+            <div className="w-full max-w-sm space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-foreground-muted">Subtotal</span>
+                <span className="font-medium text-foreground-heading">
+                  ₹{order.subtotal.toFixed(2)}
+                </span>
+              </div>
+              {deliveryCharges > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-foreground-muted">Delivery</span>
+                  <span className="font-medium text-foreground-heading">
+                    ₹{deliveryCharges.toFixed(2)}
                   </span>
                 </div>
-
-                {deliveryCharges > 0 && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-stone-600">Delivery charges</span>
-                    <span className="font-semibold text-stone-900">
-                      ₹{deliveryCharges.toFixed(2)}
-                    </span>
-                  </div>
-                )}
-
-                {extraCharges > 0 && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-stone-600">Extra charges</span>
-                    <span className="font-semibold text-stone-900">
-                      ₹{extraCharges.toFixed(2)}
-                    </span>
-                  </div>
-                )}
-
-                {serviceCharges > 0 && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-stone-600">Service charges</span>
-                    <span className="font-semibold text-stone-900">
-                      ₹{serviceCharges.toFixed(2)}
-                    </span>
-                  </div>
-                )}
-
-                {discounts > 0 && (
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-stone-600">Discounts</span>
-                    <span className="font-semibold text-rose-600">
-                      -₹{discounts.toFixed(2)}
-                    </span>
-                  </div>
-                )}
-
-                <div className="border-t-2 border-stone-300 pt-3 flex justify-between items-center">
-                  <span className="text-base font-bold text-stone-900">Grand Total</span>
-                  <span className="text-2xl font-extrabold text-green-700">
-                    ₹{order.total.toFixed(2)}
+              )}
+              {extraCharges > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-foreground-muted">Extra charges</span>
+                  <span className="font-medium text-foreground-heading">
+                    ₹{extraCharges.toFixed(2)}
                   </span>
                 </div>
+              )}
+              {serviceCharges > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-foreground-muted">Service</span>
+                  <span className="font-medium text-foreground-heading">
+                    ₹{serviceCharges.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              {discounts > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-foreground-muted">Discounts</span>
+                  <span className="font-medium text-status-danger">
+                    −₹{discounts.toFixed(2)}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-baseline justify-between border-t-2 border-border pt-3">
+                <span className="text-base font-bold text-foreground-heading">
+                  Grand Total
+                </span>
+                <span className="text-2xl font-extrabold text-primary">
+                  ₹{order.total.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* ACTIONS */}
-        <section className="flex flex-col sm:flex-row gap-3 items-center justify-between bg-white rounded-xl border border-stone-200 p-4 shadow-sm">
+        {/* ── Actions ───────────────────────────────────── */}
+        <section className="flex flex-col items-center justify-between gap-3 rounded-xl border border-border bg-surface-card p-4 shadow-sm sm:flex-row">
           <Link
             href="/products"
-            className="inline-flex items-center gap-2 text-sm font-medium text-green-700 hover:text-green-800 transition-colors group"
+            className="group inline-flex items-center gap-2 text-sm font-medium text-primary transition hover:text-primary-hover"
           >
-            <svg
-              className="w-4 h-4 group-hover:-translate-x-1 transition-transform"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
+            <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
             Continue Shopping
           </Link>
 
           <div className="flex flex-wrap gap-3">
-            <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-stone-700 hover:text-stone-900 border border-stone-300 rounded-lg hover:bg-stone-50 transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M7 4h10M7 8h10M7 12h4m-4 8h10a2 2 0 002-2V6a2 2 0 00-2-2H7a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
+            <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground-body transition hover:bg-surface">
+              <FileText className="h-4 w-4" />
               Download Invoice
             </button>
-            <button className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M8 10h.01M12 10h.01M16 10h.01M9 16h6m2 4l-4-4H8a4 4 0 01-4-4V7a4 4 0 014-4h8a4 4 0 014 4v5a4 4 0 01-4 4"
-                />
-              </svg>
+            <button className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition hover:bg-primary-hover">
+              <MessageCircle className="h-4 w-4" />
               Contact Support
             </button>
           </div>

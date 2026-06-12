@@ -42,6 +42,22 @@
   /* Borders */
   --color-border: #d1ead9;
   --color-border-focus: #6ee7b7;
+
+  /* Status: warning — pending, waiting */
+  --color-status-warning: #b45309;
+  --color-status-warning-surface: #fffbeb;
+
+  /* Status: info — confirmed, in transit */
+  --color-status-info: #1d4ed8;
+  --color-status-info-surface: #eff6ff;
+
+  /* Status: success — delivered, paid */
+  --color-status-success: #15803d;
+  --color-status-success-surface: #f0fdf4;
+
+  /* Status: danger — cancelled, failed, unpaid */
+  --color-status-danger: #b91c1c;
+  --color-status-danger-surface: #fef2f2;
 }
 
 body {

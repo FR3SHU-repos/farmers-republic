@@ -147,9 +147,9 @@ function mapDocToProduct(doc: any): ProductType {
 export default async function ProductPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const id = params?.id;
+  const { id } = await params;
   if (!id) return notFound();
 
   const product = await fetchProductById(id);
