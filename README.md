@@ -1,236 +1,324 @@
-# 🌿 Farmers Republic
+# Farmers Republic (FR3SH)
 
-Farmers Republic is a multi-role marketplace platform for organic and farm-origin products. It supports farmers and buyers, product discovery, profile creation, and order-oriented workflows in a mobile-friendly Next.js app.
+A direct-to-consumer agricultural marketplace for India. Farmers list produce, buyers discover and order it, FPOs are profiled with live sales data, and low-tech farmers can capture orders by voice.
+
+Brand tagline: *"Pick fresh. Eat fresh."*
 
 ---
 
 ## 1) Tech Stack
 
 ### Core Framework
-- **Next.js 15 (App Router)** for pages, layouts, and API routes.
-- **React 19 + TypeScript** for typed component-driven UI.
-- **Tailwind CSS 4** for styling.
+- **Next.js 16 (App Router, Turbopack)** for pages, layouts, and API routes.
+- **React 19 + TypeScript 5** for typed component-driven UI.
+- **Tailwind CSS v4** for styling via a semantic design-token system.
 
 ### Backend & Data
-- **MongoDB + Mongoose** for persistent domain data (farmers, buyers, products, orders, users).
-- **JWT + bcryptjs** for auth/session primitives.
-- **Supabase Storage** for media upload/storage (avatars, product images, etc.).
+- **MongoDB + Mongoose 8** for persistent domain data (farmers, buyers, products, orders, users).
+- **JWT + bcryptjs** for auth/session primitives (httpOnly cookie, 7-day expiry).
+- **Supabase Storage** for media upload/storage (avatars bucket, product-images bucket).
 
 ### UX & Utilities
 - **react-hot-toast** for notifications.
 - **framer-motion** for UI animations.
-- **lucide-react** for iconography.
-- **Nodemailer** for email flows (password/reset style flows and future transactional emails).
-- **OpenAI SDK** present for AI-oriented extensions.
+- **lucide-react** for all iconography (no inline SVGs).
+- **Nodemailer** for transactional email (Brevo SMTP primary, Zoho fallback).
+- **OpenAI SDK** for voice order transcription (Whisper) and AI extensions.
 
 ---
 
-## 2) High-Level Architecture
+## 2) Design Token System
 
-```text
-App Router Pages (app/**/page.tsx)
-  ├─ use shared templates/components for UI composition
-  ├─ use shared context (UserContext, CartContext) for cross-page state
-  ├─ call API routes (/api/v1/*) for CRUD
-  └─ API routes read/write MongoDB via models
-          └─ optional media upload via Supabase client
+All colors are defined as semantic tokens in `app/globals.css` using Tailwind v4's `@theme {}` directive. Raw palette classes like `bg-green-600` or `text-stone-500` are not used anywhere in the codebase.
+
+```css
+/* @theme {} emits CSS custom properties AND Tailwind utilities,
+   enabling opacity modifiers like bg-primary/20 via color-mix(). */
+@theme {
+  --color-primary: #065f46;          /* main brand green */
+  --color-secondary: #bef264;        /* lime accent */
+  --color-surface-card: #ffffff;     /* card backgrounds */
+  --color-surface: #eff6e8;          /* section backgrounds */
+  --color-foreground-heading: #022c22;
+  --color-foreground-body: #44403c;
+  --color-foreground-muted: #78716c;
+  --color-border: #d1ead9;
+  --color-status-success: #15803d;
+  --color-status-warning: #b45309;
+  --color-status-danger: #b91c1c;
+  --color-status-info: #1d4ed8;
+  /* ...and their -surface variants */
+}
 ```
 
-### Core Building Blocks
-- `app/layout.tsx` wraps the whole app shell.
-- `shared/components/templates/*` provides reusable layout pieces (navbar, bottom nav, product cards).
-- `shared/context/*` provides global state and interactions:
-  - `UserContext` for authentication/user state.
-  - `CartContext` for cart state.
-- `app/api/v1/*` is the backend layer exposed to frontend pages/components.
-- `shared/models/mongodb/*` defines Mongoose schemas and data relations.
+Every status badge, button, input, and card uses one of these tokens. New colors should be added here as named tokens rather than inlined.
 
 ---
 
-## 3) Pages & Routes (Frontend Map)
+## 3) High-Level Architecture
+
+```
+App Router Pages (app/**/page.tsx)
+  ├─ shared templates/components for UI composition
+  ├─ shared context (UserContext, CartContext) for cross-page state
+  ├─ API routes (/api/v1/*) for all CRUD operations
+  └─ API routes → MongoDB via Mongoose models
+                → Supabase for media
+```
+
+### Key building blocks
+
+| File | Role |
+|---|---|
+| `app/layout.tsx` | Root shell — mounts providers (UserProvider, CartProvider, Toaster) |
+| `app/globals.css` | Design token definitions + Tailwind base |
+| `shared/context/UserContext.tsx` | Global auth state (`useUser` hook) |
+| `shared/context/CartContext.tsx` | Global cart state (`useCart` hook) |
+| `shared/lib/utils.tsx` | `cx()` className combiner |
+| `shared/components/templates/` | Navbar, bottom nav, product card, product detail |
+| `shared/models/mongodb/` | Mongoose schemas |
+| `shared/interfaces/mongodb/` | TypeScript interfaces matching each schema |
+
+---
+
+## 4) Pages & Routes
 
 ### Authentication
-- `/login`
-- `/forgot-password`
-- `/reset-password`
+| Route | Description |
+|---|---|
+| `/login` | Login + register (single split-layout page) |
+| `/forgot-password` | Send OTP email |
+| `/reset-password` | Enter OTP + new password |
 
-### Home & Shopping
-- `/` (landing/home)
-- `/shop`
-- `/products`
-- `/products/create`
-- `/products/[id]`
-- `/products/[id]/edit`
-- `/cart`
+### Shopping
+| Route | Description |
+|---|---|
+| `/` | Homepage / landing |
+| `/shop` | Buyer-facing product discovery |
+| `/products` | Full product grid with filters |
+| `/products/create` | Create a new product (tabbed form) |
+| `/products/[id]` | Product detail — gallery, characteristics, add to cart |
+| `/products/[id]/edit` | Edit existing product |
+| `/cart` | Cart review + checkout |
 
 ### Farmers
-- `/farmers`
-- `/farmers/create`
-- `/farmers/[id]`
-- `/farmers/edit/[id]`
-- `/farmers/dashboard`
-- `/farmers/adapted`
-- `/farmers/orders/[id]`
+| Route | Description |
+|---|---|
+| `/farmers` | Farmer list |
+| `/farmers/create` | Create farmer profile |
+| `/farmers/[id]` | Farmer public profile |
+| `/farmers/edit/[id]` | Edit farmer profile |
+| `/farmers/dashboard` | Farmer dashboard |
+| `/farmers/adapted` | Farmers a buyer has adapted/followed |
+| `/farmers/orders/[id]` | Farmer's order list |
 
 ### Buyers
-- `/buyers/create`
-- `/buyers/profile/[id]`
-- `/buyers/edit/[id]`
+| Route | Description |
+|---|---|
+| `/buyers/create` | Create buyer profile |
+| `/buyers/profile/[id]` | Buyer public profile |
+| `/buyers/edit/[id]` | Edit buyer profile |
 
-### FPO & Orders
-- `/fpos`
-- `/fpos/[id]`
-- `/orders/[id]`
-- `/orders/details/[id]`
-- `/orders/farmerOrders`
-- `/orders/voice`
+### FPOs & Orders
+| Route | Description |
+|---|---|
+| `/fpos` | FPO listing |
+| `/fpos/[id]` | FPO detail — stats, products, farmers, land, activity timeline |
+| `/orders/[id]` | Buyer order history |
+| `/orders/details/[id]` | Single order detail |
+| `/orders/farmerOrders` | Farmer's voice/app order management |
+| `/orders/voice` | Voice order capture UI |
 
 ### Account & Policy
-- `/profile`
-- `/policies/privacy-policy`
-- `/policies/refund-policy`
-- `/policies/return-policy`
-- `/policies/shipping-policy`
-- `/policies/terms-and-conditions`
+| Route | Description |
+|---|---|
+| `/profile` | User profile |
+| `/policies/*` | Privacy, refund, return, shipping, T&C |
 
 ---
 
-## 4) API Surface (`/api/v1`)
+## 5) API Surface (`/api/v1`)
 
-> All APIs are implemented as Next.js route handlers.
+All handlers follow the pattern: `await mongoDB()` → validate → query/mutate → return `{ success, message, data }`.
 
-### `POST /api/v1/auth`
-- Clears auth token cookie and logs out current user.
-
-### `POST /api/v1/farmers`
-- Creates a farmer profile.
-- Accepts comprehensive identity, farm, logistics, media, and compliance fields.
-
-### `GET /api/v1/farmers`
-- **List mode**: pagination/filter/search/sort via query params (`page`, `limit`, `q`, `place`, `district`, `state`, `sort`).
-- **Single mode**: fetch one farmer by `id` or `profileId`.
-
-### `PATCH /api/v1/farmers`
-- Updates farmer by `id` or `profileId`.
-- Supports key profile/contact/farm/crop fields.
-
-### `POST /api/v1/buyers`
-- Creates a buyer profile.
-
-### `GET /api/v1/buyers`
-- Fetch buyer by `id` or `profileId`.
-
-### `PATCH /api/v1/buyers`
-- Update buyer by `id` or `profileId`.
-
-### `POST /api/v1/products`
-- Creates product with pricing, stock, merchandising, quality, logistics, SEO, and optional `farmerId` linkage.
-
-### `GET /api/v1/products`
-- Lists products with pagination/filter/search/sort (`page`, `limit`, `q`, `category`, `farmerId`, `status`, `featured`, `sort`).
+| Endpoint | Methods | Description |
+|---|---|---|
+| `/api/v1/auth/register` | POST | Create user account |
+| `/api/v1/auth/login` | POST | Issue JWT cookie |
+| `/api/v1/auth/logout` | POST | Clear JWT cookie |
+| `/api/v1/auth/me` | GET | Return current user from cookie |
+| `/api/v1/auth/send-reset-otp` | POST | Email OTP for password reset |
+| `/api/v1/auth/verify-reset-otp` | POST | Validate OTP |
+| `/api/v1/auth/reset-password` | POST | Set new password |
+| `/api/v1/farmers` | GET, POST, PATCH | Farmer CRUD (list/single/create/update) |
+| `/api/v1/buyers` | GET, POST, PATCH | Buyer CRUD |
+| `/api/v1/products` | GET, POST | Product list + create |
+| `/api/v1/products/[id]` | GET, PATCH, DELETE | Single product |
+| `/api/v1/farmers/orders/voice/buyerOrders` | GET, POST | Buyer order list + place order |
+| `/api/v1/farmers/orders/voice/farmerOrders` | GET, POST | Farmer order list + create |
+| `/api/v1/user/photo` | POST | Upload avatar to Supabase |
 
 ---
 
-## 5) Data Relations (How Components and Models Connect)
+## 6) Data Relations
 
-### Entity Relations (Conceptual)
-
-```text
-User/ProfileId
-  ├─ 1 : 0..1 Farmer
-  ├─ 1 : 0..1 Buyer
-  └─ (future/optional) role driven access
+```
+User (auth identity — IUser.type is capitalised: "Farmer" | "Buyer" | "Admin" …)
+ ├─ Farmer  (profileId → User._id)
+ ├─ Buyer   (profileId → User._id)
+ └─ Adapt   (buyerId + farmerId) — buyer "follows" a farmer
 
 Farmer
-  └─ 1 : N Product    (Product.farmerId)
+ └─ Product (farmerId → Farmer._id)
 
 Buyer
-  └─ 1 : N Orders     (via order models)
+ └─ BuyerOrder  (buyerId, items[], subtotal, paymentStatus)
 
 Farmer
-  └─ 1 : N FarmerOrders (via order models)
+ └─ FarmerOrder (farmerId, customerName/Phone/Address, items[], source)
 ```
 
-### UI → API → DB Interaction Pattern
-1. A page component (e.g., farmer create/edit page) collects form input.
-2. It calls the relevant route in `/api/v1/*`.
-3. Route validates/parses request, connects to MongoDB, and uses Mongoose model.
-4. Normalized response is returned to UI.
-5. UI updates local/global state (`UserContext`, `CartContext`) and reflects result.
-
-This pattern keeps concerns separate:
-- **Pages/components** = rendering + user interactions.
-- **API routes** = business logic + validation + persistence.
-- **Models** = schema/data consistency.
+BuyerOrders and FarmerOrders are **separate collections with separate schemas** — do not conflate them.
 
 ---
 
-## 6) Project Structure (Practical Orientation)
+## 7) Key Component Patterns
 
-```bash
+### Standard input / label
+```tsx
+const INPUT_CLASS =
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm " +
+  "text-foreground-heading placeholder:text-foreground-muted outline-none transition " +
+  "focus:border-primary focus:ring-4 focus:ring-primary/10";
+
+const LABEL_CLASS =
+  "block text-xs font-semibold uppercase tracking-wide text-foreground-muted";
+```
+
+### Status badge classes
+```tsx
+// pending → warning, delivered → success, cancelled → danger, confirmed → info
+"bg-status-warning-surface text-status-warning border-status-warning/30"
+```
+
+### Conditional classNames
+```tsx
+import { cx } from "@/shared/lib/utils";
+cx("base-class", isActive && "active-class", hasError && "error-class")
+```
+
+### Cart integration (client components)
+```tsx
+import { useCart } from "@/shared/context/CartContext";
+const { addToCart, removeOne, clearCart, cartCount, subtotal } = useCart();
+
+addToCart({ id, name, price, image, qty, farmerId }); // increments if already in cart
+```
+
+---
+
+## 8) Next.js 16 Gotchas
+
+### Route params are a Promise
+```ts
+// Server page — params must be awaited
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+}
+```
+
+### React 19 — FormEvent deprecated
+Use `React.SyntheticEvent` or native DOM event types instead of `React.FormEvent`.
+
+---
+
+## 9) Project Structure
+
+```
 farmers-republic/
 ├── app/
-│   ├── (auth)/                    # Login/forgot/reset password pages
-│   ├── api/v1/                    # Route handlers (auth, farmers, buyers, products)
-│   ├── farmers/                   # Farmer listing, create, detail, edit, dashboard
-│   ├── buyers/                    # Buyer create/profile/edit pages
-│   ├── products/                  # Product listing/create/detail/edit pages
-│   ├── orders/                    # Order detail and farmer-order views
-│   ├── policies/                  # Static policy/legal pages
-│   ├── profile/                   # User profile page
-│   ├── layout.tsx                 # Root app layout
-│   └── page.tsx                   # Home page
+│   ├── (auth)/                    # Login, forgot-password, reset-password
+│   ├── api/v1/                    # All REST API route handlers
+│   ├── cart/                      # Cart page
+│   ├── farmers/                   # Farmer pages
+│   ├── fpos/                      # FPO listing + detail
+│   ├── buyers/                    # Buyer pages
+│   ├── products/                  # Product pages (list, create, detail, edit)
+│   ├── orders/                    # Order detail, farmer orders, voice orders
+│   ├── policies/                  # Static legal pages
+│   ├── profile/                   # User profile
+│   ├── globals.css                # Design tokens + Tailwind base
+│   ├── layout.tsx                 # Root layout + providers
+│   └── page.tsx                   # Homepage
 │
 ├── shared/
 │   ├── components/
-│   │   ├── templates/             # Navbar, bottomNav, productCard, etc.
-│   │   └── molecules/             # Reusable UI units
+│   │   ├── templates/             # Navbar, bottomNav, productCard, productDetail
+│   │   └── molecules/             # FarmerCard, ProductGridClient, etc.
 │   ├── context/                   # UserContext, CartContext
-│   ├── hooks/                     # Custom hooks (e.g., speech-to-text)
-│   ├── lib/                       # DB and Supabase clients + utilities
-│   ├── models/mongodb/            # Mongoose models
-│   ├── interfaces/                # Type contracts
-│   └── data/                      # Local/mock/static data sets
+│   ├── data/                      # Static/mock data (categories, fpos, etc.)
+│   ├── hooks/                     # useSpeechToText
+│   ├── interfaces/mongodb/        # TypeScript interfaces for all DB documents
+│   ├── language/                  # Telugu string constants
+│   ├── lib/                       # mongo.tsx, supabase/client.tsx, utils.tsx
+│   └── models/mongodb/            # Mongoose models
 │
 ├── public/                        # Static assets
-├── package.json
-└── README.md
+├── instructions.md                # AI agent reference document
+└── README.md                      # This file
 ```
 
 ---
 
-## 7) Local Setup
+## 10) Local Setup
 
 ```bash
 npm install
-npm run dev
+npm run dev     # http://localhost:3000  (Turbopack)
+npm run build
+npm run start
 ```
 
-Open: `http://localhost:3000`
+Copy `info.env.txt` → `.env.local` and populate all secrets before running.
 
-### Recommended Environment Variables
+### Required environment variables
 
 ```env
 MONGODB_URI=
 JWT_SECRET=
-JWT_EXPIRES_IN=
-BCRYPT_SALT_ROUNDS=
+JWT_EXPIRES_IN=7d
+BCRYPT_SALT_ROUNDS=12
 
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_SUPABASE_SUPABASE_BUCKET=avatars
+
+OPENAI_API_KEY=
+
+BREVO_HOST=
+BREVO_PORT=
+BREVO_USER=
+BREVO_PASS=
+
+ZOHO_USER=
+ZOHO_PASS=
+
+NEXT_PUBLIC_APP_NAME=FR3SH
 ```
 
 ---
 
-## 8) Quick Onboarding Flow for New Developers
+## 11) Developer Onboarding
 
-1. Start with `app/layout.tsx` to understand global wrappers.
-2. Read `shared/context/UserContext.tsx` and `shared/context/CartContext.tsx` for app-wide state.
-3. Pick one vertical flow end-to-end:
-   - UI page (`app/farmers/create/page.tsx`)
-   - API handler (`app/api/v1/farmers/route.tsx`)
-   - Model (`shared/models/mongodb/farmer.tsx`)
-4. Repeat for products and buyers.
-
-This gives a clear mental model of how different components react and interact with each other across the stack.
+1. Read `instructions.md` for the full agent/developer reference.
+2. Open `app/globals.css` to understand the color token system before touching any styles.
+3. Start with `app/layout.tsx` to understand global providers.
+4. Trace one vertical flow end-to-end:
+   - UI page → API route → Mongoose model → response.
+   - Recommended: `app/products/create/page.tsx` → `app/api/v1/products/route.ts` → `shared/models/mongodb/products/products.tsx`
+5. Before adding any color, check the token table in `instructions.md` — never hardcode hex values or raw Tailwind palette classes.

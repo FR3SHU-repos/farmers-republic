@@ -73,8 +73,93 @@ farmers-republic/
     ├── lib/
     │   ├── db/mongo.tsx         # MongoDB connection (mongoDB() function)
     │   ├── supabase/client.tsx  # Supabase client singleton
-    │   └── utils.tsx            # Miscellaneous utilities
+    │   └── utils.tsx            # cx() className combiner utility
     └── models/mongodb/          # Mongoose schemas (mirrors interfaces/)
+```
+
+---
+
+## Design Token System
+
+All colors are defined as semantic tokens in `app/globals.css`. **Never use raw Tailwind palette classes** (`bg-green-600`, `text-stone-500`, etc.) — always use a semantic token.
+
+### How tokens work in Tailwind v4
+
+```css
+/* app/globals.css */
+
+:root {
+  --background: #f8faf5;
+  --foreground: #1c1917;
+}
+
+@theme inline {
+  /* Maps CSS vars to Tailwind utilities; does NOT emit custom properties */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+@theme {
+  /* Emits both CSS custom properties AND Tailwind utilities.
+     Required for opacity modifiers like bg-primary/20 to work via color-mix(). */
+  --color-primary: #065f46;
+  ...
+}
+```
+
+### Full token reference
+
+| Token | Usage |
+|---|---|
+| `primary` | Main brand green — buttons, active states, links |
+| `primary-hover` | Darker green for button hover |
+| `primary-foreground` | Text on primary backgrounds (white) |
+| `secondary` | Lime accent — badges, highlights |
+| `secondary-subtle` | Pale lime — icon backgrounds, tag chips |
+| `secondary-foreground` | Text on secondary |
+| `tertiary` | Neutral grey — inactive/disabled |
+| `tertiary-foreground` | Text on tertiary |
+| `surface` | Off-white green tint — section backgrounds |
+| `surface-card` | Pure white — cards, modals |
+| `foreground-heading` | Near-black — page/card titles |
+| `foreground-body` | Warm dark grey — body text |
+| `foreground-muted` | Medium grey — labels, captions, placeholders |
+| `brand` | Mid green — inline icons |
+| `border` | Soft green border |
+| `border-focus` | Emerald — input focus ring border |
+| `status-warning` / `status-warning-surface` | Amber — pending states |
+| `status-info` / `status-info-surface` | Blue — informational states |
+| `status-success` / `status-success-surface` | Green — success/delivered |
+| `status-danger` / `status-danger-surface` | Red — error/cancelled/destructive |
+
+### Standard class patterns
+
+```ts
+// Input / textarea / select
+const INPUT_CLASS =
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm " +
+  "text-foreground-heading placeholder:text-foreground-muted outline-none transition " +
+  "focus:border-primary focus:ring-4 focus:ring-primary/10";
+
+// Label
+const LABEL_CLASS = "block text-xs font-semibold uppercase tracking-wide text-foreground-muted";
+
+// Primary button
+"rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover"
+
+// Outline / ghost button
+"rounded-full border border-primary bg-surface-card text-primary transition hover:bg-surface"
+
+// Card wrapper
+"rounded-2xl border border-border bg-surface-card p-5"
+```
+
+### cx utility
+
+```ts
+// shared/lib/utils.tsx
+export const cx = (...args: Array<string | false | null | undefined>) =>
+  args.filter(Boolean).join(" ");
 ```
 
 ---
@@ -96,6 +181,8 @@ All models live in `shared/models/mongodb/`. Each model uses `mongoose.models.X 
 
 ### User Roles (IUser.type)
 `Farmer | Manager | Admin | Owner | Supplier | Distributor | Agent | Retailer | Wholesaler | Logistics Provider | Banker | Buyer`
+
+> **Important**: `user.type` values are **capitalised** (`"Farmer"`, `"Buyer"`, `"Admin"`). Never compare against lowercase strings like `"farmer"`.
 
 ### Order Sources (IOrder.source)
 `app | voice | phone-call | whatsapp | other`
@@ -146,6 +233,7 @@ Each route file calls `await mongoDB()` at the start of every handler to ensure 
 - Hook: `useCart()` → `{ cart, addToCart, removeOne, clearCart, cartCount, subtotal, ready }`
 - Cart is `Record<productId, CartItem>` persisted in `localStorage` under key `"fr_cart"`.
 - `CartItem`: `{ id, name, price, image?, qty, farmerId? }`
+- `addToCart(item)` — if the item already exists in cart, increments qty by 1 (ignores `item.qty`).
 
 ---
 
@@ -225,6 +313,31 @@ Copy `info.env.txt` → `.env.local` and fill in real secrets before running.
 
 ---
 
+## Next.js 16 Breaking Changes to Know
+
+### `params` is a Promise in route handlers and server pages
+In Next.js 15+, dynamic route `params` passed to `page.tsx` are a `Promise`. Always `await` them:
+
+```ts
+// WRONG (causes silent 404 — id is undefined)
+export default async function Page({ params }: { params: { id: string } }) {
+  const id = params.id;
+}
+
+// CORRECT
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+}
+```
+
+### React 19: `FormEvent` is deprecated
+`React.FormEvent` and related synthetic event types are deprecated in `@types/react` 19.x. Use:
+- `React.SyntheticEvent` for form submit handlers
+- Structural typing `(e?: { preventDefault?: () => void })` for optional-event patterns
+- Native DOM event types (`Event`, `MouseEvent`) for DOM event handlers
+
+---
+
 ## Conventions & Patterns to Follow
 
 1. **All shared code goes in `shared/`** — never put reusable logic inside `app/`.
@@ -235,3 +348,7 @@ Copy `info.env.txt` → `.env.local` and fill in real secrets before running.
 6. **Auth-protected routes** call `verifyToken` from `@/app/api/v1/utils/verifyToken` to decode the `token` cookie.
 7. **Product images and avatars** are stored in Supabase; only the public URL is saved to MongoDB.
 8. **Farmer orders and buyer orders are separate collections** with different schemas — do not conflate them.
+9. **All colors must use design tokens** — never use raw Tailwind palette classes (`bg-green-600`, `text-stone-500`). Add new tokens to `app/globals.css` under `@theme {}` if a semantic slot is missing.
+10. **Use `cx()` from `@/shared/lib/utils`** for conditional className composition — never string-template class names.
+11. **`user.type` is capitalised** — always compare as `user.type === "Farmer"`, never `"farmer"`.
+12. **Lucide React for all icons** — do not use inline SVGs or other icon libraries.
