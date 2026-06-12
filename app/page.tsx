@@ -6,6 +6,17 @@ import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
 import FarmerSection from "@/shared/components/templates/farmerSection";
 import { useUser } from "@/shared/context/UserContext";
+import {
+  ArrowRight,
+  BadgeCheck,
+  ChevronDown,
+  Leaf,
+  ShieldCheck,
+  ShoppingBag,
+  Sprout,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 
 type Farmer = {
   id: string;
@@ -118,116 +129,141 @@ const FarmersHomePage = () => {
     router.push(`/farmers/${id}`);
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-b from-emerald-50 via-white to-emerald-50 text-stone-900">
-      <main>
-        {/* Hero / header */}
-        <header className="border-b border-emerald-100 bg-gradient-to-r from-emerald-100/80 via-emerald-50 to-green-50">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-5 sm:py-7">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-2 sm:space-y-3 max-w-xl">
-                <p className="text-[11px] uppercase tracking-[0.22em] text-emerald-700/70">
-                  Adopt a Farmer
-                </p>
-                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-emerald-900">
-                  Support real farmers. Get real food.
-                </h1>
-                <p className="text-sm sm:text-[15px] text-emerald-900/80">
-                  Browse farmers by what they grow and adopt the ones you trust.
-                  Build a long-term, predictable relationship instead of
-                  one-time orders.
-                </p>
+  const categories = CATEGORIES.filter((c) => c.name !== "All");
+  const heroStats = [
+    {
+      label: "Farmers",
+      value: loading ? "--" : String(totalFarmers || 0),
+      icon: Users,
+    },
+    {
+      label: activeCategory === "All" ? "Categories" : activeCategory,
+      value: loading
+        ? "--"
+        : activeCategory === "All"
+        ? String(categories.length)
+        : String(filteredCount),
+      icon: Leaf,
+    },
+    {
+      label: "Model",
+      value: "Direct",
+      icon: ShieldCheck,
+    },
+  ];
 
-                <div className="flex flex-wrap gap-4 pt-2">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-lg font-semibold text-emerald-900">
-                      {loading ? "—" : totalFarmers || 0}
-                    </span>
-                    <span className="text-[11px] text-emerald-900/70 uppercase tracking-[0.16em]">
-                      farmers
-                    </span>
-                  </div>
-                  {activeCategory !== "All" && (
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-lg font-semibold text-emerald-900">
-                        {loading ? "—" : filteredCount}
-                      </span>
-                      <span className="text-[11px] text-emerald-900/70 uppercase tracking-[0.16em]">
-                        in {activeCategory}
-                      </span>
-                    </div>
-                  )}
-                </div>
+  return (
+    <div className="min-h-screen overflow-hidden bg-[#f8faf5] text-stone-900">
+      <main>
+        <header className="relative border-b border-emerald-900/10 bg-[#eff6e8]">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(132,204,22,0.24),transparent_28%),radial-gradient(circle_at_88%_5%,rgba(20,184,166,0.18),transparent_24%)]" />
+          <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:grid-cols-[1.05fr_0.95fr] lg:px-8 lg:py-14">
+            <div className="flex flex-col justify-center">
+              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-900/10 bg-white/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-900 shadow-sm backdrop-blur">
+                <Sprout className="h-4 w-4 text-lime-600" />
+                Adopt a farmer
+              </div>
+
+              <h1 className="mt-5 max-w-3xl text-4xl font-semibold leading-[1.04] tracking-tight text-emerald-950 sm:text-5xl lg:text-6xl">
+                Food that feels closer to the farm.
+              </h1>
+              <p className="mt-5 max-w-2xl text-base leading-7 text-stone-700 sm:text-lg">
+                Discover farmers by what they grow, build trust before you buy,
+                and keep your kitchen connected to fresh seasonal produce.
+              </p>
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+                <button
+                  type="button"
+                  onClick={() => router.push("/shop")}
+                  className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-800 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/20 transition hover:bg-emerald-950"
+                >
+                  Shop fresh produce
+                  <ShoppingBag className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push("/farmers")}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-900/15 bg-white/80 px-5 py-3 text-sm font-semibold text-emerald-950 shadow-sm transition hover:bg-white"
+                >
+                  Meet farmers
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
 
               {userCtaLabel && userCtaRoute && (
-                <div className="flex sm:flex-col gap-2 sm:items-end">
-                  <button
-                    type="button"
-                    onClick={() => router.push(userCtaRoute)}
-                    className="inline-flex items-center justify-center px-4 py-2.5 rounded-full bg-green-600 text-white text-xs sm:text-sm font-medium shadow-sm hover:bg-green-700 transition"
-                  >
-                    {userCtaLabel}
-                  </button>
-                  <p className="text-[11px] text-emerald-900/70 max-w-[220px] text-right">
-                    {user?.type === "Buyer"
-                      ? "See farmers you’ve already committed to support."
-                      : user?.type === "Farmer"
-                      ? "Manage your orders, products, and visibility."
-                      : null}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Category strip inside hero */}
-            <div className="mt-5 border border-emerald-100 rounded-2xl bg-white/80 backdrop-blur px-3 py-3 sm:px-4 sm:py-3.5 shadow-[0_8px_30px_rgba(16,185,129,0.08)]">
-              <div className="flex items-center justify-between mb-2.5">
-                <p className="text-[11px] uppercase tracking-[0.18em] text-emerald-800/80">
-                  Browse by category
-                </p>
-                <p className="text-[11px] text-emerald-800/70">
-                  Tap to filter farmers
-                </p>
-              </div>
-              <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide pb-1">
                 <button
                   type="button"
-                  onClick={() => setActiveCategory("All")}
-                  className={cx(
-                    "flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border transition whitespace-nowrap",
-                    activeCategory === "All"
-                      ? "bg-green-600 text-white border-green-600 shadow-sm"
-                      : "bg-emerald-50 text-emerald-800 border-emerald-100 hover:bg-emerald-100"
-                  )}
+                  onClick={() => router.push(userCtaRoute)}
+                  className="mt-5 inline-flex w-fit items-center gap-2 rounded-full bg-lime-200 px-4 py-2 text-xs font-semibold text-emerald-950 transition hover:bg-lime-300"
                 >
-                  All farmers
+                  <BadgeCheck className="h-4 w-4" />
+                  {userCtaLabel}
                 </button>
-                {CATEGORIES.map((c) => (
-                  <button
-                    key={c.name}
-                    type="button"
-                    onClick={() => setActiveCategory(c.name)}
-                    className={cx(
-                      "flex-shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium border flex items-center gap-1.5 transition whitespace-nowrap",
-                      activeCategory === c.name
-                        ? "bg-green-600 text-white border-green-600 shadow-sm"
-                        : "bg-white text-emerald-900 border-emerald-100 hover:bg-emerald-50"
-                    )}
-                  >
-                    <span className="text-base">{c.emoji}</span>
-                    <span>{c.name}</span>
-                  </button>
-                ))}
+              )}
+
+              <div className="mt-8 grid grid-cols-3 gap-3 sm:max-w-xl">
+                {heroStats.map((stat) => {
+                  const Icon = stat.icon;
+
+                  return (
+                    <div
+                      key={stat.label}
+                      className="rounded-2xl border border-white/80 bg-white/70 p-3 shadow-sm backdrop-blur"
+                    >
+                      <Icon className="h-4 w-4 text-emerald-700" />
+                      <p className="mt-3 text-xl font-semibold text-emerald-950">
+                        {stat.value}
+                      </p>
+                      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-stone-500">
+                        {stat.label}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="relative min-h-[340px] overflow-hidden rounded-[2rem] border border-white/80 bg-emerald-950 shadow-2xl shadow-emerald-950/20">
+              <img
+                src="https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1200&q=80"
+                alt="Fresh market vegetables"
+                className="absolute inset-0 h-full w-full object-cover opacity-90"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-950/20 to-transparent" />
+              <div className="absolute left-5 right-5 top-5 flex items-center justify-between">
+                <span className="rounded-full bg-white/90 px-3 py-1.5 text-xs font-semibold text-emerald-950 backdrop-blur">
+                  Seasonal picks
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-lime-300 px-3 py-1.5 text-xs font-semibold text-emerald-950">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  Farmer direct
+                </span>
+              </div>
+              <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/20 bg-white/15 p-4 text-white shadow-xl backdrop-blur-md">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold">Today&apos;s promise</p>
+                    <p className="mt-1 text-sm leading-6 text-white/80">
+                      Better discovery for buyers, more predictable demand for
+                      farmers.
+                    </p>
+                  </div>
+                  <Leaf className="h-8 w-8 flex-shrink-0 text-lime-200" />
+                </div>
               </div>
             </div>
           </div>
         </header>
 
-        {/* Toolbar under hero: sort + counts */}
-        <section className="border-b border-emerald-100 bg-white/80">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-            <p className="text-xs text-emerald-900/80">
+        <section className="sticky top-14 z-30 border-b border-emerald-900/10 bg-[#f8faf5]/95 backdrop-blur-xl md:top-24">
+          <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-800">
+                  Browse by category
+                </p>
+                <p className="mt-1 text-sm text-stone-600">
               {loading
                 ? "Loading farmers…"
                 : filteredCount
@@ -239,24 +275,59 @@ const FarmersHomePage = () => {
                 : activeCategory === "All"
                 ? "No farmers found yet."
                 : `No farmers listed under “${activeCategory}” yet.`}
-            </p>
+                </p>
+              </div>
 
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-emerald-900/70">Sort by</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
-                className="border border-emerald-100 bg-emerald-50/70 text-emerald-900 rounded-full px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:border-emerald-300"
-              >
-                <option value="top">Top farmers (last 30 days)</option>
-                <option value="recent">Recently joined</option>
-                <option value="name">Name A–Z</option>
-              </select>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <div className="flex max-w-full gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCategory("All")}
+                    className={cx(
+                      "flex-shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition whitespace-nowrap",
+                      activeCategory === "All"
+                        ? "border-emerald-800 bg-emerald-800 text-white shadow-sm"
+                        : "border-stone-200 bg-white text-stone-700 hover:border-emerald-200 hover:bg-lime-50"
+                    )}
+                  >
+                    All farmers
+                  </button>
+                  {categories.map((c) => (
+                    <button
+                      key={c.name}
+                      type="button"
+                      onClick={() => setActiveCategory(c.name)}
+                      className={cx(
+                        "flex-shrink-0 rounded-full border px-3.5 py-2 text-sm font-semibold transition whitespace-nowrap",
+                        activeCategory === c.name
+                          ? "border-emerald-800 bg-emerald-800 text-white shadow-sm"
+                          : "border-stone-200 bg-white text-stone-700 hover:border-emerald-200 hover:bg-lime-50"
+                      )}
+                    >
+                      <span className="mr-1.5">{c.emoji}</span>
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+
+                <label className="relative flex-shrink-0">
+                  <span className="sr-only">Sort farmers</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortOption)}
+                    className="h-10 appearance-none rounded-full border border-stone-200 bg-white pl-4 pr-10 text-sm font-semibold text-emerald-950 shadow-sm outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                  >
+                    <option value="top">Top farmers</option>
+                    <option value="recent">Recently joined</option>
+                    <option value="name">Name A-Z</option>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-500" />
+                </label>
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Farmer listing */}
         <FarmerSection
           loading={loading}
           error={error}

@@ -1,26 +1,62 @@
 // shared/lib/db/mongo.tsx
+import mongoose from "mongoose";
 
-// This is for database connection using mongodb
+type MongoCache = {
+  conn: typeof mongoose | null;
+  promise: Promise<typeof mongoose> | null;
+};
 
-import * as mongoose from "mongoose";
+declare global {
+  // eslint-disable-next-line no-var
+  var farmersRepublicMongo: MongoCache | undefined;
+}
 
-const MONGODB_URI = process.env.MONGODB_URI as string;
+const cache = globalThis.farmersRepublicMongo ?? {
+  conn: null,
+  promise: null,
+};
 
-export const mongoDB = () => {
-  mongoose
-    .connect(
-      // Need to change this for future connections
-      MONGODB_URI,
-      {
-        serverSelectionTimeoutMS: 30000,
-        socketTimeoutMS: 45000, // 45 seconds
-      },
-    )
-    .then(() => {
-      console.log("Farmers Republic DB Connected");
-      //console.log(DB);
-    })
-    .catch((err: any) => {
-      console.log("Error while connecting Farmers Republic  DB \n", err);
-    });
+globalThis.farmersRepublicMongo = cache;
+
+const getMongoUri = () => {
+  const uri = process.env.MONGODB_URI?.trim().replace(/^["']|["']$/g, "");
+
+  if (!uri || uri.includes("<name>") || uri.includes("<pwd>")) {
+    throw new Error(
+      "MONGODB_URI is missing or still contains placeholder credentials.",
+    );
+  }
+
+  return uri;
+};
+
+mongoose.set("bufferCommands", false);
+
+export const mongoDB = async () => {
+  if (cache.conn && mongoose.connection.readyState === 1) {
+    return cache.conn;
+  }
+
+  if (!cache.promise) {
+    cache.promise = mongoose
+      .connect(getMongoUri(), {
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 30000,
+        bufferCommands: false,
+      })
+      .then((mongooseInstance) => {
+        console.log("Farmers Republic DB Connected");
+        cache.conn = mongooseInstance;
+        return mongooseInstance;
+      })
+      .catch((err: unknown) => {
+        cache.promise = null;
+        cache.conn = null;
+        const message = err instanceof Error ? err.message : String(err);
+        console.error("Farmers Republic DB connection failed:", message);
+        throw err;
+      });
+  }
+
+  return cache.promise;
 };

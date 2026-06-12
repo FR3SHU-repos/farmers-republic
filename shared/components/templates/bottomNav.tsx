@@ -107,14 +107,14 @@ export default function BottomNav({
             ref={menuRef}
             role="dialog"
             aria-modal="true"
-            className="fixed left-4 right-4 bottom-[72px] z-[60] bg-white rounded-2xl shadow-lg p-3"
+            className="fixed left-4 right-4 bottom-[82px] z-[60] rounded-2xl border border-emerald-900/10 bg-white p-3 shadow-2xl"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="text-sm font-semibold">Explore</div>
+              <div className="text-sm font-semibold text-emerald-950">Explore</div>
               <button
                 aria-label="Close categories"
                 onClick={() => setMenuOpen(false)}
-                className="p-1 rounded-md hover:bg-stone-100"
+                className="rounded-full p-1 hover:bg-stone-100"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -126,9 +126,9 @@ export default function BottomNav({
                 onClick={() => setMenuOpen(false)}
                 className="group"
               >
-                <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
-                  <MapPin className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
-                  <div className="text-xs text-stone-700">Farmers</div>
+                <div className="flex flex-col items-center gap-2 rounded-xl bg-stone-50 p-3 hover:bg-lime-50">
+                  <MapPin className="w-5 h-5 text-stone-700 group-hover:text-emerald-700" />
+                  <div className="text-xs font-medium text-stone-700">Farmers</div>
                 </div>
               </Link>
 
@@ -137,9 +137,9 @@ export default function BottomNav({
                 onClick={() => setMenuOpen(false)}
                 className="group"
               >
-                <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
-                  <Box className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
-                  <div className="text-xs text-stone-700">Products</div>
+                <div className="flex flex-col items-center gap-2 rounded-xl bg-stone-50 p-3 hover:bg-lime-50">
+                  <Box className="w-5 h-5 text-stone-700 group-hover:text-emerald-700" />
+                  <div className="text-xs font-medium text-stone-700">Products</div>
                 </div>
               </Link>
 
@@ -149,9 +149,9 @@ export default function BottomNav({
                 onClick={() => setMenuOpen(false)}
                 className="group"
               >
-                <div className="flex flex-col items-center gap-2 p-2 rounded-lg hover:bg-stone-50">
-                  <ReceiptText className="w-5 h-5 text-stone-700 group-hover:text-green-600" />
-                  <div className="text-xs text-stone-700">My Orders</div>
+                <div className="flex flex-col items-center gap-2 rounded-xl bg-stone-50 p-3 hover:bg-lime-50">
+                  <ReceiptText className="w-5 h-5 text-stone-700 group-hover:text-emerald-700" />
+                  <div className="text-xs font-medium text-stone-700">Orders</div>
                 </div>
               </Link>
             )}
@@ -163,7 +163,7 @@ export default function BottomNav({
         {/* ✅ Bottom navigation */}
         <div
           ref={navBarRef}
-          className="bg-white border-t border-stone-200 flex items-center justify-between px-2 py-2 safe-area-bottom"
+          className="mx-3 mb-3 flex items-center justify-between rounded-2xl border border-emerald-900/10 bg-white/95 px-2 py-2 shadow-[0_16px_40px_rgba(15,61,46,0.18)] backdrop-blur-xl safe-area-bottom"
         >
           {/* Home */}
           <button
@@ -172,8 +172,8 @@ export default function BottomNav({
               router.push("/");
             }}
             className={cx(
-              "flex-1 flex flex-col items-center gap-0.5 py-2",
-              active === "home" ? "text-green-600" : "text-stone-500",
+              "flex-1 flex flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition",
+              active === "home" ? "bg-lime-50 text-emerald-800" : "text-stone-500",
             )}
           >
             <HomeIcon className="w-6 h-6" />
@@ -184,15 +184,15 @@ export default function BottomNav({
           <button
             onClick={() => {
               onTab("search");
-              router.push("/search");
+              router.push("/shop");
             }}
             className={cx(
-              "flex-1 flex flex-col items-center gap-0.5 py-2",
-              active === "search" ? "text-green-600" : "text-stone-500",
+              "flex-1 flex flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition",
+              active === "search" ? "bg-lime-50 text-emerald-800" : "text-stone-500",
             )}
           >
             <Search className="w-6 h-6" />
-            <span className="text-[11px]">Search</span>
+            <span>Shop</span>
           </button>
 
           {/* Categories */}
@@ -200,14 +200,14 @@ export default function BottomNav({
             ref={categoriesButtonRef}
             onClick={toggleCategories}
             className={cx(
-              "flex-1 flex flex-col items-center gap-0.5 py-2",
+              "flex-1 flex flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition",
               menuOpen || active === "categories"
-                ? "text-green-600"
+                ? "bg-lime-50 text-emerald-800"
                 : "text-stone-500",
             )}
           >
             <Grid className="w-6 h-6" />
-            <span className="text-[11px]">Categories</span>
+            <span>More</span>
           </button>
 
           {/* ✅ Cart */}
@@ -216,26 +216,26 @@ export default function BottomNav({
               router.push("/cart");
             }}
             className={cx(
-              "flex-1 flex flex-col items-center gap-0.5 py-2 relative",
-              active === "cart" ? "text-green-600" : "text-stone-500",
+              "flex-1 flex flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition relative",
+              active === "cart" ? "bg-lime-50 text-emerald-800" : "text-stone-500",
             )}
             aria-label="Cart"
           >
             <ShoppingCart className="w-6 h-6" />
             {cartCount > 0 && (
-              <span className="absolute -top-1 right-6 bg-rose-500 text-white text-[10px] rounded-full w-4 h-4 inline-flex items-center justify-center">
+              <span className="absolute -top-1 right-5 bg-rose-500 text-white text-[10px] rounded-full min-w-4 h-4 inline-flex items-center justify-center px-1 font-semibold">
                 {cartCount}
               </span>
             )}
-            <span className="text-[11px]">Cart</span>
+            <span>Cart</span>
           </button>
 
           {/* Profile */}
           <button
             onClick={goProfile}
             className={cx(
-              "flex-1 flex flex-col items-center gap-0.5 py-2",
-              active === "profile" ? "text-green-600" : "text-stone-500",
+              "flex-1 flex flex-col items-center gap-0.5 rounded-xl py-2 text-[11px] font-medium transition",
+              active === "profile" ? "bg-lime-50 text-emerald-800" : "text-stone-500",
             )}
           >
             {currentUser?.photo ? (
@@ -243,18 +243,16 @@ export default function BottomNav({
               <img
                 src={currentUser.photo}
                 alt={currentUser.name}
-                className="w-6 h-6 rounded-full"
+                className="w-6 h-6 rounded-full object-cover"
               />
             ) : currentUser?.name ? (
-              <div className="w-6 h-6 rounded-full bg-stone-200 flex items-center justify-center text-[12px] font-semibold">
+              <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[12px] font-semibold text-emerald-900">
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
             ) : (
               <User className="w-6 h-6" />
             )}
-            <span className="text-[11px]">
-              {currentUser?.name ? "Profile" : "Login"}
-            </span>
+            <span>{currentUser?.name ? "Profile" : "Login"}</span>
           </button>
         </div>
       </nav>

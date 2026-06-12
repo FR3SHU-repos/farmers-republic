@@ -1,21 +1,10 @@
 // app/layout.tsx
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Shell from "@/shared/components/mainTemplate";
 import { Toaster } from "react-hot-toast"; 
 import { UserProvider } from "@/shared/context/UserContext"; // ✅ added
 import { CartProvider } from "@/shared/context/CartContext";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
 
 export const metadata: Metadata = {
   title: process.env.NEXT_PUBLIC_APP_NAME,
@@ -32,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className="antialiased">
         <UserProvider> {/* ✅ UserContext now available globally */}
           <CartProvider>
           <Shell>{children}</Shell>

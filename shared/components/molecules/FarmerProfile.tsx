@@ -5,18 +5,26 @@ import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import type { Farmer as BaseFarmer } from "@/shared/interfaces/mongodb/farmer";
 import {
-  Phone,
-  MapPin,
-  Calendar,
-  Leaf,
   Award,
-  Truck,
-  MessageCircle,
+  BadgeCheck,
+  Calendar,
+  Droplets,
+  ExternalLink,
+  Facebook,
   Globe,
   Instagram,
-  Youtube,
-  Facebook,
+  Leaf,
+  Mail,
+  MapPin,
+  MessageCircle,
+  Phone,
+  Ruler,
+  ShieldCheck,
+  ShoppingBasket,
+  Sprout,
+  Truck,
   Users2,
+  Youtube,
 } from "lucide-react";
 import ProductFarmerCard from "@/shared/components/molecules/FarmerProductCard";
 import { AdaptButton } from "@/shared/components/molecules/AdaptButton";
@@ -120,6 +128,67 @@ function toArray(val?: string[] | string): string[] {
     .filter(Boolean);
 }
 
+function InfoCard({
+  title,
+  icon,
+  children,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-3xl border border-emerald-900/10 bg-white p-5 shadow-[0_18px_50px_rgba(15,61,46,0.08)]">
+      <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-emerald-950">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-lime-50 text-emerald-800">
+          {icon}
+        </span>
+        {title}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value?: React.ReactNode }) {
+  if (value === undefined || value === null || value === "") return null;
+
+  return (
+    <div className="rounded-2xl border border-stone-100 bg-stone-50/80 p-3">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+        {label}
+      </p>
+      <div className="mt-1 text-sm font-semibold text-emerald-950">{value}</div>
+    </div>
+  );
+}
+
+function Chip({
+  children,
+  tone = "emerald",
+}: {
+  children: React.ReactNode;
+  tone?: "emerald" | "lime" | "amber" | "stone" | "pink" | "red" | "blue";
+}) {
+  const tones = {
+    emerald: "border-emerald-100 bg-emerald-50 text-emerald-800",
+    lime: "border-lime-200 bg-lime-50 text-emerald-900",
+    amber: "border-amber-200 bg-amber-50 text-amber-800",
+    stone: "border-stone-200 bg-stone-50 text-stone-700",
+    pink: "border-pink-100 bg-pink-50 text-pink-700",
+    red: "border-red-100 bg-red-50 text-red-600",
+    blue: "border-blue-100 bg-blue-50 text-blue-700",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold ${tones[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 export default function FarmerProfile({
   farmer,
   farmerId,
@@ -184,442 +253,409 @@ export default function FarmerProfile({
     loadProducts();
   }, [farmerId]);
 
+  const farmAreaText =
+    farmer.farmArea ||
+    (farmer.totalLandArea != null ? `${farmer.totalLandArea} acres` : null);
+
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* LEFT COLUMN: Avatar + meta + contact + delivery */}
-        <div className="md:col-span-1 space-y-4">
-          {/* Avatar */}
-          <div className="rounded-2xl overflow-hidden bg-stone-50 shadow">
-            <div className="relative w-full h-72">
-              {farmer.avatar ? (
-                <Image
-                  src={farmer.avatar}
-                  alt={farmer.name}
-                  fill
-                  className="object-cover"
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full text-stone-400 text-sm">
-                  No Image
+    <div className="min-h-screen bg-[#f8faf5] pb-20">
+      <section className="relative overflow-hidden border-b border-emerald-900/10 bg-[#eff6e8]">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(132,204,22,0.24),transparent_30%),radial-gradient(circle_at_90%_12%,rgba(20,184,166,0.16),transparent_26%)]" />
+        <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-[390px_1fr] lg:px-8 lg:py-12">
+          <div className="relative min-h-[360px] overflow-hidden rounded-[2rem] border border-white/80 bg-emerald-950 shadow-2xl shadow-emerald-950/20">
+            {farmer.avatar ? (
+              <Image
+                src={farmer.avatar}
+                alt={farmer.name}
+                fill
+                priority
+                className="object-cover"
+                sizes="(min-width:1024px) 390px, 100vw"
+              />
+            ) : (
+              <div className="flex h-full min-h-[360px] items-center justify-center bg-[radial-gradient(circle_at_35%_25%,rgba(190,242,100,0.42),transparent_32%),linear-gradient(135deg,#ecfccb,#ccfbf1)]">
+                <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white/80 text-4xl font-semibold text-emerald-950 shadow-sm">
+                  {farmer.name?.[0] ?? "F"}
                 </div>
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-emerald-950/75 to-transparent" />
+            <div className="absolute left-5 top-5 flex flex-wrap gap-2">
+              {farmer.category && (
+                <Chip tone="lime">
+                  <Leaf className="h-3.5 w-3.5" />
+                  {farmer.category}
+                </Chip>
+              )}
+              {farmer.organicCertified && (
+                <Chip>
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  Organic
+                </Chip>
               )}
             </div>
-          </div>
-
-          {/* Basic stats */}
-          <div className="bg-white p-4 rounded-xl shadow-sm space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1">
-                <div className="text-xs text-stone-500">Farm area</div>
-                <div className="text-sm font-medium">
-                  {farmer.farmArea || farmer.totalLandArea
-                    ? farmer.farmArea || `${farmer.totalLandArea} acres`
-                    : "-"}
-                </div>
-              </div>
-
-            <div className="flex-1 text-right">
-                <div className="text-xs text-stone-500">Category</div>
-                <div className="text-sm font-medium">
-                  {farmer.category || "-"}
-                </div>
-              </div>
+            <div className="absolute bottom-5 left-5 right-5 rounded-2xl border border-white/20 bg-white/15 p-4 text-white shadow-xl backdrop-blur-md">
+              <p className="text-sm font-semibold">Farm profile</p>
+              <p className="mt-1 text-sm text-white/80">
+                {farmAreaText || "Farm area pending"} ·{" "}
+                {fullLocation || "Location pending"}
+              </p>
             </div>
-
-            {farmer.farmingExperienceYears != null && (
-              <div className="flex items-center gap-2 text-xs text-stone-500">
-                <Calendar className="w-4 h-4" />
-                <span>
-                  Experience:{" "}
-                  <span className="font-medium text-stone-700">
-                    {farmer.farmingExperienceYears} years
-                  </span>
-                </span>
-              </div>
-            )}
-
-            {farmer.organicCertified && (
-              <div className="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-50 text-[11px] font-semibold text-emerald-700 border border-emerald-100">
-                <Leaf className="w-3 h-3 mr-1" />
-                Organic / Natural practices
-              </div>
-            )}
-
-            {createdAtText && (
-              <div className="pt-2 border-t border-stone-100 text-xs text-stone-500">
-                Onboarded:{" "}
-                <span className="font-medium text-stone-700">
-                  {createdAtText}
-                </span>
-              </div>
-            )}
           </div>
 
-          {/* Contact + AdaptButton */}
-          <div className="bg-white p-4 rounded-xl shadow-sm space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold text-stone-700">
-                Contact
+          <div className="flex flex-col justify-center">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-900/10 bg-white/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-900 shadow-sm backdrop-blur">
+              <Sprout className="h-4 w-4 text-lime-600" />
+              Farmer profile
+            </div>
+            <div className="mt-5 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <h1 className="text-4xl font-semibold leading-tight tracking-tight text-emerald-950 sm:text-5xl">
+                  {farmer.name}
+                </h1>
+                {farmer.farmName && (
+                  <p className="mt-2 text-lg font-medium text-stone-600">
+                    {farmer.farmName}
+                  </p>
+                )}
+                {farmer.fatherName && (
+                  <p className="mt-1 text-sm text-stone-500">
+                    S/o {farmer.fatherName}
+                  </p>
+                )}
               </div>
+
               {user?.type === "Buyer" && buyerId && (
-                <AdaptButton buyerId={buyerId} farmerId={farmerId} />
+                <div className="rounded-2xl border border-emerald-900/10 bg-white/80 p-2 shadow-sm backdrop-blur">
+                  <AdaptButton buyerId={buyerId} farmerId={farmerId} />
+                </div>
               )}
             </div>
 
-            {(farmer.phone || farmer.whatsappNumber) && (
-              <div className="space-y-2">
-                {farmer.phone && (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-stone-500" />
-                      <div className="text-sm">{farmer.phone}</div>
-                    </div>
-                    <a
-                      href={`tel:${farmer.phone}`}
-                      className="px-3 py-1 bg-green-600 text-white rounded-full text-xs font-medium"
-                    >
-                      Call
-                    </a>
-                  </div>
-                )}
-
-                {farmer.whatsappNumber && (
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
-                      <div className="text-sm">
-                        {farmer.whatsappNumber || farmer.phone}
-                      </div>
-                    </div>
-                    <a
-                      href={`https://wa.me/${farmer.whatsappNumber?.replace(
-                        /\D/g,
-                        "",
-                      )}`}
-                      target="_blank"
-                      className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-medium border border-green-100"
-                    >
-                      WhatsApp
-                    </a>
-                  </div>
-                )}
-              </div>
+            {farmer.about && (
+              <p className="mt-5 max-w-3xl text-base leading-7 text-stone-700">
+                {farmer.about}
+              </p>
             )}
 
-            {/* Location */}
-            <div className="mt-2 flex items-start gap-2 text-sm text-stone-500">
-              <MapPin className="w-4 h-4 mt-0.5" />
-              <div>{fullLocation || "-"}</div>
-            </div>
-
-            {/* Email */}
-            {farmer.email && (
-              <div className="text-xs text-stone-500 mt-1">
-                Email:{" "}
-                <a
-                  className="text-green-700 font-medium"
-                  href={`mailto:${farmer.email}`}
-                >
-                  {farmer.email}
-                </a>
-              </div>
+            {farmer.experienceDescription && (
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                {farmer.experienceDescription}
+              </p>
             )}
-          </div>
 
-          {/* Delivery info */}
-          <div className="bg-white p-4 rounded-xl shadow-sm space-y-2">
-            <div className="flex items-center gap-2 text-sm font-semibold text-stone-700">
-              <Truck className="w-4 h-4" />
-              Delivery
-            </div>
-
-            <div className="text-sm text-stone-600">
-              {farmer.delivery
-                ? "Farmer can deliver directly to buyers."
-                : "Pickup / courier via platform."}
-            </div>
-
-            {farmer.delivery && (
-              <div className="text-xs text-stone-500 space-y-1">
-                {farmer.deliveryRadiusKm != null && (
-                  <div>
-                    Radius:{" "}
-                    <span className="font-medium text-stone-700">
-                      {farmer.deliveryRadiusKm} km
-                    </span>
-                  </div>
-                )}
-
-                {deliveryPinCodes.length > 0 && (
-                  <div>
-                    Pincodes:{" "}
-                    <span className="font-medium text-stone-700">
-                      {deliveryPinCodes.join(", ")}
-                    </span>
-                  </div>
-                )}
-                {farmer.pickupLocation?.address && (
-                  <div>
-                    Pickup:{" "}
-                    <span className="font-medium text-stone-700">
-                      {farmer.pickupLocation.address}
-                    </span>
-                  </div>
-                )}
+            <div className="mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur">
+                <Ruler className="h-5 w-5 text-emerald-700" />
+                <p className="mt-3 text-lg font-semibold text-emerald-950">
+                  {farmAreaText || "-"}
+                </p>
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-stone-500">
+                  Farm area
+                </p>
               </div>
-            )}
+              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur">
+                <Leaf className="h-5 w-5 text-emerald-700" />
+                <p className="mt-3 text-lg font-semibold text-emerald-950">
+                  {farmer.category || "-"}
+                </p>
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-stone-500">
+                  Category
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur">
+                <Calendar className="h-5 w-5 text-emerald-700" />
+                <p className="mt-3 text-lg font-semibold text-emerald-950">
+                  {farmer.farmingExperienceYears != null
+                    ? `${farmer.farmingExperienceYears} yrs`
+                    : "-"}
+                </p>
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-stone-500">
+                  Experience
+                </p>
+              </div>
+              <div className="rounded-2xl border border-white/80 bg-white/70 p-4 shadow-sm backdrop-blur">
+                <ShoppingBasket className="h-5 w-5 text-emerald-700" />
+                <p className="mt-3 text-lg font-semibold text-emerald-950">
+                  {products.length}
+                </p>
+                <p className="text-xs font-medium uppercase tracking-[0.12em] text-stone-500">
+                  Products
+                </p>
+              </div>
+            </div>
           </div>
         </div>
+      </section>
 
-        {/* RIGHT COLUMN: main content */}
-        <div className="md:col-span-2 space-y-6">
-          {/* Header card */}
-          <div className="bg-white p-5 rounded-2xl shadow-sm">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h1 className="text-2xl font-extrabold text-stone-900">
-                    {farmer.name}
-                  </h1>
-                  {farmer.farmName && (
-                    <div className="text-sm text-stone-500 mt-1">
-                      {farmer.farmName}
-                    </div>
-                  )}
-                  {farmer.fatherName && (
-                    <div className="text-xs text-stone-500 mt-0.5">
-                      S/o {farmer.fatherName}
-                    </div>
-                  )}
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[340px_1fr] lg:px-8">
+        <aside className="space-y-6 lg:sticky lg:top-28 lg:self-start">
+          <InfoCard title="Contact" icon={<Phone className="h-4 w-4" />}>
+            <div className="space-y-3">
+              {farmer.phone && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-stone-50 p-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">
+                      Phone
+                    </p>
+                    <p className="truncate text-sm font-semibold text-emerald-950">
+                      {farmer.phone}
+                    </p>
+                  </div>
+                  <a
+                    href={`tel:${farmer.phone}`}
+                    className="rounded-full bg-emerald-800 px-4 py-2 text-xs font-semibold text-white transition hover:bg-emerald-950"
+                  >
+                    Call
+                  </a>
                 </div>
+              )}
 
-                <div className="flex flex-wrap gap-2 justify-end">
-                  {farmer.category && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-50 text-[11px] font-semibold text-green-700 border border-green-100">
-                      <Leaf className="w-3 h-3 mr-1" />
-                      {farmer.category}
-                    </span>
-                  )}
-
-                  {age && (
-                    <span className="inline-flex items-center px-3 py-1 rounded-full bg-stone-50 text-[11px] font-semibold text-stone-700 border border-stone-100">
-                      <Users2 className="w-3 h-3 mr-1" />
-                      Age {age}
-                    </span>
-                  )}
+              {farmer.whatsappNumber && (
+                <div className="flex items-center justify-between gap-3 rounded-2xl bg-lime-50 p-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">
+                      WhatsApp
+                    </p>
+                    <p className="truncate text-sm font-semibold text-emerald-950">
+                      {farmer.whatsappNumber || farmer.phone}
+                    </p>
+                  </div>
+                  <a
+                    href={`https://wa.me/${farmer.whatsappNumber?.replace(
+                      /\D/g,
+                      "",
+                    )}`}
+                    target="_blank"
+                    className="rounded-full border border-emerald-100 bg-white px-4 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-50"
+                  >
+                    Chat
+                  </a>
                 </div>
+              )}
+
+              {farmer.email && (
+                <a
+                  className="flex items-center gap-2 rounded-2xl bg-stone-50 p-3 text-sm font-semibold text-emerald-900 transition hover:bg-lime-50"
+                  href={`mailto:${farmer.email}`}
+                >
+                  <Mail className="h-4 w-4" />
+                  <span className="truncate">{farmer.email}</span>
+                </a>
+              )}
+
+              <div className="flex items-start gap-2 rounded-2xl bg-stone-50 p-3 text-sm text-stone-600">
+                <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-700" />
+                <span>{fullLocation || "Location not added yet."}</span>
               </div>
-
-              {farmer.about && (
-                <p className="mt-3 text-sm text-stone-700 leading-relaxed">
-                  {farmer.about}
-                </p>
-              )}
-
-              {farmer.experienceDescription && (
-                <p className="mt-2 text-xs text-stone-500 leading-relaxed">
-                  {farmer.experienceDescription}
-                </p>
-              )}
             </div>
-          </div>
+          </InfoCard>
 
-          {/* Farm details */}
-          <div className="bg-white p-4 rounded-xl shadow-sm space-y-3">
-            <h3 className="font-semibold text-stone-800 mb-1 text-sm">
-              Farm details
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1 text-sm">
-              {farmer.totalLandArea != null && (
-                <div>
-                  <span className="text-stone-500">Total land: </span>
-                  <span className="font-medium text-stone-800">
-                    {farmer.totalLandArea} acres
-                  </span>
-                </div>
-              )}
-              {farmer.ownedLandArea != null && (
-                <div>
-                  <span className="text-stone-500">Owned: </span>
-                  <span className="font-medium text-stone-800">
-                    {farmer.ownedLandArea} acres
-                  </span>
-                </div>
-              )}
-              {farmer.leasedLandArea != null && (
-                <div>
-                  <span className="text-stone-500">Leased: </span>
-                  <span className="font-medium text-stone-800">
-                    {farmer.leasedLandArea} acres
-                  </span>
-                </div>
-              )}
-              {farmer.irrigationType && (
-                <div>
-                  <span className="text-stone-500">Irrigation: </span>
-                  <span className="font-medium text-stone-800">
-                    {farmer.irrigationType}
-                  </span>
-                </div>
-              )}
-              {farmer.soilType && (
-                <div>
-                  <span className="text-stone-500">Soil: </span>
-                  <span className="font-medium text-stone-800">
-                    {farmer.soilType}
-                  </span>
-                </div>
-              )}
-              {farmer.waterSource && (
-                <div>
-                  <span className="text-stone-500">Water source: </span>
-                  <span className="font-medium text-stone-800">
-                    {farmer.waterSource}
-                  </span>
-                </div>
-              )}
+          <InfoCard title="Delivery" icon={<Truck className="h-4 w-4" />}>
+            <p className="text-sm leading-6 text-stone-600">
+              {farmer.delivery
+                ? "Farmer can deliver directly to buyers."
+                : "Pickup or courier via platform."}
+            </p>
+            <div className="mt-4 grid gap-3">
+              <DetailRow
+                label="Radius"
+                value={
+                  farmer.deliveryRadiusKm != null
+                    ? `${farmer.deliveryRadiusKm} km`
+                    : undefined
+                }
+              />
+              <DetailRow
+                label="Pincodes"
+                value={
+                  deliveryPinCodes.length > 0
+                    ? deliveryPinCodes.join(", ")
+                    : undefined
+                }
+              />
+              <DetailRow
+                label="Pickup"
+                value={farmer.pickupLocation?.address}
+              />
+            </div>
+          </InfoCard>
+
+          {createdAtText && (
+            <InfoCard title="Profile status" icon={<BadgeCheck className="h-4 w-4" />}>
+              <DetailRow label="Onboarded" value={createdAtText} />
+            </InfoCard>
+          )}
+        </aside>
+
+        <main className="space-y-6">
+          <InfoCard title="Farm details" icon={<Ruler className="h-4 w-4" />}>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <DetailRow
+                label="Total land"
+                value={
+                  farmer.totalLandArea != null
+                    ? `${farmer.totalLandArea} acres`
+                    : undefined
+                }
+              />
+              <DetailRow
+                label="Owned land"
+                value={
+                  farmer.ownedLandArea != null
+                    ? `${farmer.ownedLandArea} acres`
+                    : undefined
+                }
+              />
+              <DetailRow
+                label="Leased land"
+                value={
+                  farmer.leasedLandArea != null
+                    ? `${farmer.leasedLandArea} acres`
+                    : undefined
+                }
+              />
+              <DetailRow label="Irrigation" value={farmer.irrigationType} />
+              <DetailRow label="Soil" value={farmer.soilType} />
+              <DetailRow label="Water source" value={farmer.waterSource} />
+              <DetailRow
+                label="Organic certification"
+                value={
+                  farmer.organicCertified
+                    ? farmer.organicCertificationDetails || "Certified"
+                    : undefined
+                }
+              />
+              <DetailRow
+                label="Age"
+                value={age !== undefined ? `${age} years` : undefined}
+              />
             </div>
 
             {!farmer.totalLandArea &&
               !farmer.irrigationType &&
               !farmer.soilType &&
               !farmer.waterSource && (
-                <div className="text-xs text-stone-400">
+                <p className="text-sm text-stone-500">
                   No detailed farm data added yet.
-                </div>
+                </p>
               )}
-          </div>
+          </InfoCard>
 
-          {/* Crops / categories */}
           {(seasonalCrops.length > 0 ||
             perennialCrops.length > 0 ||
             subCategories.length > 0) && (
-            <div className="bg-white p-4 rounded-xl shadow-sm space-y-3">
-              <h3 className="font-semibold text-stone-800 mb-1 text-sm">
-                Crops & produce
-              </h3>
-
-              {subCategories.length > 0 && (
-                <div className="text-xs text-stone-500 mb-1">
-                  Categories:
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {subCategories.map((c) => (
-                      <span
-                        key={c}
-                        className="px-2 py-0.5 rounded-full bg-stone-50 border border-stone-100 text-[11px] text-stone-700"
-                      >
-                        {c}
-                      </span>
-                    ))}
+            <InfoCard title="Crops and produce" icon={<Leaf className="h-4 w-4" />}>
+              <div className="space-y-5">
+                {subCategories.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">
+                      Categories
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {subCategories.map((c) => (
+                        <Chip key={c} tone="stone">
+                          {c}
+                        </Chip>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {seasonalCrops.length > 0 && (
-                <div className="text-xs text-stone-500 mb-2">
-                  Seasonal crops:
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {seasonalCrops.map((c) => (
-                      <span
-                        key={c}
-                        className="px-2 py-0.5 rounded-full bg-green-50 border border-green-100 text-[11px] text-green-700"
-                      >
-                        {c}
-                      </span>
-                    ))}
+                {seasonalCrops.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">
+                      Seasonal crops
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {seasonalCrops.map((c) => (
+                        <Chip key={c} tone="lime">
+                          {c}
+                        </Chip>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {perennialCrops.length > 0 && (
-                <div className="text-xs text-stone-500">
-                  Perennial crops:
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {perennialCrops.map((c) => (
-                      <span
-                        key={c}
-                        className="px-2 py-0.5 rounded-full bg-amber-50 border border-amber-100 text-[11px] text-amber-800"
-                      >
-                        {c}
-                      </span>
-                    ))}
+                {perennialCrops.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-stone-500">
+                      Perennial crops
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {perennialCrops.map((c) => (
+                        <Chip key={c} tone="amber">
+                          {c}
+                        </Chip>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            </InfoCard>
           )}
 
-          {/* Awards */}
           {awards.length > 0 && (
-            <div className="bg-white p-4 rounded-xl shadow-sm space-y-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-stone-800">
-                <Award className="w-4 h-4 text-amber-500" />
-                Awards & recognitions
-              </div>
-              <ul className="list-disc list-inside text-sm text-stone-700 space-y-1">
-                {awards.map((a) => (
-                  <li key={a}>{a}</li>
+            <InfoCard title="Awards and recognitions" icon={<Award className="h-4 w-4" />}>
+              <div className="grid gap-2">
+                {awards.map((award) => (
+                  <div
+                    key={award}
+                    className="flex items-center gap-2 rounded-2xl border border-amber-100 bg-amber-50 p-3 text-sm font-semibold text-amber-900"
+                  >
+                    <Award className="h-4 w-4 flex-shrink-0" />
+                    {award}
+                  </div>
                 ))}
-              </ul>
-            </div>
+              </div>
+            </InfoCard>
           )}
 
-          {/* Social links */}
           {(instagram || youtube || facebook || website) && (
-            <div className="bg-white p-4 rounded-xl shadow-sm space-y-2">
-              <div className="flex items-center gap-2 text-sm font-semibold text-stone-800">
-                <Globe className="w-4 h-4" />
-                Online presence
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs">
+            <InfoCard title="Online presence" icon={<Globe className="h-4 w-4" />}>
+              <div className="flex flex-wrap gap-2">
                 {instagram && (
-                  <a
-                    href={instagram}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-pink-50 text-pink-700 border border-pink-100"
-                  >
-                    <Instagram className="w-3 h-3" />
-                    Instagram
+                  <a href={instagram} target="_blank">
+                    <Chip tone="pink">
+                      <Instagram className="h-3.5 w-3.5" />
+                      Instagram
+                      <ExternalLink className="h-3 w-3" />
+                    </Chip>
                   </a>
                 )}
                 {youtube && (
-                  <a
-                    href={youtube}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-600 border border-red-100"
-                  >
-                    <Youtube className="w-3 h-3" />
-                    YouTube
+                  <a href={youtube} target="_blank">
+                    <Chip tone="red">
+                      <Youtube className="h-3.5 w-3.5" />
+                      YouTube
+                      <ExternalLink className="h-3 w-3" />
+                    </Chip>
                   </a>
                 )}
                 {facebook && (
-                  <a
-                    href={facebook}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-100"
-                  >
-                    <Facebook className="w-3 h-3" />
-                    Facebook
+                  <a href={facebook} target="_blank">
+                    <Chip tone="blue">
+                      <Facebook className="h-3.5 w-3.5" />
+                      Facebook
+                      <ExternalLink className="h-3 w-3" />
+                    </Chip>
                   </a>
                 )}
                 {website && (
-                  <a
-                    href={website}
-                    target="_blank"
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-stone-50 text-stone-700 border border-stone-100"
-                  >
-                    <Globe className="w-3 h-3" />
-                    Website
+                  <a href={website} target="_blank">
+                    <Chip tone="stone">
+                      <Globe className="h-3.5 w-3.5" />
+                      Website
+                      <ExternalLink className="h-3 w-3" />
+                    </Chip>
                   </a>
                 )}
               </div>
-            </div>
+            </InfoCard>
           )}
 
-          {/* Products list (existing card) */}
           <ProductFarmerCard products={products} />
-        </div>
+        </main>
       </div>
     </div>
   );

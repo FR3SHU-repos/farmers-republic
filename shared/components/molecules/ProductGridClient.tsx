@@ -20,12 +20,11 @@ export type ProductGridItem = {
 export default function ProductGridClient({ products }: { products: ProductGridItem[] }) {
   function onAdd(product: ProductGridItem) {
     console.info("Add to cart (placeholder):", product);
-    toast("Cart feature coming soon 🛒", { icon: "⏳" });
   }
 
   function onWishlist(product: ProductGridItem) {
     console.info("Wishlist toggle (placeholder):", product);
-    toast("Wishlist coming soon 💚", { icon: "💡" });
+    toast("Wishlist feature coming soon");
   }
 
   console.log("Rendering ProductGridClient with products:", products.map(p => p.id));

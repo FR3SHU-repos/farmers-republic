@@ -32,7 +32,7 @@ export const FPOS = [
       { name: "Certification - India Organic", url: "#" },
     ],
     banner:
-      "https://images.unsplash.com/photo-1599076480547-47dc5e42a0ab?w=1200&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=1200&q=80&auto=format&fit=crop",
     farmers: [
       { id: "f1", name: "Ramu Reddy", place: "Kurnool", phone: "+91-98123-45678" },
       { id: "f2", name: "Sunita Devi", place: "Mysore", phone: "+91-98876-54321" },

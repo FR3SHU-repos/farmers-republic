@@ -8,7 +8,7 @@ import { mongoDB } from "@/shared/lib/db/mongo";
 
 export async function POST(req: NextRequest) {
   try {
-    mongoDB();
+    await mongoDB();
 
     const body = await req.json();
 

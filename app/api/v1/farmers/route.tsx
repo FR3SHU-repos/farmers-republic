@@ -4,9 +4,101 @@ import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import FarmerModel from "@/shared/models/mongodb/farmer";
 import { success, failure } from "@/app/api/v1/utils/responses";
+import { FARMERS } from "@/shared/data/farmers";
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 100;
+
+function fallbackFarmersResponse(req: NextRequest) {
+  const url = new URL(req.url);
+  const pageParam = parseInt(url.searchParams.get("page") ?? "1", 10);
+  const limitParam = parseInt(
+    url.searchParams.get("limit") ?? String(DEFAULT_LIMIT),
+    10,
+  );
+  const q = (url.searchParams.get("q") ?? "").trim().toLowerCase();
+  const place = (url.searchParams.get("place") ?? "").trim().toLowerCase();
+  const id = url.searchParams.get("id");
+
+  const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+  const limit =
+    Number.isFinite(limitParam) && limitParam > 0
+      ? Math.min(limitParam, MAX_LIMIT)
+      : DEFAULT_LIMIT;
+
+  const filtered = FARMERS.filter((farmer) => {
+    if (id && farmer.id !== id) return false;
+
+    const matchesSearch =
+      !q ||
+      farmer.name.toLowerCase().includes(q) ||
+      farmer.farmName?.toLowerCase().includes(q) ||
+      farmer.about?.toLowerCase().includes(q) ||
+      farmer.crops.some((crop) => crop.toLowerCase().includes(q));
+
+    const matchesPlace = !place || farmer.place?.toLowerCase().includes(place);
+
+    return matchesSearch && matchesPlace;
+  });
+
+  if (id) {
+    const farmer = filtered[0];
+
+    if (!farmer) {
+      return NextResponse.json(failure("Farmer not found"), { status: 404 });
+    }
+
+    return NextResponse.json(
+      success(
+        {
+          farmerId: farmer.id,
+          farmer,
+          source: "fallback",
+        },
+        "Sample farmer fetched",
+      ),
+      { status: 200 },
+    );
+  }
+
+  const start = (page - 1) * limit;
+  const items = filtered.slice(start, start + limit).map((farmer) => ({
+    id: farmer.id,
+    profileId: "",
+    name: farmer.name,
+    farmName: farmer.farmName,
+    farmArea: farmer.farmArea,
+    category: farmer.crops[0] ?? "",
+    avatar: farmer.avatar,
+    about: farmer.about,
+    place: farmer.place,
+    village: farmer.place,
+    district: farmer.place,
+    state: "",
+    phone: farmer.phone,
+    delivery: false,
+    rating: 0,
+    reviewsCount: 0,
+    last30daysSales: farmer.last30daysSales ?? 0,
+  }));
+
+  return NextResponse.json(
+    success(
+      {
+        items,
+        meta: {
+          total: filtered.length,
+          page,
+          limit,
+          totalPages: Math.max(1, Math.ceil(filtered.length / limit)),
+        },
+        source: "fallback",
+      },
+      "Sample farmers fetched because the database is unavailable",
+    ),
+    { status: 200 },
+  );
+}
 
 // ---------- CREATE FARMER (POST) ----------
 export async function POST(req: NextRequest) {
@@ -308,6 +400,9 @@ export async function GET(req: NextRequest) {
             category: f.category || "",
             avatar: f.avatar,
             about: f.about,
+            place:
+              [f.village, f.district, f.state].filter(Boolean).join(", ") ||
+              undefined,
             village: f.village,
             district: f.district,
             state: f.state,
@@ -327,11 +422,11 @@ export async function GET(req: NextRequest) {
       ),
     );
   } catch (err: any) {
-    console.error("Fetch farmers error:", err);
-    return NextResponse.json(
-      failure("Failed to fetch farmers", err?.message || err),
-      { status: 500 },
+    console.warn(
+      "Using sample farmers because DB fetch failed:",
+      err?.message || err,
     );
+    return fallbackFarmersResponse(req);
   }
 }
 

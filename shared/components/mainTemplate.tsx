@@ -6,6 +6,8 @@ import NavBar from "@/shared/components/templates/navbar";
 import BottomNav from "@/shared/components/templates/bottomNav";
 import { cx } from "@/shared/lib/utils";
 import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Mail, MapPin, Sprout } from "lucide-react";
 
 /**
  * Shell: client wrapper used inside app/layout.tsx
@@ -54,7 +56,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     });
 
   return (
-    <div className="min-h-screen flex flex-col bg-stone-50 text-stone-800">
+    <div className="min-h-screen flex flex-col bg-[#f8faf5] text-stone-900">
       {/* NavBar (client interactive) */}
       <NavBar
         onOpenCart={() => {
@@ -66,51 +68,87 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       />
 
       {/* Page content */}
-      <main className="flex-1 pt-16 md:pt-28">{children}</main>
+      <main className="flex-1 pt-14 md:pt-24">{children}</main>
 
       {/* Footer */}
-      {/* Footer - hidden on mobile, visible on md+ */}
-{/* Footer - hidden on mobile, visible on md+ */}
-<footer className="hidden md:block bg-stone-800 text-stone-300 py-8 mt-8">
+      <footer className="hidden md:block mt-12 border-t border-emerald-900/10 bg-[#10241c] text-emerald-50">
+        <div className="mx-auto grid max-w-6xl grid-cols-[1.2fr_0.8fr_0.8fr] gap-10 px-6 py-10 lg:px-8">
+          <div>
+            <Link href="/" className="inline-flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm">
+                <Image
+                  src="/fr3sh.in_logo.svg"
+                  alt="Fr3sh Logo"
+                  width={26}
+                  height={26}
+                />
+              </span>
+              <span>
+                <span className="block text-base font-semibold text-white">
+                  {process.env.NEXT_PUBLIC_APP_NAME || "Farmers Republic"}
+                </span>
+                <span className="text-xs text-emerald-100/70">
+                  Farmer-first food network
+                </span>
+              </span>
+            </Link>
+            <p className="mt-5 max-w-sm text-sm leading-6 text-emerald-50/70">
+              A fresher way to discover growers, adopt trusted farms, and shop
+              produce with more transparency from field to table.
+            </p>
+            <Link
+              href="/shop"
+              className="mt-5 inline-flex items-center gap-2 rounded-full bg-lime-300 px-4 py-2 text-sm font-semibold text-emerald-950 transition hover:bg-lime-200"
+            >
+              Explore products
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </div>
 
-  <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h4 className="text-sm font-semibold text-white">Explore</h4>
+            <div className="mt-4 grid gap-3 text-sm text-emerald-50/70">
+              <Link href="/farmers" className="hover:text-lime-200">
+                Farmers
+              </Link>
+              <Link href="/fpos" className="hover:text-lime-200">
+                FPOs
+              </Link>
+              <Link href="/shop" className="hover:text-lime-200">
+                Shop
+              </Link>
+              <Link href="/products" className="hover:text-lime-200">
+                Products
+              </Link>
+            </div>
+          </div>
 
-    {/* Brand Section */}
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white">
-          <Image
-            src="/fr3sh.in_logo.svg"
-            alt="Fr3sh Logo"
-            width={20}
-            height={20}
-            className="inline-block"
-          />
+          <div>
+            <h4 className="text-sm font-semibold text-white">Contact</h4>
+            <div className="mt-4 grid gap-3 text-sm text-emerald-50/70">
+              <a
+                href="mailto:hello@farmers-republic.com"
+                className="inline-flex items-center gap-2 hover:text-lime-200"
+              >
+                <Mail className="h-4 w-4" />
+                hello@farmers-republic.com
+              </a>
+              <span className="inline-flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Local farms, local tables
+              </span>
+              <span className="inline-flex items-center gap-2">
+                <Sprout className="h-4 w-4" />
+                Fresh, seasonal, responsible
+              </span>
+            </div>
+          </div>
         </div>
-        <span className="text-white font-semibold">
-          {process.env.NEXT_PUBLIC_APP_NAME}
-        </span>
-      </div>
 
-      <p className="text-sm">Organic. Local. Farmer-first.</p>
-    </div>
-
-    {/* Contact Section */}
-    <div>
-      <h4 className="text-white font-semibold mb-2">Contact Us</h4>
-      <ul className="space-y-2 text-sm">
-        <li>Email: <a href="mailto:hello@farmers-republic.com" className="hover:text-green-500">
-          hello@farmers-republic.com
-        </a></li>
-      </ul>
-    </div>
-
-  </div>
-
-  <div className="border-t border-stone-700 mt-6 pt-4 text-center text-sm">
-    <p>&copy; {new Date().getFullYear()} Farmers Republic. All rights reserved.</p>
-  </div>
-</footer>
+        <div className="border-t border-white/10 px-6 py-4 text-center text-xs text-emerald-50/60">
+          &copy; {new Date().getFullYear()} Farmers Republic. All rights reserved.
+        </div>
+      </footer>
 
 
       {/* Bottom nav (mobile) */}
@@ -126,20 +164,20 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       {/* Cart bottom sheet simplified */}
       {cartOpen && (
         <>
-          <div className="fixed inset-0 bg-black/30 z-40" onClick={() => setCartOpen(false)} />
-          <aside className="fixed z-50 left-0 right-0 bottom-0 sm:bottom-auto sm:right-6 sm:top-16 sm:w-96 sm:rounded-2xl bg-white rounded-t-2xl p-4">
+          <div className="fixed inset-0 bg-emerald-950/35 backdrop-blur-[2px] z-40" onClick={() => setCartOpen(false)} />
+          <aside className="fixed z-50 left-0 right-0 bottom-0 sm:left-auto sm:bottom-auto sm:right-6 sm:top-20 sm:w-96 sm:rounded-2xl bg-white rounded-t-2xl p-5 shadow-2xl ring-1 ring-emerald-950/10">
             <div className="flex items-center justify-between mb-3">
-              <h5 className="font-semibold">Your cart</h5>
-              <button onClick={() => setCartOpen(false)} className="p-2 rounded-full hover:bg-stone-100" aria-label="Close cart">Close</button>
+              <h5 className="font-semibold text-emerald-950">Your cart</h5>
+              <button onClick={() => setCartOpen(false)} className="rounded-full border border-stone-200 px-3 py-1 text-xs font-medium hover:bg-stone-50" aria-label="Close cart">Close</button>
             </div>
 
             <div className="max-h-60 overflow-auto">
-              {Object.keys(cart).length === 0 && <div className="text-sm text-stone-500">Your cart is empty</div>}
+              {Object.keys(cart).length === 0 && <div className="rounded-xl border border-dashed border-stone-200 bg-stone-50 p-5 text-center text-sm text-stone-500">Your cart is empty</div>}
               {Object.entries(cart).map(([id, qty]) => {
                 // attempt to show an image placeholder when product details aren't available here
                 return (
-                  <div key={id} className="flex items-center gap-3 py-2 border-b">
-                    <div className="w-12 h-12 relative rounded-md overflow-hidden bg-stone-100 flex items-center justify-center">
+                  <div key={id} className="flex items-center gap-3 border-b border-stone-100 py-3">
+                    <div className="w-12 h-12 relative rounded-xl overflow-hidden bg-lime-50 flex items-center justify-center">
                       <span className="text-sm text-stone-500">Img</span>
                     </div>
                     <div className="flex-1">
@@ -147,8 +185,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                       <div className="text-xs text-stone-500">Quantity: {qty}</div>
                     </div>
                     <div className="flex flex-col items-end gap-1 ml-2">
-                      <button onClick={() => removeOne(Number(id))} className="px-2 py-1 border rounded">-</button>
-                      <button onClick={() => addToCart(Number(id))} className="px-2 py-1 border rounded">+</button>
+                      <button onClick={() => removeOne(Number(id))} className="h-7 w-7 rounded-full border border-stone-200 text-sm hover:bg-stone-50">-</button>
+                      <button onClick={() => addToCart(Number(id))} className="h-7 w-7 rounded-full border border-stone-200 text-sm hover:bg-stone-50">+</button>
                     </div>
                   </div>
                 );
@@ -160,7 +198,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
                 <div className="text-sm text-stone-500">Items</div>
                 <div className="font-bold">{cartCount}</div>
               </div>
-              <button className={cx("px-4 py-2 rounded-lg font-semibold", cartCount === 0 ? "bg-stone-200 text-stone-400" : "bg-green-600 text-white")} disabled={cartCount===0}>Checkout</button>
+              <button className={cx("rounded-full px-5 py-2 text-sm font-semibold", cartCount === 0 ? "bg-stone-200 text-stone-400" : "bg-emerald-700 text-white hover:bg-emerald-800")} disabled={cartCount===0}>Checkout</button>
             </div>
           </aside>
         </>

@@ -15,7 +15,7 @@ const FPOS = [
     totalLandArea: "560 acres",
     crops: ["Rice", "Millets", "Turmeric"],
     image:
-      "https://images.unsplash.com/photo-1599076480547-47dc5e42a0ab?w=1200&q=80&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1488459716781-31db52582fe9?w=1200&q=80&auto=format&fit=crop",
   },
   {
     id: "2",
