@@ -140,11 +140,13 @@ export default function DeliveryDashboardPage() {
     setUpdating(orderId);
     try {
       const order = orders.find((o) => o._id === orderId);
+      // Always include delivery person info on pickup AND delivery so the
+      // PATCH route has enough data to create the DeliveryEarning record.
       const extra: Record<string, unknown> = {};
-      if (newStatus === "out_for_delivery" && user) {
-        extra.deliveryPersonId = user.id;
+      if ((newStatus === "out_for_delivery" || newStatus === "delivered") && user) {
+        extra.deliveryPersonId   = user.id;
         extra.deliveryPersonName = user.name || user.email;
-        extra.deliveryEarning = (order?.deliveryFee ?? 0) > 0 ? order!.deliveryFee : 30;
+        extra.deliveryEarning    = (order?.deliveryFee ?? 0) > 0 ? order!.deliveryFee : 30;
       }
 
       const res = await fetch(`/api/v1/orders/${orderId}`, {

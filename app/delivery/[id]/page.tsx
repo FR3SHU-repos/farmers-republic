@@ -137,13 +137,14 @@ export default function DeliveryOrderDetailPage() {
     if (!order) return;
     setUpdating(true);
     try {
-      // When picking up, record delivery person + calculate earning
+      // Always include delivery person info on pickup AND delivery so the
+      // PATCH route can create the DeliveryEarning record reliably.
       const extra: Record<string, unknown> = {};
-      if (newStatus === "out_for_delivery" && user) {
-        extra.deliveryPersonId = user.id;
+      if ((newStatus === "out_for_delivery" || newStatus === "delivered") && user) {
+        extra.deliveryPersonId   = user.id;
         extra.deliveryPersonName = user.name || user.email;
-        // Delivery person earns the delivery fee; minimum ₹30 if free delivery for buyer
-        extra.deliveryEarning = order.deliveryFee > 0 ? order.deliveryFee : 30;
+        // Earn the delivery fee; minimum ₹30 for free-delivery orders
+        extra.deliveryEarning    = order.deliveryFee > 0 ? order.deliveryFee : 30;
       }
 
       const res = await fetch(`/api/v1/orders/${order._id}`, {
