@@ -1,77 +1,124 @@
 // app/profile/page.tsx
-
 "use client";
 
 import { useUser } from "@/shared/context/UserContext";
 import { useRouter } from "next/navigation";
-import { useState, useEffect, type ChangeEvent } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "@/shared/lib/supabase/client";
 import { TELUGU_LANGUAGE } from "@/shared/language/telugu";
 import Link from "next/link";
+import Image from "next/image";
+import {
+  ArrowRight,
+  Camera,
+  LayoutDashboard,
+  LogOut,
+  Package,
+  ShoppingBag,
+  Sprout,
+  Truck,
+  User,
+  X,
+} from "lucide-react";
+import { cx } from "@/shared/lib/utils";
+
+// ─── Constants ────────────────────────────────────────────────
+
+const INPUT_CLASS =
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm " +
+  "text-foreground-heading placeholder:text-foreground-muted outline-none transition " +
+  "focus:border-primary focus:ring-4 focus:ring-primary/10";
+
+const LABEL_CLASS =
+  "block text-xs font-semibold uppercase tracking-wide text-foreground-muted";
+
+// ─── Quick-link tile ──────────────────────────────────────────
+
+function QuickLink({
+  href,
+  icon: Icon,
+  label,
+  sub,
+  iconBg,
+  iconColor,
+}: {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  sub?: string;
+  iconBg: string;
+  iconColor: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-4 rounded-2xl border border-border bg-surface-card p-4 transition hover:bg-surface hover:shadow-sm"
+    >
+      <div
+        className={cx(
+          "flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl",
+          iconBg
+        )}
+      >
+        <Icon className={cx("h-5 w-5", iconColor)} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold text-foreground-heading">{label}</p>
+        {sub && <p className="mt-0.5 text-xs text-foreground-muted">{sub}</p>}
+      </div>
+      <ArrowRight className="h-4 w-4 flex-shrink-0 text-foreground-muted" />
+    </Link>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────
 
 export default function ProfilePage() {
   const { user, login, logout } = useUser();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
 
-  const [form, setForm] = useState({
-    name: "",
-    phoneNumber: "",
-    type: "" as string,
-  });
-
-  const [file, setFile] = useState<File | null>(null);
+  const [form, setForm] = useState({ name: "", phoneNumber: "", type: "" });
+  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
 
-  // Buyer + Farmer profiles
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [buyerProfile, setBuyerProfile] = useState<{ buyerId: string } | null>(null);
   const [farmerProfile, setFarmerProfile] = useState<{ farmerId: string } | null>(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
-      router.replace("/auth/login");
+      router.replace("/login");
       return;
     }
 
-    // init form
     setForm({
-      name: user?.name || "",
-      phoneNumber: user?.phoneNumber || "",
-      type: user?.type || "",
+      name: user.name || "",
+      phoneNumber: user.phoneNumber || "",
+      type: user.type || "",
     });
 
-    const fetchBuyer = async () => {
-      if (!user.type || user.type.toLowerCase() !== "buyer") return;
-      if (!user.id) return;
+    const typeLC = user.type?.toLowerCase();
 
+    const fetchBuyer = async () => {
+      if (!user.id) return;
+      setProfileLoading(true);
       try {
-        setProfileLoading(true);
         const res = await fetch(
           `/api/v1/buyers?profileId=${encodeURIComponent(user.id)}`,
-          { credentials: "include" },
+          { credentials: "include" }
         );
-
-        if (res.status === 404) {
-          setBuyerProfile(null);
-          return;
-        }
-
-        if (!res.ok) {
-          console.error("Failed to fetch buyer profile, status:", res.status);
-          setBuyerProfile(null);
-          return;
-        }
-
         const json = await res.json();
-        if (json?.success && json.data?.buyerId) {
-          setBuyerProfile({ buyerId: json.data.buyerId });
-        } else {
-          setBuyerProfile(null);
-        }
-      } catch (err) {
-        console.error("Failed to load buyer profile", err);
+        setBuyerProfile(
+          json?.success && json.data?.buyerId
+            ? { buyerId: json.data.buyerId }
+            : null
+        );
+      } catch {
         setBuyerProfile(null);
       } finally {
         setProfileLoading(false);
@@ -79,73 +126,55 @@ export default function ProfilePage() {
     };
 
     const fetchFarmer = async () => {
-      if (!user.type || user.type.toLowerCase() !== "farmer") return;
       if (!user.id) return;
-
+      setProfileLoading(true);
       try {
-        setProfileLoading(true);
-
-        // 🔥 IMPORTANT: use helper route, NOT /farmers?profileId=...
         const res = await fetch(
           `/api/v1/helper/by-profile/${encodeURIComponent(user.id)}`,
-          { credentials: "include" },
+          { credentials: "include" }
         );
-
-        if (res.status === 404) {
-          setFarmerProfile(null);
-          return;
-        }
-
-        if (!res.ok) {
-          console.error("Failed to fetch farmer profile, status:", res.status);
-          setFarmerProfile(null);
-          return;
-        }
-
         const json = await res.json();
-
-        // From your helper route:
-        // { success: true, data: { farmerId: string, farmer: {...} } }
-        if (json?.success && json.data?.farmerId) {
-          setFarmerProfile({ farmerId: json.data.farmerId });
-        } else {
-          setFarmerProfile(null);
-        }
-      } catch (err) {
-        console.error("Failed to load farmer profile", err);
+        setFarmerProfile(
+          json?.success && json.data?.farmerId
+            ? { farmerId: json.data.farmerId }
+            : null
+        );
+      } catch {
         setFarmerProfile(null);
       } finally {
         setProfileLoading(false);
       }
     };
 
-    // call based on type
-    if (user.type?.toLowerCase() === "buyer") {
-      fetchBuyer();
-    } else if (user.type?.toLowerCase() === "farmer") {
-      fetchFarmer();
-    }
+    if (typeLC === "buyer") fetchBuyer();
+    else if (typeLC === "farmer") fetchFarmer();
   }, [user, router]);
 
   if (!user) return null;
 
-  const handleChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  // ── Photo handling ──────────────────────────────────────────
 
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0] ?? null;
-    if (f && f.size > 5 * 1024 * 1024) {
-      toast.error("Image must be < 5MB");
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
       return;
     }
     setFile(f);
+    setPreview(URL.createObjectURL(f));
   };
 
+  const clearFile = () => {
+    setFile(null);
+    setPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  // ── Save ────────────────────────────────────────────────────
+
   const handleSave = async () => {
-    setLoading(true);
+    setSaving(true);
     try {
       const res = await fetch("/api/v1/user/update", {
         method: "PATCH",
@@ -154,9 +183,8 @@ export default function ProfilePage() {
         body: JSON.stringify(form),
       });
       const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!res.ok || !json.success)
         throw new Error(json.message || "Failed to update profile");
-      }
 
       let updatedUser = json.data;
 
@@ -174,210 +202,346 @@ export default function ProfilePage() {
         const { data: publicData } = supabase.storage
           .from("avatars")
           .getPublicUrl(filePath);
-        const publicURL = publicData.publicUrl;
 
         const photoRes = await fetch("/api/v1/user/photo", {
           method: "PATCH",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ photoUrl: publicURL, photoPath: filePath }),
+          body: JSON.stringify({
+            photoUrl: publicData.publicUrl,
+            photoPath: filePath,
+          }),
         });
-
         const photoJson = await photoRes.json();
-        if (!photoRes.ok || !photoJson.success) {
+        if (!photoRes.ok || !photoJson.success)
           throw new Error(photoJson.message || "Failed to save photo");
-        }
+
         updatedUser = photoJson.data;
-        setUploading(false);
+        clearFile();
       }
 
-      const mapped = {
-        id: updatedUser.id ?? updatedUser._id ?? String(updatedUser._id ?? ""),
+      login({
+        id: updatedUser.id ?? String(updatedUser._id ?? ""),
         name: updatedUser.name,
         email: updatedUser.email,
         phoneNumber: updatedUser.phoneNumber,
         type: updatedUser.type,
         photo: updatedUser.photo,
-      };
-      login(mapped);
-
+      });
       toast.success("Profile updated");
     } catch (err: any) {
-      console.error("Save profile error:", err);
       toast.error(err?.message || "Failed to save profile");
     } finally {
-      setLoading(false);
+      setSaving(false);
       setUploading(false);
     }
   };
 
+  // ── Logout ──────────────────────────────────────────────────
+
   const handleLogout = async () => {
-    setLoading(true);
+    setSaving(true);
     try {
-      await fetch("/api/v1/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" });
       logout();
       router.push("/");
       toast.success("Logged out");
     } catch {
       toast.error("Logout failed");
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
-  const typeSlug = user?.type?.toLowerCase();
+  // ── Role-based links ────────────────────────────────────────
 
-  const isBuyer = typeSlug === "buyer";
-  const isFarmer = typeSlug === "farmer";
+  const typeLC = user.type?.toLowerCase();
+  const isBuyer = typeLC === "buyer";
+  const isFarmer = typeLC === "farmer";
+  const isDelivery = user.type === "Logistics Provider";
 
-  let profileIdForLink: string | undefined;
-  let createPath = "";
-  let editPath = "";
+  const profileId = isBuyer
+    ? buyerProfile?.buyerId
+    : isFarmer
+    ? farmerProfile?.farmerId
+    : undefined;
 
-  if (isBuyer) {
-    profileIdForLink = buyerProfile?.buyerId;
-    createPath = "/buyers/create";
-    editPath = profileIdForLink ? `/buyers/edit/${profileIdForLink}` : "";
-  } else if (isFarmer) {
-    profileIdForLink = farmerProfile?.farmerId;
-    createPath = "/farmers/create";
-    editPath = profileIdForLink ? `/farmers/edit/${profileIdForLink}` : "";
-  }
+  const createPath = isBuyer
+    ? "/buyers/create"
+    : isFarmer
+    ? "/farmers/create"
+    : "";
+  const editPath = isBuyer
+    ? profileId
+      ? `/buyers/edit/${profileId}`
+      : ""
+    : isFarmer
+    ? profileId
+      ? `/farmers/edit/${profileId}`
+      : ""
+    : "";
 
-  const finalHref = profileIdForLink ? editPath : createPath;
+  const roleLinkHref = profileId ? editPath : createPath;
+  const roleLinkLabel = profileLoading
+    ? "Loading…"
+    : profileId
+    ? `Edit ${user.type} Profile`
+    : `Create ${user.type} Profile`;
+
+  // Display avatar — new preview → existing photo → initials
+  const avatarSrc = preview ?? user.photo ?? null;
+  const initials = (user.name || user.email || "U").charAt(0).toUpperCase();
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 px-4 py-8">
-      <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-xl">
-        <div className="flex items-center gap-4">
-          {user.photo ? (
-            <img
-              src={user.photo}
-              alt={user.name}
-              className="w-20 h-20 rounded-full object-cover"
-            />
-          ) : (
-            <div className="w-20 h-20 rounded-full bg-green-100 flex items-center justify-center text-2xl font-bold text-green-700">
-              {user.name?.charAt(0) || "U"}
-            </div>
-          )}
+    <div className="min-h-screen bg-background pb-20">
+      <div className="mx-auto max-w-xl px-4 py-10 sm:px-6">
 
-          <div className="flex-1">
-            <h2 className="text-xl font-semibold">
-              {user.name || "Your name"}
-            </h2>
-            <p className="text-sm text-gray-500">{user.email}</p>
-            <div className="mt-2 flex gap-2">
-              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+        {/* ── Avatar card ──────────────────────────────── */}
+        <div className="mb-5 rounded-2xl border border-border bg-surface-card p-6">
+          <div className="flex items-start gap-5">
+            {/* Avatar */}
+            <div className="relative flex-shrink-0">
+              {avatarSrc ? (
+                <Image
+                  src={avatarSrc}
+                  alt={user.name || "Avatar"}
+                  width={80}
+                  height={80}
+                  className="h-20 w-20 rounded-full object-cover"
+                />
+              ) : (
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-secondary-subtle text-2xl font-bold text-brand">
+                  {initials}
+                </div>
+              )}
+
+              {/* Camera overlay button */}
+              <label className="absolute -bottom-1 -right-1 flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-2 border-surface-card bg-primary text-primary-foreground transition hover:bg-primary-hover">
+                <Camera className="h-3.5 w-3.5" />
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
-                  className="hidden"
+                  className="sr-only"
                   onChange={handleFileChange}
                 />
-                <span className="px-3 py-1 bg-stone-100 rounded-md text-sm">
-                  Choose Photo
-                </span>
               </label>
-              <button
-                onClick={() => {
-                  if (file) {
-                    const url = URL.createObjectURL(file);
-                    window.open(url);
-                  } else {
-                    toast("Select a photo first");
-                  }
-                }}
-                className="px-3 py-1 bg-stone-100 rounded-md text-sm"
-              >
-                Preview
-              </button>
+            </div>
+
+            {/* Name / email / role */}
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold text-foreground-heading">
+                {user.name || "Your name"}
+              </h1>
+              <p className="mt-0.5 truncate text-sm text-foreground-muted">
+                {user.email}
+              </p>
+              <span className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-secondary/40 bg-secondary-subtle px-2.5 py-1 text-xs font-semibold text-secondary-foreground">
+                <Sprout className="h-3 w-3" />
+                {user.type}
+              </span>
             </div>
           </div>
-        </div>
 
-        <div className="mt-6 grid gap-4">
-          <div>
-            <label className="text-sm text-gray-600">
-              Full name ({TELUGU_LANGUAGE.name})
-            </label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              className="mt-1 block w-full border rounded-md px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-600">
-              Phone ({TELUGU_LANGUAGE.phone})
-            </label>
-            <input
-              name="phoneNumber"
-              value={form.phoneNumber}
-              onChange={handleChange}
-              className="mt-1 block w-full border rounded-md px-3 py-2"
-            />
-          </div>
-
-          <div>
-            <label className="text-sm text-gray-600">
-              User type ({TELUGU_LANGUAGE.user_type})
-            </label>
-            <select
-              name="type"
-              value={form.type}
-              onChange={handleChange}
-              className="mt-1 block w-full border rounded-md px-3 py-2"
-            >
-              <option value={user?.type || ""}>{user?.type || "Select"}</option>
-            </select>
-          </div>
-
-          <div className="flex gap-3 mt-3">
-            <button
-              onClick={handleSave}
-              disabled={loading || uploading}
-              className="flex-1 bg-green-600 text-white py-2 rounded-md font-semibold hover:bg-green-700 disabled:opacity-60"
-            >
-              {loading ? "Saving..." : "Save Changes"}
-            </button>
-
-          <button
-              onClick={handleLogout}
-              disabled={loading}
-              className="px-4 py-2 rounded-md border text-sm text-red-600 disabled:opacity-60"
-            >
-              Logout
-            </button>
-          </div>
-
-          {/* Additional data */}
-          {(isBuyer || isFarmer) && (
-            <div className="mt-6 w-full max-w-md">
-              <div className="flex flex-col gap-4">
-                <h3 className="text-xl font-bold text-gray-800">
-                  {user?.type}
-                </h3>
-
-                <Link
-                  href={finalHref}
-                  className="w-full inline-flex items-center justify-center bg-green-600 text-white py-2.5 rounded-lg font-semibold transition-all hover:bg-green-700 active:scale-[0.98] disabled:opacity-60"
-                >
-                  {profileLoading
-                    ? "Loading..."
-                    : profileIdForLink
-                    ? "Edit Profile"
-                    : "Create Profile"}
-                </Link>
+          {/* Pending file notice */}
+          {file && (
+            <div className="mt-4 flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-2.5">
+              <div className="flex items-center gap-2 text-sm text-foreground-body">
+                <Camera className="h-4 w-4 text-brand" />
+                <span className="truncate max-w-[200px]">{file.name}</span>
+                <span className="text-xs text-foreground-muted">
+                  — will upload on save
+                </span>
               </div>
+              <button
+                type="button"
+                onClick={clearFile}
+                className="ml-2 flex-shrink-0 text-foreground-muted transition hover:text-status-danger"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
           )}
         </div>
+
+        {/* ── Edit form ─────────────────────────────────── */}
+        <div className="mb-5 rounded-2xl border border-border bg-surface-card p-6">
+          <h2 className="mb-5 text-sm font-semibold text-foreground-heading">
+            Account details
+          </h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className={LABEL_CLASS}>
+                Full name
+                <span className="ml-1.5 font-normal normal-case text-foreground-muted">
+                  ({TELUGU_LANGUAGE.name})
+                </span>
+              </label>
+              <input
+                name="name"
+                value={form.name}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, name: e.target.value }))
+                }
+                placeholder="Your name"
+                className={INPUT_CLASS}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>
+                Phone
+                <span className="ml-1.5 font-normal normal-case text-foreground-muted">
+                  ({TELUGU_LANGUAGE.phone})
+                </span>
+              </label>
+              <input
+                name="phoneNumber"
+                value={form.phoneNumber}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, phoneNumber: e.target.value }))
+                }
+                placeholder="+91 98765 43210"
+                className={INPUT_CLASS}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>
+                Email
+              </label>
+              <input
+                value={user.email}
+                readOnly
+                className={cx(INPUT_CLASS, "cursor-not-allowed opacity-60")}
+              />
+            </div>
+
+            <div>
+              <label className={LABEL_CLASS}>
+                Role
+                <span className="ml-1.5 font-normal normal-case text-foreground-muted">
+                  ({TELUGU_LANGUAGE.user_type})
+                </span>
+              </label>
+              <input
+                value={form.type}
+                readOnly
+                className={cx(INPUT_CLASS, "cursor-not-allowed opacity-60")}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={handleSave}
+            disabled={saving || uploading}
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover disabled:opacity-50"
+          >
+            {(saving || uploading) && (
+              <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+            )}
+            {uploading ? "Uploading photo…" : saving ? "Saving…" : "Save changes"}
+          </button>
+        </div>
+
+        {/* ── Quick links ───────────────────────────────── */}
+        {(isBuyer || isFarmer || isDelivery) && (
+          <div className="mb-5 space-y-3">
+            <h2 className="px-1 text-xs font-semibold uppercase tracking-widest text-foreground-muted">
+              Quick links
+            </h2>
+
+            {isDelivery && (
+              <QuickLink
+                href="/delivery"
+                icon={Truck}
+                label="My Deliveries"
+                sub="View and manage your delivery queue"
+                iconBg="bg-secondary-subtle"
+                iconColor="text-brand"
+              />
+            )}
+
+            {isDelivery && (
+              <QuickLink
+                href="/delivery/earnings"
+                icon={ShoppingBag}
+                label="My Earnings"
+                sub="Track your delivery earnings and history"
+                iconBg="bg-status-success-surface"
+                iconColor="text-status-success"
+              />
+            )}
+
+            {isFarmer && (
+              <QuickLink
+                href="/farmers/dashboard"
+                icon={LayoutDashboard}
+                label="Farmer Dashboard"
+                sub="View your farm stats and activity"
+                iconBg="bg-secondary-subtle"
+                iconColor="text-brand"
+              />
+            )}
+
+            {isFarmer && (
+              <QuickLink
+                href="/farmers/orders"
+                icon={Package}
+                label="My Orders"
+                sub="Buyer orders containing your products"
+                iconBg="bg-status-info-surface"
+                iconColor="text-status-info"
+              />
+            )}
+
+            {isBuyer && (
+              <QuickLink
+                href={user.id ? `/orders/${user.id}` : "/orders"}
+                icon={ShoppingBag}
+                label="My Orders"
+                sub="Track all your purchases"
+                iconBg="bg-status-info-surface"
+                iconColor="text-status-info"
+              />
+            )}
+
+            {roleLinkHref && (
+              <QuickLink
+                href={roleLinkHref}
+                icon={User}
+                label={roleLinkLabel}
+                sub={
+                  profileId
+                    ? `Update your ${user.type?.toLowerCase()} details`
+                    : `Set up your ${user.type?.toLowerCase()} profile`
+                }
+                iconBg="bg-status-success-surface"
+                iconColor="text-status-success"
+              />
+            )}
+          </div>
+        )}
+
+        {/* ── Danger zone ───────────────────────────────── */}
+        <div className="rounded-2xl border border-status-danger/20 bg-status-danger-surface p-5">
+          <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-status-danger">
+            Danger zone
+          </h2>
+          <p className="mb-4 text-xs text-foreground-muted">
+            You will be signed out and redirected to the home page.
+          </p>
+          <button
+            onClick={handleLogout}
+            disabled={saving}
+            className="flex items-center gap-2 rounded-full border border-status-danger/30 bg-surface-card px-5 py-2.5 text-sm font-semibold text-status-danger transition hover:bg-status-danger hover:text-white disabled:opacity-50"
+          >
+            <LogOut className="h-4 w-4" />
+            Sign out
+          </button>
+        </div>
+
       </div>
     </div>
   );

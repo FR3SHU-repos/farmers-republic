@@ -96,6 +96,10 @@ export type Order = {
   source?: string;
   items: OrderItem[];
   paymentReferenceId?: string;
+  deliveryPersonId?: string;
+  deliveryPersonName?: string;
+  deliveryEarning?: number;
+  deliveredAt?: Date | string;
   createdAt?: Date;
   updatedAt?: Date;
 };

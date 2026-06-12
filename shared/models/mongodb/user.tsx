@@ -24,6 +24,7 @@ const UserSchema = new Schema<IUser>(
         "Logistics Provider",
         "Banker",
         "Buyer",
+        "FPO",
       ],
       index: true, // ✅ allows fast role-based queries
     },

@@ -61,15 +61,25 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
     await mongoDB();
 
     const body = await req.json();
-    const { status, paymentStatus } = body || {};
+    const { status, paymentStatus, deliveryPersonId, deliveryPersonName, deliveryEarning } = body || {};
 
     const $set: Record<string, any> = {};
 
     if (typeof status === "string") {
       $set.status = status;
+      if (status === "delivered") $set.deliveredAt = new Date();
     }
     if (typeof paymentStatus === "string") {
       $set.paymentStatus = paymentStatus;
+    }
+    if (typeof deliveryPersonId === "string") {
+      $set.deliveryPersonId = deliveryPersonId;
+    }
+    if (typeof deliveryPersonName === "string") {
+      $set.deliveryPersonName = deliveryPersonName;
+    }
+    if (typeof deliveryEarning === "number") {
+      $set.deliveryEarning = deliveryEarning;
     }
 
     if (Object.keys($set).length === 0) {

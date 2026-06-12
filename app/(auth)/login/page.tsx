@@ -41,7 +41,7 @@ export default function AuthPage() {
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -198,6 +198,8 @@ export default function AuthPage() {
                     >
                       <option value="Farmer">Farmer</option>
                       <option value="Buyer">Buyer</option>
+                      <option value="Logistics Provider">Delivery Person</option>
+                      <option value="FPO">FPO (Farmer Producer Organisation)</option>
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
                   </div>

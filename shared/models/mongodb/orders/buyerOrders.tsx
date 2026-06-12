@@ -165,6 +165,12 @@ const orderSchema = new Schema<Order>(
     // optional global payment reference if you use a single transaction
     paymentReferenceId: { type: String },
 
+    // delivery person tracking
+    deliveryPersonId:   { type: String, index: true },
+    deliveryPersonName: { type: String },
+    deliveryEarning:    { type: Number, default: 0 },
+    deliveredAt:        { type: Date },
+
     items: { type: [orderItemSchema], required: true },
   },
   { timestamps: true }
