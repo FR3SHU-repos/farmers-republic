@@ -1,10 +1,12 @@
-// app/(auth)/reset-password/page.tsx
-
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, KeyRound, Sprout } from "lucide-react";
+
+const INPUT_CLASS =
+  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground-heading placeholder:text-foreground-muted outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10";
 
 export default function ResetPasswordPage() {
   const router = useRouter();
@@ -17,10 +19,17 @@ export default function ResetPasswordPage() {
   });
   const [loading, setLoading] = useState(false);
 
+  // Pre-fill email from the URL query param (?email=...)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const emailParam = params.get("email");
+    if (emailParam) setForm((f) => ({ ...f, email: emailParam }));
+  }, []);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!form.email || !form.otp || !form.password || !form.confirmPassword) {
       toast.error("Please fill all fields");
@@ -46,17 +55,14 @@ export default function ResetPasswordPage() {
           newPassword: form.password,
         }),
       });
-
       const data = await res.json();
       if (!res.ok) {
         toast.error(data?.error || "Failed to reset password");
         return;
       }
-
-      toast.success("Password reset successful. Please login.");
-      router.push("/login"); // adjust route if different
-    } catch (err) {
-      console.error(err);
+      toast.success("Password reset successful. Please sign in.");
+      router.push("/login");
+    } catch {
       toast.error("Network error");
     } finally {
       setLoading(false);
@@ -64,69 +70,109 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-green-50 p-6">
-      <div className="w-full max-w-md bg-white rounded-2xl p-6 shadow">
-        <h2 className="text-2xl font-bold text-center text-green-700 mb-4">Reset Password</h2>
+    <div className="flex min-h-screen items-center justify-center bg-surface px-6 py-12">
+      <div className="w-full max-w-sm">
+        {/* Logo */}
+        <div className="mb-8 flex items-center gap-2">
+          <Sprout className="h-5 w-5 text-primary" />
+          <span className="text-lg font-semibold text-foreground-heading">
+            {process.env.NEXT_PUBLIC_APP_NAME || "Farmers Republic"}
+          </span>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm text-gray-600">Email</label>
-            <input
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              type="email"
-              required
-            />
+        <div className="rounded-2xl border border-border bg-surface-card p-8 shadow-sm">
+          {/* Icon */}
+          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary-subtle">
+            <KeyRound className="h-6 w-6 text-primary" />
           </div>
 
-          <div>
-            <label className="block text-sm text-gray-600">OTP</label>
-            <input
-              name="otp"
-              value={form.otp}
-              onChange={handleChange}
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              type="text"
-              inputMode="numeric"
-              pattern="\d{6}"
-              required
-            />
-          </div>
+          <h1 className="mt-5 text-xl font-semibold tracking-tight text-foreground-heading">
+            Reset your password
+          </h1>
+          <p className="mt-1.5 text-sm text-foreground-muted">
+            Enter the OTP sent to your email and choose a new password.
+          </p>
 
-          <div>
-            <label className="block text-sm text-gray-600">New password</label>
-            <input
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              type="password"
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-foreground-body">
+                Email Address
+              </label>
+              <input
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                type="email"
+                placeholder="you@example.com"
+                className={INPUT_CLASS}
+                required
+              />
+            </div>
 
-          <div>
-            <label className="block text-sm text-gray-600">Confirm new password</label>
-            <input
-              name="confirmPassword"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              className="mt-1 w-full border rounded-md px-3 py-2"
-              type="password"
-              required
-            />
-          </div>
+            <div>
+              <label className="block text-sm font-medium text-foreground-body">
+                OTP Code
+              </label>
+              <input
+                name="otp"
+                value={form.otp}
+                onChange={handleChange}
+                type="text"
+                inputMode="numeric"
+                pattern="\d{6}"
+                placeholder="123456"
+                className={INPUT_CLASS}
+                required
+              />
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-green-600 text-white font-semibold py-2 rounded-md"
-          >
-            {loading ? "Processing..." : "Reset Password"}
-          </button>
-        </form>
+            <div>
+              <label className="block text-sm font-medium text-foreground-body">
+                New Password
+              </label>
+              <input
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                type="password"
+                placeholder="Min. 8 characters"
+                className={INPUT_CLASS}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-foreground-body">
+                Confirm New Password
+              </label>
+              <input
+                name="confirmPassword"
+                value={form.confirmPassword}
+                onChange={handleChange}
+                type="password"
+                placeholder="••••••••"
+                className={INPUT_CLASS}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover disabled:opacity-60"
+            >
+              {loading ? "Resetting…" : "Reset Password"}
+            </button>
+          </form>
+        </div>
+
+        <button
+          onClick={() => router.push("/login")}
+          className="mt-6 flex w-full items-center justify-center gap-1.5 text-sm text-foreground-muted transition hover:text-foreground-body"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to sign in
+        </button>
       </div>
     </div>
   );
