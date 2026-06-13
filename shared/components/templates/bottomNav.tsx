@@ -42,6 +42,7 @@ export default function BottomNav({
   const { cartCount } = useCart();
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const categoriesButtonRef = useRef<HTMLButtonElement | null>(null);
   const navBarRef = useRef<HTMLDivElement | null>(null);
@@ -85,6 +86,8 @@ export default function BottomNav({
     };
   }, [menuOpen]);
 
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     const updateHeight = () => {
       if (navBarRef.current) setNavHeight(navBarRef.current.offsetHeight || 72);
@@ -94,9 +97,10 @@ export default function BottomNav({
     return () => window.removeEventListener("resize", updateHeight);
   }, []);
 
-  const isBuyer = currentUser?.type === "Buyer";
-  const isFarmer = currentUser?.type === "Farmer";
-  const isAdmin = currentUser?.type === "Admin";
+  // Guard role checks behind mounted — avoids SSR/client mismatch
+  const isBuyer = mounted && currentUser?.type === "Buyer";
+  const isFarmer = mounted && currentUser?.type === "Farmer";
+  const isAdmin = mounted && currentUser?.type === "Admin";
 
   // Build sections for the popover
   type Section = { title: string; links: QuickLink[] };
@@ -280,17 +284,17 @@ export default function BottomNav({
               active === "profile" ? "bg-lime-50 text-emerald-800" : "text-stone-500",
             )}
           >
-            {currentUser?.photo ? (
+            {mounted && currentUser?.photo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={currentUser.photo} alt={currentUser.name} className="w-6 h-6 rounded-full object-cover" />
-            ) : currentUser?.name ? (
+            ) : mounted && currentUser?.name ? (
               <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center text-[12px] font-semibold text-emerald-900">
                 {currentUser.name.charAt(0).toUpperCase()}
               </div>
             ) : (
               <User className="w-6 h-6" />
             )}
-            <span>{currentUser?.name ? "Profile" : "Login"}</span>
+            <span>{mounted && currentUser?.name ? "Profile" : "Login"}</span>
           </button>
         </div>
       </nav>

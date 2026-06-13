@@ -3,7 +3,7 @@ import type { GroupOrder } from "@/shared/interfaces/mongodb/community/groupOrde
 
 const requestSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, required: true },
+    userId: { type: String, required: true },
     userName: { type: String },
     qty: { type: Number, required: true },
   },
@@ -12,10 +12,10 @@ const requestSchema = new Schema(
 
 const groupOrderItemSchema = new Schema(
   {
-    productId: { type: Schema.Types.ObjectId, required: true },
+    productId: { type: String },
     productName: { type: String, required: true },
     unit: { type: String },
-    pricePerUnit: { type: Number, required: true },
+    pricePerUnit: { type: Number, default: 0 },
     requests: { type: [requestSchema], default: [] },
     totalQty: { type: Number, default: 0 },
     farmerId: { type: Schema.Types.ObjectId },
@@ -32,7 +32,7 @@ const groupOrderSchema = new Schema(
       index: true,
     },
     groupName: { type: String },
-    createdByUserId: { type: Schema.Types.ObjectId, required: true },
+    createdByUserId: { type: String, required: true },
     createdByName: { type: String },
     title: { type: String, required: true },
     description: { type: String },

@@ -249,12 +249,12 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       const items = newOrder.items
         .filter((it) => it.productName.trim())
         .map((it) => ({
-          productId: new Date().getTime().toString(),
+          productId: `item_${Math.random().toString(36).slice(2, 10)}`,
           productName: it.productName.trim(),
-          unit: it.unit,
+          unit: it.unit || "kg",
           pricePerUnit: parseFloat(it.pricePerUnit) || 0,
-          requests: it.qty
-            ? [{ userId: user.id, userName: user.name ?? "", qty: parseFloat(it.qty) || 0 }]
+          requests: it.qty && parseFloat(it.qty) > 0
+            ? [{ userId: user.id, userName: user.name ?? "", qty: parseFloat(it.qty) }]
             : [],
           totalQty: parseFloat(it.qty) || 0,
         }));

@@ -3,7 +3,7 @@ import type { CommunityGroup } from "@/shared/interfaces/mongodb/community/commu
 
 const memberSchema = new Schema(
   {
-    userId: { type: Schema.Types.ObjectId, required: true },
+    userId: { type: String, required: true },
     userName: { type: String },
     joinedAt: { type: Date, default: Date.now },
   },
@@ -22,7 +22,7 @@ const communityGroupSchema = new Schema(
     location: { type: String, required: true },
     pincode: { type: String, index: true },
     joinCode: { type: String, required: true, unique: true, index: true },
-    adminUserId: { type: Schema.Types.ObjectId, required: true, index: true },
+    adminUserId: { type: String, required: true, index: true },
     adminName: { type: String },
     members: { type: [memberSchema], default: [] },
     memberCount: { type: Number, default: 1 },

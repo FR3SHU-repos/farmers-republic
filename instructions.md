@@ -6,7 +6,7 @@ This document gives any AI agent a complete picture of the project so it can wor
 
 ## What This Project Is
 
-**FR3SH** (codebase name: `farmers-republic`) is a direct-to-consumer agricultural marketplace built for India. It connects farmers to buyers, supports FPOs (Farmer Producer Organizations), enables delivery persons to fulfil orders, and includes voice-based order capture for low-tech farmer users.
+**FR3SH** (codebase name: `farmers-republic`) is a direct-to-consumer agricultural marketplace built for India. It connects farmers to buyers, supports FPOs, enables delivery persons to fulfil orders, allows community groups to place bulk orders, supports harvest pre-booking, and includes voice-based order capture for low-tech farmer users.
 
 Brand tagline: *"Pick fresh. Eat fresh."*
 
@@ -34,70 +34,94 @@ Brand tagline: *"Pick fresh. Eat fresh."*
 
 ```
 farmers-republic/
-├── app/                         # Next.js App Router pages + API routes
-│   ├── (auth)/                  # Auth pages (login, forgot-password, reset-password)
+├── app/
+│   ├── (auth)/                    # login, forgot-password, reset-password
+│   ├── admin/                     # Admin panel — layout uses AdminSidebarLayout
+│   │   ├── layout.tsx             # wraps all /admin/* with sidebar
+│   │   ├── page.tsx               # platform overview + stats
+│   │   ├── analytics/             # BI dashboard
+│   │   ├── farmers/               # KYC review
+│   │   ├── orders/                # order management
+│   │   ├── products/              # product moderation
+│   │   └── users/                 # user management
 │   ├── api/v1/
-│   │   ├── auth/                # login, logout, register, me, OTP reset
-│   │   ├── buyers/              # Buyer CRUD
-│   │   ├── delivery/
-│   │   │   ├── orders/          # GET deliverable orders (pending/confirmed/out_for_delivery)
-│   │   │   └── earnings/        # GET aggregated earnings; POST manual earning record
-│   │   ├── farmers/
-│   │   │   ├── dashboard/orders/# GET buyer orders filtered by farmerId
-│   │   │   └── orders/[id]/     # GET + PATCH single farmer-view order detail
-│   │   ├── helper/by-profile/   # Resolve userId → farmerId (Mongoose _id)
-│   │   ├── orders/[id]/         # GET + PATCH buyer order; creates DeliveryEarning on deliver
-│   │   ├── products/            # Product CRUD
-│   │   ├── user/                # Profile update + photo upload
-│   │   └── utils/               # responses, verifyToken helpers
+│   │   ├── admin/                 # stats, farmers/[id], orders/[id], products, users/[id]
+│   │   ├── analytics/             # admin + farmer aggregations
+│   │   ├── auth/                  # login, logout, register, me, OTP reset
+│   │   ├── badges/                # gamification badge award + list
+│   │   ├── buyers/                # buyer CRUD
+│   │   ├── community/             # group CRUD + join + group orders
+│   │   ├── delivery/              # orders (deliverable list) + earnings
+│   │   ├── farmers/               # CRUD, dashboard/orders, orders/[id], kyc, adapted
+│   │   ├── harvests/              # CRUD + [id]/prebook + [id]/prebookings
+│   │   ├── helper/by-profile/     # resolve userId → farmerId
+│   │   ├── orders/                # buyer orders [id] + [id]/split (SubOrders)
+│   │   ├── prebookings/           # buyer pre-bookings list (?buyerId=)
+│   │   ├── products/              # product CRUD
+│   │   ├── referral/              # referral stats, record, reward
+│   │   ├── subscription/          # FR3SH Plus
+│   │   ├── user/                  # profile update + photo upload
+│   │   ├── wallet/                # balance, debit, credit, transactions
+│   │   └── utils/                 # responses(), verifyToken()
 │   ├── cart/
-│   ├── delivery/
-│   │   ├── page.tsx             # Delivery dashboard — filter pills, stat cards, quick buttons
-│   │   ├── [id]/page.tsx        # Delivery order detail — tap-to-call, COD banner, actions
-│   │   └── earnings/page.tsx    # Earnings — lifetime total, bar chart, delivery history
+│   ├── community/                 # group list + new + [id]
+│   ├── delivery/                  # dashboard + [id] + earnings
 │   ├── farmers/
-│   │   ├── orders/
-│   │   │   ├── page.tsx         # Farmer order list (buyer orders for this farmer)
-│   │   │   └── [id]/page.tsx    # Order detail + per-item management + earnings summary
-│   │   └── dashboard/page.tsx
-│   ├── fpos/                    # FPO listing + detail
-│   ├── orders/                  # Buyer order history, voice capture, farmerOrders form
-│   ├── products/                # Product pages (list, detail, create, edit)
-│   ├── profile/                 # User profile (avatar upload, role-based quick links)
+│   │   ├── analytics/             # farmer analytics dashboard
+│   │   ├── edit/[id]/             # edit profile (redesigned with design tokens)
+│   │   ├── harvests/              # farmer harvest dashboard + new + [id]
+│   │   ├── kyc/                   # KYC submission
+│   │   └── orders/                # buyer orders list + [id] detail
+│   ├── fpos/
+│   ├── frsh-plus/                 # subscription page
+│   ├── harvests/                  # public marketplace + [id] detail
+│   ├── orders/                    # buyer orders + voice + farmerOrders
+│   ├── products/                  # list + [id] + [id]/edit + create
+│   ├── profile/
+│   │   ├── badges/                # gamification badges
+│   │   └── prebookings/           # buyer pre-bookings
+│   ├── referral/
 │   ├── shop/
-│   └── page.tsx                 # Homepage
+│   ├── wallet/
+│   ├── globals.css                # design tokens + Tailwind base
+│   ├── layout.tsx                 # root layout + providers
+│   └── page.tsx                   # homepage
 │
 └── shared/
     ├── components/
-    │   ├── mainTemplate.tsx     # App shell
-    │   ├── molecules/           # FarmerCard, ProductGridClient, etc.
-    │   └── templates/           # navbar, bottomNav, productCard, productDetail
+    │   ├── layouts/
+    │   │   └── AdminSidebarLayout.tsx  # fixed sidebar + mobile hamburger, active route via usePathname
+    │   ├── mainTemplate.tsx
+    │   ├── molecules/             # FarmerCard, ProductGridClient, etc.
+    │   └── templates/
+    │       ├── navbar.tsx         # desktop nav (Harvests+Community in primary pills, role-aware More dropdown)
+    │       └── bottomNav.tsx      # mobile nav (Harvests as dedicated tab, role-aware More popover)
     ├── context/
-    │   ├── UserContext.tsx      # Global auth state (useUser hook)
-    │   └── CartContext.tsx      # Global cart state (useCart hook)
-    ├── data/                    # Static seed/mock data
+    │   ├── UserContext.tsx        # useUser() → { user, login, logout, loading }
+    │   └── CartContext.tsx        # useCart() → { cart, addToCart, removeOne, clearCart, cartCount, subtotal }
+    ├── data/                      # static seed/mock data, categoriesList
     ├── hooks/
-    │   └── useSpeechToText.tsx  # Browser Web Speech API hook (lang: en-IN)
+    │   └── useSpeechToText.tsx    # Web Speech API hook (lang: en-IN)
     ├── interfaces/mongodb/
-    │   ├── delivery/
-    │   │   └── deliveryEarning.ts  # DeliveryEarning TypeScript interface
-    │   ├── orders/
-    │   │   ├── buyerOrders.tsx     # Order + OrderItem (incl. delivery person fields)
-    │   │   └── farmerOrders.tsx
-    │   └── ...
+    │   ├── community/             # CommunityGroup, GroupOrder
+    │   ├── delivery/              # DeliveryEarning
+    │   ├── gamification/          # BadgeId, BADGE_DEFINITIONS (8 badges)
+    │   ├── harvests/              # UpcomingHarvest, HarvestStatus, PreBook, PreBookStatus
+    │   ├── orders/                # Order, FarmerOrder, SubOrder
+    │   └── wallet/                # Wallet, WalletTransaction, WalletTransactionType
     ├── language/
-    │   └── telugu.tsx           # Telugu-language UI string constants
+    │   └── telugu.tsx             # Telugu-language UI string constants
     ├── lib/
-    │   ├── db/mongo.tsx         # MongoDB connection (mongoDB() function)
-    │   ├── supabase/client.tsx  # Supabase client singleton
-    │   └── utils.tsx            # cx() className combiner
+    │   ├── db/mongo.tsx           # mongoDB() connection singleton
+    │   ├── supabase/client.tsx    # Supabase client singleton
+    │   └── utils.tsx              # cx() className combiner
     └── models/mongodb/
-        ├── delivery/
-        │   └── deliveryEarning.ts  # DeliveryEarning Mongoose model
-        ├── orders/
-        │   ├── buyerOrders.tsx     # OrderModel (with delivery fields)
-        │   └── farmerOrders.tsx
-        └── ...
+        ├── community/             # CommunityGroupModel, GroupOrderModel
+        ├── delivery/              # DeliveryEarningModel
+        ├── gamification/          # UserBadgeModel
+        ├── harvests/              # HarvestModel, PreBookModel
+        ├── orders/                # OrderModel, FarmerOrderModel, SubOrderModel
+        └── wallet/                # WalletModel, WalletTransactionModel
 ```
 
 ---
@@ -106,26 +130,10 @@ farmers-republic/
 
 All colors are defined as semantic tokens in `app/globals.css`. **Never use raw Tailwind palette classes** (`bg-green-600`, `text-stone-500`, etc.) — always use a named token.
 
-### How tokens work in Tailwind v4
+### Token definitions
 
 ```css
-/* app/globals.css */
-
-:root {
-  --background: #f8faf5;
-  --foreground: #1c1917;
-}
-
-@theme inline {
-  /* Maps CSS vars → Tailwind utilities. Does NOT emit custom properties.
-     Use for :root / dark-mode vars that already exist. */
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
-
 @theme {
-  /* Emits both CSS custom properties AND Tailwind utilities.
-     Required for opacity modifiers like bg-primary/20 to work via color-mix(). */
   --color-primary: #065f46;
   --color-primary-hover: #022c22;
   --color-primary-foreground: #ffffff;
@@ -147,137 +155,101 @@ All colors are defined as semantic tokens in `app/globals.css`. **Never use raw 
 }
 ```
 
-### Full token reference
+### Token reference
 
 | Token | Usage |
 |---|---|
-| `primary` | Main brand green — buttons, active states, links |
-| `primary-hover` | Darker green for hover state |
-| `primary-foreground` | Text on primary backgrounds (white) |
-| `secondary` | Lime accent — badges, highlights |
-| `secondary-subtle` | Pale lime — icon backgrounds, tag chips |
-| `secondary-foreground` | Text on secondary |
-| `surface` | Off-white green tint — section/page backgrounds |
-| `surface-card` | Pure white — cards, modals |
-| `foreground-heading` | Near-black — page/card titles |
-| `foreground-body` | Warm dark grey — body text |
-| `foreground-muted` | Medium grey — labels, captions, placeholders |
-| `brand` | Mid green — inline icons next to text |
-| `border` | Soft green — card and input borders |
-| `border-focus` | Emerald — input focus ring |
-| `status-warning` / `status-warning-surface` | Amber — pending, COD alerts |
-| `status-info` / `status-info-surface` | Blue — informational / confirmed |
-| `status-success` / `status-success-surface` | Green — delivered, paid |
-| `status-danger` / `status-danger-surface` | Red — error, cancelled, destructive |
+| `primary` / `primary-foreground` | Main brand green buttons, active states |
+| `secondary` / `secondary-subtle` | Lime accent badges, tag chips, icon backgrounds |
+| `surface` | Page / section backgrounds |
+| `surface-card` | Card / modal backgrounds (white) |
+| `foreground-heading` | Headings and titles |
+| `foreground-muted` | Labels, captions, placeholders |
+| `brand` | Inline icon colour next to text |
+| `border` | Card and input borders |
+| `status-warning` / `-surface` | Pending, COD alerts |
+| `status-info` / `-surface` | Confirmed, informational |
+| `status-success` / `-surface` | Delivered, paid, verified |
+| `status-danger` / `-surface` | Cancelled, error, rejected |
 
 ### Standard class patterns
 
 ```ts
 // Input / textarea / select
-const INPUT_CLASS =
-  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm " +
-  "text-foreground-heading placeholder:text-foreground-muted outline-none transition " +
-  "focus:border-primary focus:ring-4 focus:ring-primary/10";
-
-// Label
-const LABEL_CLASS = "block text-xs font-semibold uppercase tracking-wide text-foreground-muted";
-
-// Primary CTA button
-"rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover"
-
-// Secondary / outline button
-"rounded-full border border-secondary/40 bg-secondary-subtle text-sm font-semibold text-secondary-foreground"
+const inputCls =
+  "w-full rounded-xl border border-border bg-surface px-4 py-2.5 text-sm " +
+  "text-foreground-heading placeholder:text-foreground-muted " +
+  "focus:outline-none focus:ring-2 focus:ring-primary/30 transition";
 
 // Card wrapper
 "rounded-2xl border border-border bg-surface-card p-5"
 
-// Section header with icon
-<div className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface">
-  <Icon className="h-3.5 w-3.5 text-brand" />
-</div>
-```
+// Primary CTA
+"rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 transition"
 
-### Status badge pattern (used across all pages consistently)
-```ts
-function statusBadgeClass(s: string) {
-  switch (s) {
-    case "pending":          return "bg-status-warning-surface text-status-warning border-status-warning/30";
-    case "confirmed":        return "bg-status-info-surface text-status-info border-status-info/30";
-    case "out_for_delivery": return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
-    case "delivered":        return "bg-status-success-surface text-status-success border-status-success/30";
-    case "cancelled":        return "bg-status-danger-surface text-status-danger border-status-danger/30";
-    default:                 return "bg-surface text-foreground-muted border-border";
-  }
-}
-```
+// Status badge (pattern used everywhere)
+const STATUS_COLORS: Record<string, string> = {
+  pending:   "bg-status-warning-surface text-status-warning",
+  confirmed: "bg-status-info-surface text-status-info",
+  open:      "bg-status-success-surface text-status-success",
+  delivered: "bg-status-success-surface text-status-success",
+  cancelled: "bg-status-danger-surface text-status-danger",
+};
 
-### cx utility
+// Sticky save bar (edit pages pattern)
+"fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-surface-card/95 px-4 py-4 backdrop-blur-sm"
 
-```ts
-// shared/lib/utils.tsx
-export const cx = (...args: Array<string | false | null | undefined>) =>
-  args.filter(Boolean).join(" ");
+// cx utility
+import { cx } from "@/shared/lib/utils";
+cx("base", isActive && "active", hasError && "error")
 ```
 
 ---
 
 ## Database Models
 
-All models live in `shared/models/mongodb/`. Each model uses `mongoose.models.X || mongoose.model(...)` to avoid re-registration in Next.js dev mode.
+All models use `mongoose.models.X || mongoose.model(...)` to avoid re-registration in Next.js dev mode.
 
-### Model inventory
+**Critical**: Never use `new Schema<TypeName>()` generic when the TypeScript interface has `string` fields that map to `Schema.Types.ObjectId` in the schema — this causes TS2322 errors. Use `new Schema()` without the generic.
 
-| Model | File | Collection | Key fields |
-|---|---|---|---|
-| `UserModel` | `user.tsx` | users | `type` (role enum), `email` (unique), `passwordHash` |
-| `FarmerModel` | `farmer.tsx` | farmers | `profileId` (→ User._id), `name`, `district`, `state`, KYC fields |
-| `BuyerModel` | `buyer.tsx` | buyers | `profileId` (→ User._id), `name`, `address` |
-| `ProductModel` | `products/products.tsx` | products | `farmerId`, `name`, `price`, `mrp`, `stockQty`, `status`, `category` |
-| `OrderModel` | `orders/buyerOrders.tsx` | orders | `buyerId`, `items[]`, `subtotal`, `total`, `deliveryPersonId`, `deliveryEarning`, `deliveredAt` |
-| `FarmerOrderModel` | `orders/farmerOrders.tsx` | farmerorders | `farmerId`, `customerName/Phone/Address`, `items[]`, `source` |
-| `DeliveryEarningModel` | `delivery/deliveryEarning.ts` | deliveryearnings | `deliveryPersonId`, `orderId` (unique), `earning`, `deliveredAt` |
-| `AdaptModel` | `adapt.tsx` | adapts | `buyerId`, `farmerId` |
-| `ResetTokenModel` | `resetToken.tsx` | resettokens | OTP reset tokens |
+### Full model inventory
 
-### User Roles (`IUser.type`)
+| Model | File | Key fields |
+|---|---|---|
+| `UserModel` | `user.tsx` | `type` (role enum), `email` (unique), `passwordHash`, `subscription` ("Free User" / "Premium User") |
+| `FarmerModel` | `farmer.tsx` | `profileId` (→ User._id), `name`, `district`, `kycStatus` ("pending"/"verified"/"rejected"), `verified` |
+| `BuyerModel` | `buyer.tsx` | `profileId` (→ User._id), `name`, `address` |
+| `ProductModel` | `products/products.tsx` | `farmerId`, `name`, `price`, `mrp`, `stockQty`, `status`, `category` |
+| `OrderModel` | `orders/buyerOrders.tsx` | `buyerId`, `items[]`, `subtotal`, `total`, `deliveryPersonId`, `deliveryEarning`, `deliveredAt` |
+| `FarmerOrderModel` | `orders/farmerOrders.tsx` | `farmerId`, `customerName/Phone/Address`, `items[]`, `source` |
+| `SubOrderModel` | `orders/subOrder.tsx` | `orderId`, `farmerId`, `farmerName`, `items[]`, `subtotal`, `status` |
+| `DeliveryEarningModel` | `delivery/deliveryEarning.ts` | `deliveryPersonId`, `orderId` (unique), `earning`, `deliveredAt` |
+| `HarvestModel` | `harvests/harvest.tsx` | `farmerId`, `farmerName`, `crop`, `expectedQty`, `unit`, `estimatedPrice`, `harvestDate`, `totalPreBooked`, `status` |
+| `PreBookModel` | `harvests/preBook.tsx` | `harvestId`, `farmerId`, `buyerId`, `buyerName`, `buyerPhone`, `qty`, `estimatedTotal`, `status` |
+| `CommunityGroupModel` | `community/communityGroup.tsx` | `name`, `type`, `location`, `pincode`, `joinCode` (unique), `adminUserId`, `members[]`, `memberCount` |
+| `GroupOrderModel` | `community/groupOrder.tsx` | `communityGroupId`, `title`, `items[]`, `deadline`, `status` |
+| `WalletModel` | `wallet/wallet.tsx` | `userId` (unique), `balance` (min 0) |
+| `WalletTransactionModel` | `wallet/walletTransaction.tsx` | `userId`, `type`, `amount`, `description`, `balanceAfter` |
+| `UserBadgeModel` | `gamification/userBadge.tsx` | `userId`, `badgeId` — compound unique index on `(userId, badgeId)` |
+| `AdaptModel` | `adapt.tsx` | `buyerId`, `farmerId` |
+| `ResetTokenModel` | `resetToken.tsx` | OTP reset tokens |
 
-Values are **always capitalised**. Never compare against lowercase.
+### Status flows
 
 ```
-"Farmer" | "Buyer" | "Logistics Provider" | "FPO" |
-"Manager" | "Admin" | "Owner" | "Supplier" | "Distributor" |
+Harvest:  draft → open → fully_booked → harvested | cancelled
+PreBook:  pending → confirmed → fulfilled | cancelled
+Order:    pending → confirmed → out_for_delivery → delivered | cancelled
+SubOrder: pending → confirmed → packed → picked_up → in_transit → out_for_delivery → delivered | cancelled
+GroupOrder: open → closed → submitted → delivered | cancelled
+```
+
+### User Roles (`user.type`) — always capitalised
+
+```
+"Farmer" | "Buyer" | "Logistics Provider" | "FPO" | "Admin" |
+"Manager" | "Owner" | "Supplier" | "Distributor" |
 "Agent" | "Retailer" | "Wholesaler" | "Banker"
-```
-
-### BuyerOrder — delivery tracking fields
-
-The `OrderModel` (`orders/buyerOrders.tsx`) stores delivery person info directly on the order document:
-
-```ts
-deliveryPersonId?:   string   // user._id of the delivery person
-deliveryPersonName?: string
-deliveryEarning?:    number   // amount earned for this delivery (min ₹30)
-deliveredAt?:        Date     // set automatically when status → "delivered"
-```
-
-### DeliveryEarning model
-
-A **dedicated collection** (`deliveryearnings`) with one document per delivered order. Enforced by a `unique` index on `orderId`.
-
-```ts
-type DeliveryEarning = {
-  deliveryPersonId: string;    // index
-  deliveryPersonName?: string;
-  orderId: string;             // unique — prevents double-recording
-  buyerName?: string;
-  orderTotal: number;
-  deliveryFee: number;
-  earning: number;             // deliveryFee > 0 ? deliveryFee : 30
-  paymentMode: string;
-  paymentStatus: string;
-  itemCount: number;
-  deliveredAt: Date;
-};
 ```
 
 ---
@@ -285,105 +257,144 @@ type DeliveryEarning = {
 ## User Roles & Workflows
 
 ### Farmer
-- Registers as `"Farmer"` via the login/register page.
-- Creates a Farmer profile (`/farmers/create`).
-- `farmerId` (Mongoose `_id` of Farmer document) ≠ `user.id` (auth User `_id`). Resolve via `GET /api/v1/helper/by-profile/[userId]`.
-- Views buyer orders at `/farmers/orders` (orders where `items.farmerId` matches).
-- Navigates to per-order detail at `/farmers/orders/[id]?farmerId=<mongooseId>`.
-- Can confirm, mark ready for pickup, mark delivered, set per-item fees, and toggle payment status.
-- Voice/phone orders are created at `/orders/farmerOrders`.
+- Registers as `"Farmer"`. Creates a Farmer profile at `/farmers/create`.
+- `farmerId` (Farmer document `_id`) ≠ `user.id` (User `_id`). Resolve via:
+  - `GET /api/v1/helper/by-profile/[userId]` — returns `{ farmerId }`
+  - `GET /api/v1/farmers?profileId=<user.id>` — returns `{ farmerId, farmer }`
+- Views buyer orders at `/farmers/orders`; detail at `/farmers/orders/[id]?farmerId=<mongooseId>`.
+- Announces harvests at `/farmers/harvests/new`; manages at `/farmers/harvests/[id]`.
+- Submits KYC at `/farmers/kyc`.
+- Views own analytics at `/farmers/analytics`.
 
 ### Buyer
-- Registers as `"Buyer"`.
-- Browses products at `/products` or `/shop`.
+- Registers as `"Buyer"`. Browses at `/shop` or `/products`.
 - Adds to cart via `useCart().addToCart({ id, name, price, image, qty, farmerId })`.
-- Checks out via `/cart`.
-- Views order history at `/orders/[buyerId]`.
+- Checks out via `/cart`. Views order history at `/orders/[buyerId]`.
+- Pre-books harvests at `/harvests/[id]`. Tracks pre-bookings at `/profile/prebookings`.
+- Can join community groups and participate in group orders.
 
 ### Delivery Person
-- Registers as `"Logistics Provider"` (displayed as "Delivery Person" in the UI).
-- Dashboard at `/delivery` — shows all deliverable orders (status: pending / confirmed / out_for_delivery).
-- Order detail at `/delivery/[id]` — tap-to-call buyer, see items, COD alert, action buttons.
-- Action flow: **Confirm** → **Pick up** (sets `deliveryPersonId` + `deliveryEarning` on order) → **Mark Delivered** (creates `DeliveryEarning` record).
-- Earnings at `/delivery/earnings` — queries the `DeliveryEarning` collection.
+- Registers as `"Logistics Provider"`.
+- Dashboard at `/delivery` — all deliverable orders (pending / confirmed / out_for_delivery).
+- Action flow: **Confirm** → **Pick up** (sets `deliveryPersonId` + `deliveryEarning`) → **Mark Delivered** (creates `DeliveryEarning` record).
+- Earnings at `/delivery/earnings`.
+
+### Admin
+- `user.type === "Admin"`. Guard: redirect to `/` if `user.type !== "Admin"`.
+- Accesses `/admin` (overview), `/admin/analytics` (BI), `/admin/farmers` (KYC review), `/admin/orders`, `/admin/products`, `/admin/users`.
+- KYC review: PATCH `kycStatus: "verified"` auto-sets `verified: true`; `"rejected"` sets `verified: false`.
 
 ### FPO
-- Registers as `"FPO"`.
 - Public profile at `/fpos/[id]` with stats, farmers, products, activity timeline.
 
 ---
 
-## Delivery Earning Flow (end-to-end)
+## Key Feature Flows
 
-This flow ensures earnings are recorded reliably even if the driver skips the explicit pickup step:
-
-```
-1. Driver taps "Mark delivered" (or "Pick up" → "Mark delivered") on /delivery/[id]
-   ↓
-2. UI sends: PATCH /api/v1/orders/[id]
-   { status: "delivered", deliveryPersonId: user.id,
-     deliveryPersonName: user.name, deliveryEarning: fee > 0 ? fee : 30 }
-   ↓
-3. PATCH route:
-   a. Updates Order document: status = "delivered", deliveredAt = new Date()
-   b. Resolves deliveryPersonId from request body OR from order.deliveryPersonId
-   c. DeliveryEarningModel.findOneAndUpdate({ orderId }, { ... }, { upsert: true })
-   ↓
-4. /delivery/earnings fetches GET /api/v1/delivery/earnings?deliveryPersonId=<id>
-   ↓ queries DeliveryEarning collection directly (not orders collection)
-5. Returns: totalEarnings, todayEarnings, weekEarnings, monthEarnings,
-            totalDeliveries, daily[] (30 days for chart), orders[] (history)
-```
-
-Earning amount = `deliveryFee > 0 ? deliveryFee : 30` (minimum ₹30).
-
----
-
-## Farmer Orders Flow (end-to-end)
+### Harvest Pre-booking (atomic)
 
 ```
-1. Farmer lands on /farmers/orders
-   ↓
-2. Page fetches GET /api/v1/helper/by-profile/[user.id]
-   → resolves farmerId (Mongoose _id of Farmer document)
-   ↓
-3. Page fetches GET /api/v1/farmers/dashboard/orders?farmerId=<id>
-   → returns BuyerOrders where items[].farmerId === farmerId
-   → per-order data includes only this farmer's items and subtotals
-   ↓
-4. Farmer clicks an order → /farmers/orders/[orderId]?farmerId=<id>
-   ↓
-5. Detail page fetches GET /api/v1/farmers/orders/[orderId]?farmerId=<id>
-6. Farmer can: update order status, per-item fees, payment status
+1. Farmer: POST /api/v1/harvests → status: "draft" then "open"
+2. Buyer: GET /api/v1/harvests?status=open → sees marketplace at /harvests
+3. Buyer: POST /api/v1/harvests/[id]/prebook
+   → validates status === "open", remainingQty >= qty
+   → findOneAndUpdate({ _id, status: "open" }, { $inc: { totalPreBooked: qty } })
+   → auto-sets fully_booked when totalPreBooked >= expectedQty
+4. Farmer: GET /api/v1/harvests/[id]/prebookings → manage at /farmers/harvests/[id]
+5. Buyer: GET /api/v1/prebookings?buyerId=<id> → view at /profile/prebookings
 ```
 
-**Key**: `farmerId` in the URL query string is the Farmer document `_id`, not the `user.id`.
+Countdown: `Math.ceil((new Date(harvestDate).getTime() - Date.now()) / 86400000)`
+
+### Delivery Earning (end-to-end)
+
+```
+1. Driver: PATCH /api/v1/orders/[id] { status:"delivered", deliveryPersonId, deliveryEarning }
+2. Route: updates Order document status + deliveredAt
+3. Route: DeliveryEarningModel.findOneAndUpdate({ orderId }, {...}, { upsert: true })
+4. /delivery/earnings: GET /api/v1/delivery/earnings?deliveryPersonId=<id>
+   → queries DeliveryEarning collection (NOT orders)
+   → returns totalEarnings, daily[], orders[]
+```
+
+Earning = `deliveryFee > 0 ? deliveryFee : 30`
+
+### Farmer Orders (end-to-end)
+
+```
+1. GET /api/v1/helper/by-profile/[user.id] → farmerId (Mongoose _id)
+2. GET /api/v1/farmers/dashboard/orders?farmerId=<id>
+   → BuyerOrders where items[].farmerId === farmerId
+3. Click → /farmers/orders/[orderId]?farmerId=<id>
+   → GET /api/v1/farmers/orders/[orderId]?farmerId=<id>
+```
+
+**Key**: `farmerId` in URL is Farmer document `_id`, not `user.id`.
+
+### Wallet (atomic debit)
+
+```ts
+// Guards against negative balance — returns null if insufficient funds
+WalletModel.findOneAndUpdate(
+  { userId, balance: { $gte: amount } },
+  { $inc: { balance: -amount } },
+  { new: true }
+)
+// If result is null → insufficient funds → return 400
+```
+
+### Community Group Order
+
+```
+1. POST /api/v1/community → create group, joinCode generated
+2. POST /api/v1/community/[id]/join { joinCode } → member added
+3. POST /api/v1/community/[id]/orders → create group order
+4. POST /api/v1/orders/[id]/split → split fulfilled order into SubOrders per farmerId
+```
+
+### KYC Review (Admin)
+
+```
+1. Farmer submits at /farmers/kyc → PATCH /api/v1/farmers/kyc
+2. Admin views at /admin/farmers → PATCH /api/v1/admin/farmers/[id] { kycStatus: "verified" }
+3. Route auto-syncs: kycStatus "verified" → verified: true; "rejected" → verified: false
+```
 
 ---
 
 ## Authentication
 
 - **Registration**: `POST /api/v1/auth/register` — hashes password, stores User document.
-- **Login**: `POST /api/v1/auth/login` — validates, issues JWT in `httpOnly` cookie named `token` (7-day expiry).
-- **Session rehydration**: `UserContext` checks `localStorage` first, then `GET /api/v1/auth/me`.
+- **Login**: `POST /api/v1/auth/login` — issues JWT in `httpOnly` cookie `token` (7-day expiry).
+- **Session**: `UserContext` checks `localStorage` first, then `GET /api/v1/auth/me`.
 - **Logout**: `POST /api/v1/auth/logout` + `UserContext.logout()`.
 - **Password reset**: `send-reset-otp` → `verify-reset-otp` → `reset-password`.
-- **Token verification in API routes**: `import { verifyToken } from "@/app/api/v1/utils/verifyToken"`.
+- **Token verification**: `import { verifyToken } from "@/app/api/v1/utils/verifyToken"`.
+
+---
+
+## Navigation Architecture
+
+### Desktop (`shared/components/templates/navbar.tsx`)
+- Primary nav pills: Farmers, FPOs, Shop, **Harvests**, **Community** (active state via `pathname`)
+- "More" dropdown — role-aware sections with icon + description per item:
+  - **Buyers**: My Pre-bookings → `/profile/prebookings`, Referral → `/referral`
+  - **Farmers**: My Harvests → `/farmers/harvests`, Analytics → `/analytics/farmer`, Announce Harvest, Add Product
+  - **Admins**: Admin Panel → `/admin`, Analytics → `/admin/analytics`
+
+### Mobile (`shared/components/templates/bottomNav.tsx`)
+- Bottom bar: Home, Shop, **Harvests** (dedicated tab), More, Cart, Profile
+- "More" popover: scrollable, 4-column icon grid, role-aware sections:
+  - Discover (all), My Account (buyers), Farmer Tools (farmers), Admin (admins)
 
 ---
 
 ## API Conventions
 
-### Base path
-All routes are under `/api/v1/`.
-
 ### Standard response shape
 ```ts
-// Success
-{ success: true, message: string, data: T }
-
-// Failure
-{ success: false, message: string, error?: string }  // error field only in development
+{ success: true, message: string, data: T }       // success
+{ success: false, message: string, error?: string } // failure
 ```
 
 ### Route file pattern
@@ -393,7 +404,7 @@ import { success, failure } from "@/app/api/v1/utils/responses";
 
 export async function GET(req: NextRequest) {
   await mongoDB();  // always first
-  // ... validate, query, return success/failure
+  // validate → query → return
 }
 ```
 
@@ -401,45 +412,90 @@ export async function GET(req: NextRequest) {
 
 ## Client-Side State
 
-### UserContext (`shared/context/UserContext.tsx`)
-- Hook: `useUser()` → `{ user, login, logout, loading }`
-- `user` shape: `{ id, name, email, phoneNumber, type, photo }`
-- Persisted in `localStorage` under key `"user"`.
+### UserContext
+- `useUser()` → `{ user, login, logout, loading }`
+- `user`: `{ id, name, email, phoneNumber, type, photo }`
+- Persisted in `localStorage` under `"user"`.
 
-### CartContext (`shared/context/CartContext.tsx`)
-- Hook: `useCart()` → `{ cart, addToCart, removeOne, clearCart, cartCount, subtotal, ready }`
-- Cart is `Record<productId, CartItem>` persisted in `localStorage` under key `"fr_cart"`.
-- `CartItem`: `{ id, name, price, image?, qty, farmerId? }`
-- `addToCart(item)` — increments qty if item already in cart (ignores `item.qty`).
-
----
-
-## Profile Page — Role-based Quick Links
-
-`/profile` shows different quick links depending on `user.type`:
-
-| Role | Quick links shown |
-|---|---|
-| `"Farmer"` | Farmer Dashboard, My Orders (`/farmers/orders`), Edit/Create Farmer Profile |
-| `"Buyer"` | My Orders (`/orders/[buyerId]`), Edit/Create Buyer Profile |
-| `"Logistics Provider"` | My Deliveries (`/delivery`), My Earnings (`/delivery/earnings`) |
+### CartContext
+- `useCart()` → `{ cart, addToCart, removeOne, clearCart, cartCount, subtotal, ready }`
+- `addToCart({ id, name, price, image, qty, farmerId })` — increments qty if already in cart.
+- Persisted in `localStorage` under `"fr_cart"`.
 
 ---
 
-## Voice Orders Feature
+## Next.js 16 Critical Patterns
 
-Farmers can capture orders by speaking. The flow:
-1. `useSpeechToText` hook (`shared/hooks/useSpeechToText.tsx`) — browser Web Speech API, language `en-IN`.
-2. Voice order creation UI at `app/orders/farmerOrders/page.tsx`.
-3. Saved to `FarmerOrderModel` with `source: "voice"`.
+### params is a Promise — must unwrap
+
+```ts
+// Client component
+export default function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = React.use(params);  // React.use() in client components
+}
+
+// Server component / page
+export default async function Page({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+}
+
+// API route handler
+export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  const { id } = await context.params;
+}
+```
+
+### Schema generic causes TS2322
+
+When a TypeScript interface uses `string` for ID fields but the Mongoose schema uses `Schema.Types.ObjectId`, the generic causes TS2322:
+
+```ts
+// WRONG
+new Schema<MyType>({ farmerId: { type: Schema.Types.ObjectId } })
+
+// CORRECT — remove the generic
+new Schema({ farmerId: { type: Schema.Types.ObjectId } })
+```
+
+Affected models pattern: any model that has ObjectId fields where the interface declares `string`.
 
 ---
 
-## File Storage (Supabase)
+## Conventions & Patterns
 
-- **Avatars**: bucket `avatars`, uploaded from `/profile` via `PATCH /api/v1/user/photo`.
-- **Product images**: bucket `product-images`, referenced by public URL stored in MongoDB.
-- Client singleton: `shared/lib/supabase/client.tsx`.
+1. **All shared code in `shared/`** — never put reusable logic inside `app/`.
+2. **Every API route calls `await mongoDB()` first** before any DB operation.
+3. **Always use `success()` / `failure()` helpers** from `@/app/api/v1/utils/responses`.
+4. **Models use singleton pattern**: `mongoose.models.X || mongoose.model(...)`.
+5. **`"use client"` at top** for all client components; server components are default.
+6. **`user.type` is capitalised** — `"Farmer"` not `"farmer"`, `"Logistics Provider"` not `"logistics provider"`, `"Admin"` not `"admin"`.
+7. **farmerId ≠ user.id**: Farmer document `_id` is separate from auth User `_id`. Resolve via `GET /api/v1/farmers?profileId=<user.id>`.
+8. **Never use raw palette classes** in app pages. All colors via design tokens. Navbar/bottomNav uses emerald/stone classes (legacy, not design tokens) — do not try to change these.
+9. **cx() from `@/shared/lib/utils`** for all conditional classNames.
+10. **All icons from lucide-react** — no inline SVGs, no other icon libraries.
+11. **Atomic MongoDB for concurrency**: use `findOneAndUpdate` with filter conditions — e.g., harvest prebook uses `{ _id, status: "open" }`, wallet debit uses `{ userId, balance: { $gte: amount } }`.
+12. **Sticky save bar pattern** for all edit pages — `fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-surface-card/95 backdrop-blur-sm`.
+13. **Loading skeleton with `animate-pulse`** — always show a skeleton while fetching, never a spinner alone.
+14. **BuyerOrders and FarmerOrders are separate collections** — never conflate schemas or queries.
+15. **SubOrders are children of BuyerOrders** — created by splitting a BuyerOrder per `farmerId` via `POST /api/v1/orders/[id]/split`.
+
+---
+
+## Gamification — Badge IDs
+
+```ts
+type BadgeId =
+  | "first_order"        // placed first order
+  | "five_orders"        // placed 5 orders
+  | "loyal_buyer"        // 10+ orders
+  | "big_spender"        // ₹10,000+ total spend
+  | "early_adopter"      // registered in first cohort
+  | "referral_champion"  // referred 3+ users
+  | "harvest_explorer"   // pre-booked a harvest
+  | "community_member";  // joined a community group
+```
+
+Award via `POST /api/v1/badges { userId, badgeId }` — idempotent (compound unique index on userId+badgeId).
 
 ---
 
@@ -466,69 +522,30 @@ Farmers can capture orders by speaking. The flow:
 
 ```
 User (auth identity)
- ├─ Farmer  (profileId → User._id)   ← user.type === "Farmer"
- ├─ Buyer   (profileId → User._id)   ← user.type === "Buyer"
- ├─ Delivery Person                  ← user.type === "Logistics Provider" (no separate profile doc)
- ├─ FPO                              ← user.type === "FPO"
- └─ Adapt   (buyerId + farmerId)     ← Buyer "follows" a Farmer
+ ├─ Farmer      (profileId → User._id)     user.type === "Farmer"
+ ├─ Buyer       (profileId → User._id)     user.type === "Buyer"
+ ├─ Delivery    (no profile doc)           user.type === "Logistics Provider"
+ ├─ FPO                                    user.type === "FPO"
+ ├─ Admin                                  user.type === "Admin"
+ ├─ Wallet      (userId → User._id, 1:1)
+ ├─ UserBadge[] (userId → User._id)
+ └─ Adapt[]     (buyerId + farmerId)       Buyer "follows" a Farmer
 
 Farmer
- └─ Product (farmerId → Farmer._id)
+ ├─ Product[]   (farmerId → Farmer._id)
+ └─ Harvest[]   (farmerId → Farmer._id)
 
 Buyer
- └─ BuyerOrder (buyerId, items[]{productId, farmerId, price, qty, ...})
-
-Delivery Person
- └─ DeliveryEarning (deliveryPersonId → user.id, orderId unique)
+ ├─ BuyerOrder  (buyerId, items[]{productId, farmerId, price, qty})
+ └─ PreBook[]   (buyerId → User._id, optional)
 
 BuyerOrder
- └─ items[].farmerId → Farmer._id  (used to filter farmer's order dashboard)
+ ├─ SubOrder[]  (orderId → Order._id, one per farmer)
+ └─ DeliveryEarning (orderId unique)
+
+Harvest
+ └─ PreBook[]   (harvestId → Harvest._id)
+
+CommunityGroup
+ └─ GroupOrder[] (communityGroupId → CommunityGroup._id)
 ```
-
-BuyerOrders and FarmerOrders are **separate collections with different schemas** — do not conflate.
-
----
-
-## Next.js 16 Breaking Changes
-
-### `params` is a Promise in server pages and route handlers
-
-```ts
-// WRONG — params.id is undefined, causes silent 404
-export default async function Page({ params }: { params: { id: string } }) {
-  const id = params.id;
-}
-
-// CORRECT
-export default async function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-}
-
-// In API route handlers, use Promise.resolve() for compatibility:
-type Context = { params: { id: string } | Promise<{ id: string }> };
-export async function GET(req: NextRequest, ctx: Context) {
-  const { id } = await Promise.resolve(ctx.params);
-}
-```
-
-### React 19: `FormEvent` is deprecated
-
-Use `React.SyntheticEvent` or native DOM event types. Avoid `React.FormEvent<HTMLFormElement>`.
-
----
-
-## Conventions & Patterns to Follow
-
-1. **All shared code goes in `shared/`** — never put reusable logic inside `app/`.
-2. **Each API route calls `await mongoDB()` first** before any DB operation.
-3. **Always use `success()` / `failure()` helpers** for API responses.
-4. **Models use the singleton pattern**: `mongoose.models.X || mongoose.model(...)`.
-5. **Client components** must have `"use client"` at top; server components are default.
-6. **`user.type` is capitalised** — `"Farmer"` not `"farmer"`, `"Logistics Provider"` not `"logistics provider"`.
-7. **Farmer ID vs User ID**: `user.id` is the auth User `_id`. A Farmer's Mongoose `_id` is separate — resolve via `GET /api/v1/helper/by-profile/[userId]`. Always pass `farmerId` in URL query strings when navigating to farmer order detail.
-8. **Delivery earning is created in the PATCH route** — the UI sends `deliveryPersonId` + `deliveryEarning` on both the pickup step AND the delivery step, so the route always has enough info to upsert the `DeliveryEarning` document.
-9. **All colors must use design tokens** — never use raw Tailwind palette classes. Add new tokens to `app/globals.css` under `@theme {}`.
-10. **Use `cx()` from `@/shared/lib/utils`** for conditional classNames.
-11. **All icons from `lucide-react`** — no inline SVGs, no other icon libraries.
-12. **Page layout standard** for detail pages: single column `max-w-2xl`, back link at top, content cards, action buttons at bottom (matches delivery and farmer order detail pages).
-13. **BuyerOrders and FarmerOrders are separate collections** — do not conflate schemas or queries.
