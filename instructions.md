@@ -22,7 +22,11 @@ Brand tagline: *"Pick fresh. Eat fresh."*
 | Database | MongoDB Atlas via Mongoose 8 |
 | File Storage | Supabase (avatars bucket, product-images bucket) |
 | Auth | JWT (httpOnly cookies) + bcryptjs |
-| Email | Brevo SMTP (primary) / Zoho SMTP (fallback) via Nodemailer |
+| Email | Zoho SMTP (primary) → Brevo SMTP → Brevo HTTP API, via Nodemailer |
+| Redis (serverless) | `@upstash/redis` — HTTP REST client for rate limiting, OTP, caching |
+| Redis (workers) | `ioredis` — TCP client for BullMQ queues and workers |
+| Rate limiting | `@upstash/ratelimit` — sliding-window rate limiting on API routes |
+| Job queues | BullMQ — email, notification, and order lifecycle queues |
 | AI / Voice | OpenAI SDK (Whisper / GPT), browser Web Speech API |
 | Animation | Framer Motion |
 | Toast | react-hot-toast |
@@ -37,27 +41,27 @@ farmers-republic/
 ├── app/
 │   ├── (auth)/                    # login, forgot-password, reset-password
 │   ├── admin/                     # Admin panel — layout uses AdminSidebarLayout
-│   │   ├── layout.tsx             # wraps all /admin/* with sidebar
+│   │   ├── layout.tsx
 │   │   ├── page.tsx               # platform overview + stats
-│   │   ├── analytics/             # BI dashboard
+│   │   ├── analytics/
 │   │   ├── farmers/               # KYC review
-│   │   ├── orders/                # order management
-│   │   ├── products/              # product moderation
-│   │   └── users/                 # user management
+│   │   ├── orders/
+│   │   ├── products/
+│   │   └── users/
 │   ├── api/v1/
 │   │   ├── admin/                 # stats, farmers/[id], orders/[id], products, users/[id]
 │   │   ├── analytics/             # admin + farmer aggregations
-│   │   ├── auth/                  # login, logout, register, me, OTP reset
+│   │   ├── auth/                  # login, logout, register, me, send-reset-otp, verify-reset-otp
 │   │   ├── badges/                # gamification badge award + list
 │   │   ├── buyers/                # buyer CRUD
-│   │   ├── community/             # group CRUD + join + group orders
+│   │   ├── community/             # group CRUD + join + group orders + [orderId]
 │   │   ├── delivery/              # orders (deliverable list) + earnings
 │   │   ├── farmers/               # CRUD, dashboard/orders, orders/[id], kyc, adapted
 │   │   ├── harvests/              # CRUD + [id]/prebook + [id]/prebookings
 │   │   ├── helper/by-profile/     # resolve userId → farmerId
 │   │   ├── orders/                # buyer orders [id] + [id]/split (SubOrders)
 │   │   ├── prebookings/           # buyer pre-bookings list (?buyerId=)
-│   │   ├── products/              # product CRUD
+│   │   ├── products/              # product CRUD (GET cached, POST rate-limited)
 │   │   ├── referral/              # referral stats, record, reward
 │   │   ├── subscription/          # FR3SH Plus
 │   │   ├── user/                  # profile update + photo upload
@@ -67,19 +71,19 @@ farmers-republic/
 │   ├── community/                 # group list + new + [id]
 │   ├── delivery/                  # dashboard + [id] + earnings
 │   ├── farmers/
-│   │   ├── analytics/             # farmer analytics dashboard
-│   │   ├── edit/[id]/             # edit profile (redesigned with design tokens)
+│   │   ├── analytics/
+│   │   ├── edit/[id]/
 │   │   ├── harvests/              # farmer harvest dashboard + new + [id]
-│   │   ├── kyc/                   # KYC submission
-│   │   └── orders/                # buyer orders list + [id] detail
+│   │   ├── kyc/
+│   │   └── orders/
 │   ├── fpos/
-│   ├── frsh-plus/                 # subscription page
+│   ├── frsh-plus/
 │   ├── harvests/                  # public marketplace + [id] detail
 │   ├── orders/                    # buyer orders + voice + farmerOrders
 │   ├── products/                  # list + [id] + [id]/edit + create
 │   ├── profile/
-│   │   ├── badges/                # gamification badges
-│   │   └── prebookings/           # buyer pre-bookings
+│   │   ├── badges/
+│   │   └── prebookings/
 │   ├── referral/
 │   ├── shop/
 │   ├── wallet/
@@ -87,41 +91,58 @@ farmers-republic/
 │   ├── layout.tsx                 # root layout + providers
 │   └── page.tsx                   # homepage
 │
-└── shared/
-    ├── components/
-    │   ├── layouts/
-    │   │   └── AdminSidebarLayout.tsx  # fixed sidebar + mobile hamburger, active route via usePathname
-    │   ├── mainTemplate.tsx
-    │   ├── molecules/             # FarmerCard, ProductGridClient, etc.
-    │   └── templates/
-    │       ├── navbar.tsx         # desktop nav (Harvests+Community in primary pills, role-aware More dropdown)
-    │       └── bottomNav.tsx      # mobile nav (Harvests as dedicated tab, role-aware More popover)
-    ├── context/
-    │   ├── UserContext.tsx        # useUser() → { user, login, logout, loading }
-    │   └── CartContext.tsx        # useCart() → { cart, addToCart, removeOne, clearCart, cartCount, subtotal }
-    ├── data/                      # static seed/mock data, categoriesList
-    ├── hooks/
-    │   └── useSpeechToText.tsx    # Web Speech API hook (lang: en-IN)
-    ├── interfaces/mongodb/
-    │   ├── community/             # CommunityGroup, GroupOrder
-    │   ├── delivery/              # DeliveryEarning
-    │   ├── gamification/          # BadgeId, BADGE_DEFINITIONS (8 badges)
-    │   ├── harvests/              # UpcomingHarvest, HarvestStatus, PreBook, PreBookStatus
-    │   ├── orders/                # Order, FarmerOrder, SubOrder
-    │   └── wallet/                # Wallet, WalletTransaction, WalletTransactionType
-    ├── language/
-    │   └── telugu.tsx             # Telugu-language UI string constants
-    ├── lib/
-    │   ├── db/mongo.tsx           # mongoDB() connection singleton
-    │   ├── supabase/client.tsx    # Supabase client singleton
-    │   └── utils.tsx              # cx() className combiner
-    └── models/mongodb/
-        ├── community/             # CommunityGroupModel, GroupOrderModel
-        ├── delivery/              # DeliveryEarningModel
-        ├── gamification/          # UserBadgeModel
-        ├── harvests/              # HarvestModel, PreBookModel
-        ├── orders/                # OrderModel, FarmerOrderModel, SubOrderModel
-        └── wallet/                # WalletModel, WalletTransactionModel
+├── shared/
+│   ├── components/
+│   │   ├── layouts/
+│   │   │   └── AdminSidebarLayout.tsx
+│   │   ├── mainTemplate.tsx
+│   │   ├── molecules/             # FarmerCard, ProductGridClient, etc.
+│   │   └── templates/
+│   │       ├── navbar.tsx         # desktop nav: 4 primary pills + Browse mega-menu
+│   │       └── bottomNav.tsx      # mobile: bottom bar + More popover
+│   ├── context/
+│   │   ├── UserContext.tsx        # useUser() → { user, login, logout, loading }
+│   │   └── CartContext.tsx        # useCart() → { cart, addToCart, ... }
+│   ├── data/                      # static seed/mock data, categoriesList
+│   ├── hooks/
+│   │   └── useSpeechToText.tsx    # Web Speech API hook (lang: en-IN)
+│   ├── interfaces/mongodb/
+│   │   ├── community/
+│   │   ├── delivery/
+│   │   ├── gamification/          # BadgeId, BADGE_DEFINITIONS (8 badges)
+│   │   ├── harvests/
+│   │   ├── orders/
+│   │   └── wallet/
+│   ├── language/
+│   │   └── telugu.tsx
+│   ├── lib/
+│   │   ├── db/mongo.tsx           # mongoDB() connection singleton
+│   │   ├── supabase/client.tsx    # Supabase client singleton
+│   │   ├── redis.ts               # newBullConnection() → ioredis RedisOptions for BullMQ
+│   │   ├── upstashRedis.ts        # upstash — @upstash/redis HTTP client singleton
+│   │   ├── rateLimit.ts           # 5 limiters + checkRateLimit() + getIP()
+│   │   ├── otp.ts                 # storeOtp() / verifyOtp() backed by Redis
+│   │   ├── cache.ts               # CacheKeys, CacheTTL, invalidateProductListCache()
+│   │   ├── mailer.ts              # sendMail() — Zoho → Brevo SMTP → Brevo API
+│   │   └── utils.tsx              # cx() className combiner
+│   ├── models/mongodb/
+│   │   ├── community/
+│   │   ├── delivery/
+│   │   ├── gamification/
+│   │   ├── harvests/
+│   │   ├── orders/
+│   │   └── wallet/
+│   └── queues/
+│       ├── emailQueue.ts          # BullMQ "email" queue — producers import this
+│       ├── notificationQueue.ts   # BullMQ "notifications" queue
+│       └── orderQueue.ts          # BullMQ "orders" queue
+│
+├── workers/
+│   ├── emailWorker.ts             # npm run worker:email (concurrency 5)
+│   ├── notificationWorker.ts      # npm run worker:notification (concurrency 10)
+│   └── orderWorker.ts             # npm run worker:order (concurrency 5)
+│
+└── next.config.ts                 # serverExternalPackages: ["ioredis", "bullmq"]
 ```
 
 ---
@@ -212,35 +233,37 @@ All models use `mongoose.models.X || mongoose.model(...)` to avoid re-registrati
 
 **Critical**: Never use `new Schema<TypeName>()` generic when the TypeScript interface has `string` fields that map to `Schema.Types.ObjectId` in the schema — this causes TS2322 errors. Use `new Schema()` without the generic.
 
+**Critical**: Community model fields `adminUserId` and `memberSchema.userId` must be `{ type: String }`, not `Schema.Types.ObjectId`. Auth user IDs from `useUser()` are not guaranteed to be valid MongoDB ObjectId format.
+
 ### Full model inventory
 
 | Model | File | Key fields |
 |---|---|---|
-| `UserModel` | `user.tsx` | `type` (role enum), `email` (unique), `passwordHash`, `subscription` ("Free User" / "Premium User") |
-| `FarmerModel` | `farmer.tsx` | `profileId` (→ User._id), `name`, `district`, `kycStatus` ("pending"/"verified"/"rejected"), `verified` |
+| `UserModel` | `user.tsx` | `type` (role enum), `email` (unique), `passwordHash`, `subscription` |
+| `FarmerModel` | `farmer.tsx` | `profileId` (→ User._id), `name`, `district`, `kycStatus`, `verified` |
 | `BuyerModel` | `buyer.tsx` | `profileId` (→ User._id), `name`, `address` |
 | `ProductModel` | `products/products.tsx` | `farmerId`, `name`, `price`, `mrp`, `stockQty`, `status`, `category` |
 | `OrderModel` | `orders/buyerOrders.tsx` | `buyerId`, `items[]`, `subtotal`, `total`, `deliveryPersonId`, `deliveryEarning`, `deliveredAt` |
 | `FarmerOrderModel` | `orders/farmerOrders.tsx` | `farmerId`, `customerName/Phone/Address`, `items[]`, `source` |
 | `SubOrderModel` | `orders/subOrder.tsx` | `orderId`, `farmerId`, `farmerName`, `items[]`, `subtotal`, `status` |
 | `DeliveryEarningModel` | `delivery/deliveryEarning.ts` | `deliveryPersonId`, `orderId` (unique), `earning`, `deliveredAt` |
-| `HarvestModel` | `harvests/harvest.tsx` | `farmerId`, `farmerName`, `crop`, `expectedQty`, `unit`, `estimatedPrice`, `harvestDate`, `totalPreBooked`, `status` |
-| `PreBookModel` | `harvests/preBook.tsx` | `harvestId`, `farmerId`, `buyerId`, `buyerName`, `buyerPhone`, `qty`, `estimatedTotal`, `status` |
-| `CommunityGroupModel` | `community/communityGroup.tsx` | `name`, `type`, `location`, `pincode`, `joinCode` (unique), `adminUserId`, `members[]`, `memberCount` |
+| `HarvestModel` | `harvests/harvest.tsx` | `farmerId`, `farmerName`, `crop`, `expectedQty`, `totalPreBooked`, `harvestDate`, `status` |
+| `PreBookModel` | `harvests/preBook.tsx` | `harvestId`, `farmerId`, `buyerId`, `buyerPhone`, `qty`, `estimatedTotal`, `status` |
+| `CommunityGroupModel` | `community/communityGroup.tsx` | `name`, `type`, `location`, `joinCode` (unique), `adminUserId` (String), `members[].userId` (String) |
 | `GroupOrderModel` | `community/groupOrder.tsx` | `communityGroupId`, `title`, `items[]`, `deadline`, `status` |
 | `WalletModel` | `wallet/wallet.tsx` | `userId` (unique), `balance` (min 0) |
 | `WalletTransactionModel` | `wallet/walletTransaction.tsx` | `userId`, `type`, `amount`, `description`, `balanceAfter` |
-| `UserBadgeModel` | `gamification/userBadge.tsx` | `userId`, `badgeId` — compound unique index on `(userId, badgeId)` |
+| `UserBadgeModel` | `gamification/userBadge.tsx` | `userId`, `badgeId` — compound unique index |
 | `AdaptModel` | `adapt.tsx` | `buyerId`, `farmerId` |
-| `ResetTokenModel` | `resetToken.tsx` | OTP reset tokens |
+
+> `ResetTokenModel` is **no longer used** — OTP storage moved to Redis (`reset_otp:{email}` key, 10-min TTL, SHA-256 hash).
 
 ### Status flows
 
 ```
-Harvest:  draft → open → fully_booked → harvested | cancelled
-PreBook:  pending → confirmed → fulfilled | cancelled
-Order:    pending → confirmed → out_for_delivery → delivered | cancelled
-SubOrder: pending → confirmed → packed → picked_up → in_transit → out_for_delivery → delivered | cancelled
+Harvest:    draft → open → fully_booked → harvested | cancelled
+PreBook:    pending → confirmed → fulfilled | cancelled
+Order:      pending → confirmed → packed → picked_up → in_transit → out_for_delivery → delivered | cancelled
 GroupOrder: open → closed → submitted → delivered | cancelled
 ```
 
@@ -259,9 +282,9 @@ GroupOrder: open → closed → submitted → delivered | cancelled
 ### Farmer
 - Registers as `"Farmer"`. Creates a Farmer profile at `/farmers/create`.
 - `farmerId` (Farmer document `_id`) ≠ `user.id` (User `_id`). Resolve via:
-  - `GET /api/v1/helper/by-profile/[userId]` — returns `{ farmerId }`
-  - `GET /api/v1/farmers?profileId=<user.id>` — returns `{ farmerId, farmer }`
-- Views buyer orders at `/farmers/orders`; detail at `/farmers/orders/[id]?farmerId=<mongooseId>`.
+  - `GET /api/v1/helper/by-profile/[userId]` → `{ farmerId }`
+  - `GET /api/v1/farmers?profileId=<user.id>` → `{ farmerId, farmer }`
+- Views buyer orders at `/farmers/orders`; detail at `/farmers/orders/[id]?farmerId=<id>`.
 - Announces harvests at `/farmers/harvests/new`; manages at `/farmers/harvests/[id]`.
 - Submits KYC at `/farmers/kyc`.
 - Views own analytics at `/farmers/analytics`.
@@ -275,17 +298,14 @@ GroupOrder: open → closed → submitted → delivered | cancelled
 
 ### Delivery Person
 - Registers as `"Logistics Provider"`.
-- Dashboard at `/delivery` — all deliverable orders (pending / confirmed / out_for_delivery).
-- Action flow: **Confirm** → **Pick up** (sets `deliveryPersonId` + `deliveryEarning`) → **Mark Delivered** (creates `DeliveryEarning` record).
+- Dashboard at `/delivery` — all deliverable orders.
+- Action flow: **Confirm** → **Pick up** → **Mark Delivered** (creates `DeliveryEarning` record + queues jobs).
 - Earnings at `/delivery/earnings`.
 
 ### Admin
-- `user.type === "Admin"`. Guard: redirect to `/` if `user.type !== "Admin"`.
-- Accesses `/admin` (overview), `/admin/analytics` (BI), `/admin/farmers` (KYC review), `/admin/orders`, `/admin/products`, `/admin/users`.
+- `user.type === "Admin"`. Guard: redirect to `/` if not Admin.
+- Accesses `/admin` (overview), `/admin/analytics`, `/admin/farmers` (KYC review), `/admin/orders`, `/admin/products`, `/admin/users`.
 - KYC review: PATCH `kycStatus: "verified"` auto-sets `verified: true`; `"rejected"` sets `verified: false`.
-
-### FPO
-- Public profile at `/fpos/[id]` with stats, farmers, products, activity timeline.
 
 ---
 
@@ -294,38 +314,79 @@ GroupOrder: open → closed → submitted → delivered | cancelled
 ### Harvest Pre-booking (atomic)
 
 ```
-1. Farmer: POST /api/v1/harvests → status: "draft" then "open"
-2. Buyer: GET /api/v1/harvests?status=open → sees marketplace at /harvests
+1. Farmer: POST /api/v1/harvests → status: "open"
+2. Buyer: GET /api/v1/harvests?status=open → /harvests marketplace
 3. Buyer: POST /api/v1/harvests/[id]/prebook
    → validates status === "open", remainingQty >= qty
    → findOneAndUpdate({ _id, status: "open" }, { $inc: { totalPreBooked: qty } })
    → auto-sets fully_booked when totalPreBooked >= expectedQty
 4. Farmer: GET /api/v1/harvests/[id]/prebookings → manage at /farmers/harvests/[id]
-5. Buyer: GET /api/v1/prebookings?buyerId=<id> → view at /profile/prebookings
+5. Buyer: GET /api/v1/prebookings?buyerId=<id> → /profile/prebookings
 ```
 
 Countdown: `Math.ceil((new Date(harvestDate).getTime() - Date.now()) / 86400000)`
 
-### Delivery Earning (end-to-end)
+### Delivery Earning + Queue (end-to-end)
 
 ```
 1. Driver: PATCH /api/v1/orders/[id] { status:"delivered", deliveryPersonId, deliveryEarning }
-2. Route: updates Order document status + deliveredAt
+2. Route: updates Order status + deliveredAt
 3. Route: DeliveryEarningModel.findOneAndUpdate({ orderId }, {...}, { upsert: true })
-4. /delivery/earnings: GET /api/v1/delivery/earnings?deliveryPersonId=<id>
-   → queries DeliveryEarning collection (NOT orders)
-   → returns totalEarnings, daily[], orders[]
+4. Route: safeEnqueue → orderQueue.add("order.delivered", {...})
+5. Route: safeEnqueue → orderQueue.add("delivery.earning.created", {...})
+6. Route: safeEnqueue → emailQueue.add("deliveryConfirmation", {...})
+7. Route: safeEnqueue → notificationQueue.add("notify.buyer", {...})
+8. Workers process jobs asynchronously
+9. /delivery/earnings → GET /api/v1/delivery/earnings?deliveryPersonId=<id>
+   → queries DeliveryEarning collection, returns totalEarnings + history
 ```
 
-Earning = `deliveryFee > 0 ? deliveryFee : 30`
+Earning = `deliveryFee > 0 ? deliveryFee : 30` (minimum ₹30)
+
+### Password Reset — Redis OTP
+
+```
+1. POST /api/v1/auth/send-reset-otp (rate-limited: 3/10min/IP)
+   → generateOTP() → storeOtp(email, otp)  [SHA-256 hash in Redis, 10-min TTL]
+   → safeEnqueue(emailQueue.add("passwordResetOtp", {...}))
+   → fallback: sendMail() directly if queue unavailable
+2. User receives OTP via email (emailWorker sends via Zoho → Brevo → Brevo API)
+3. POST /api/v1/auth/verify-reset-otp
+   → verifyOtp(email, otp)  [checks hash, expiry, max 5 attempts]
+   → deletes both Redis keys on success → resets password
+```
+
+### Product Caching
+
+```
+GET /api/v1/products?category=X&page=2
+  → queryHash(params) → "products:list:{hash}"
+  → upstash.get(key)         if hit → return cached JSON (60 s TTL)
+  → MongoDB query            if miss → upstash.set(key, result, 60)
+
+POST/PATCH/DELETE /api/v1/products
+  → invalidateProductListCache()   # deletes all products:list:* keys
+  → upstash.del("products:detail:{id}")
+```
+
+### Community Group Order
+
+```
+1. POST /api/v1/community → create group, joinCode auto-generated
+2. POST /api/v1/community/[id]/join { joinCode } → member added
+3. POST /api/v1/community/[id]/orders → create group order
+4. PATCH /api/v1/community/[id]/orders/[orderId] → edit (admin only)
+5. DELETE /api/v1/community/[id]/orders/[orderId] → delete (admin only)
+6. POST /api/v1/orders/[id]/split → split fulfilled BuyerOrder into SubOrders per farmerId
+```
 
 ### Farmer Orders (end-to-end)
 
 ```
-1. GET /api/v1/helper/by-profile/[user.id] → farmerId (Mongoose _id)
+1. GET /api/v1/helper/by-profile/[user.id] → farmerId
 2. GET /api/v1/farmers/dashboard/orders?farmerId=<id>
    → BuyerOrders where items[].farmerId === farmerId
-3. Click → /farmers/orders/[orderId]?farmerId=<id>
+3. /farmers/orders/[orderId]?farmerId=<id>
    → GET /api/v1/farmers/orders/[orderId]?farmerId=<id>
 ```
 
@@ -334,58 +395,133 @@ Earning = `deliveryFee > 0 ? deliveryFee : 30`
 ### Wallet (atomic debit)
 
 ```ts
-// Guards against negative balance — returns null if insufficient funds
 WalletModel.findOneAndUpdate(
   { userId, balance: { $gte: amount } },
   { $inc: { balance: -amount } },
   { new: true }
 )
-// If result is null → insufficient funds → return 400
-```
-
-### Community Group Order
-
-```
-1. POST /api/v1/community → create group, joinCode generated
-2. POST /api/v1/community/[id]/join { joinCode } → member added
-3. POST /api/v1/community/[id]/orders → create group order
-4. POST /api/v1/orders/[id]/split → split fulfilled order into SubOrders per farmerId
-```
-
-### KYC Review (Admin)
-
-```
-1. Farmer submits at /farmers/kyc → PATCH /api/v1/farmers/kyc
-2. Admin views at /admin/farmers → PATCH /api/v1/admin/farmers/[id] { kycStatus: "verified" }
-3. Route auto-syncs: kycStatus "verified" → verified: true; "rejected" → verified: false
+// null result → insufficient funds → 400
 ```
 
 ---
 
 ## Authentication
 
-- **Registration**: `POST /api/v1/auth/register` — hashes password, stores User document.
-- **Login**: `POST /api/v1/auth/login` — issues JWT in `httpOnly` cookie `token` (7-day expiry).
+- **Registration**: `POST /api/v1/auth/register` (rate-limited: 3/min/IP) — hashes password, stores User document.
+- **Login**: `POST /api/v1/auth/login` (rate-limited: 5/min/IP) — issues JWT in `httpOnly` cookie `token` (7-day expiry).
 - **Session**: `UserContext` checks `localStorage` first, then `GET /api/v1/auth/me`.
 - **Logout**: `POST /api/v1/auth/logout` + `UserContext.logout()`.
-- **Password reset**: `send-reset-otp` → `verify-reset-otp` → `reset-password`.
+- **Password reset**: OTP stored in Redis (not MongoDB). Flow: `send-reset-otp` → `verify-reset-otp` → `reset-password`.
 - **Token verification**: `import { verifyToken } from "@/app/api/v1/utils/verifyToken"`.
+
+---
+
+## Redis + BullMQ
+
+### Two Redis clients — never mix them up
+
+| Client | Package | Use case |
+|---|---|---|
+| `upstash` | `@upstash/redis` (HTTP) | Rate limiting, OTP, caching — inside Next.js API routes (serverless) |
+| `newBullConnection()` | `ioredis` (TCP) | BullMQ queue producers + workers — long-lived connections |
+
+Both clients talk to the same Upstash Redis backend.
+
+### Rate limiter table
+
+| Limiter key | Limit | Prefix | Used on |
+|---|---|---|---|
+| `limiters.login` | 5 / 1 min / IP | `rl:login` | `POST /auth/login` |
+| `limiters.register` | 3 / 1 min / IP | `rl:register` | `POST /auth/register` |
+| `limiters.otp` | 3 / 10 min / IP | `rl:otp` | `POST /auth/send-reset-otp` |
+| `limiters.orderApis` | 20 / 1 min / IP | `rl:order` | `GET /orders/[id]` |
+| `limiters.productCreate` | 10 / 1 hr / IP | `rl:product-create` | `POST /products` |
+
+Usage in an API route:
+```ts
+import { checkRateLimit, limiters, getIP } from "@/shared/lib/rateLimit";
+
+const limited = await checkRateLimit(limiters.login, getIP(req));
+if (limited) return limited;  // returns NextResponse 429 or null
+```
+
+### Queue job types
+
+```ts
+// emailQueue — workers/emailWorker.ts
+type EmailJobData =
+  | { type: "passwordResetOtp"; to; name; otp; expiryMinutes }
+  | { type: "orderConfirmation"; to; name; orderId; total; items[] }
+  | { type: "deliveryConfirmation"; to; name; orderId; deliveredAt }
+  | { type: "generic"; to; subject; html; text? }
+
+// notificationQueue — workers/notificationWorker.ts
+type NotificationJobData =
+  | { type: "notify.farmer"; farmerId; orderId; buyerName; total }
+  | { type: "notify.buyer";  buyerId; orderId; status }
+  | { type: "notify.delivery"; deliveryPersonId; orderId }
+
+// orderQueue — workers/orderWorker.ts
+type OrderJobData =
+  | { type: "order.created";           orderId; buyerId; farmerId?; total }
+  | { type: "order.delivered";         orderId; deliveryPersonId; earning }
+  | { type: "delivery.earning.created"; earningId; orderId; deliveryPersonId; amount }
+```
+
+### safeEnqueue pattern
+
+Wrap every `queue.add()` call in `safeEnqueue()` so a Redis/queue failure never breaks the API response:
+
+```ts
+async function safeEnqueue(fn: () => Promise<unknown>, label: string) {
+  try { await fn(); }
+  catch (err: any) { console.error(`[Queue] failed to enqueue ${label}:`, err?.message); }
+}
+
+await safeEnqueue(
+  () => emailQueue.add("orderConfirmation", { type: "orderConfirmation", ... }),
+  "email.orderConfirmation",
+);
+```
+
+### Adding a new queue producer
+
+1. Import the queue from `shared/queues/`.
+2. Call `queue.add(name, data)` inside `safeEnqueue()`.
+3. Add the job type to the queue's `JobData` union if it's new.
+4. Handle the new type in the corresponding worker's `switch` block.
+
+### Worker environment
+
+Workers are **separate long-running Node.js processes**, not Next.js API routes. They:
+- Load `.env.local` via `dotenv.config({ path: ".env.local" })` at the top.
+- Must run on a server or container (Railway, Render, VPS). Serverless platforms cannot host them.
+- Shut down gracefully via SIGINT/SIGTERM handlers.
+
+```bash
+npm run worker:email          # single worker
+npm run worker:notification
+npm run worker:order
+npm run workers               # all three in parallel (concurrently)
+```
 
 ---
 
 ## Navigation Architecture
 
 ### Desktop (`shared/components/templates/navbar.tsx`)
-- Primary nav pills: Farmers, FPOs, Shop, **Harvests**, **Community** (active state via `pathname`)
-- "More" dropdown — role-aware sections with icon + description per item:
-  - **Buyers**: My Pre-bookings → `/profile/prebookings`, Referral → `/referral`
-  - **Farmers**: My Harvests → `/farmers/harvests`, Analytics → `/analytics/farmer`, Announce Harvest, Add Product
-  - **Admins**: Admin Panel → `/admin`, Analytics → `/admin/analytics`
+- **Primary nav pills** (4): Farmers, Shop, Harvests, Community
+- **Browse ▾ mega-menu** (500 px wide, opens on click, 3-column icon grid per section):
+  - *Explore* (all): Shop, Farmers, FPOs, Harvests, Community, Adopted Farmers, FR3SH Plus
+  - *My Account* (logged in): Profile, Wallet, Pre-bookings, Orders, Referral, Badges
+  - *Farmer Tools* (farmers): Dashboard, My Harvests, Announce Harvest, Add Product, My Orders, Analytics, KYC Status
+  - *Admin* (admins): Admin Panel, Users, Farmers, Orders, Products, Analytics
+- All role flags guarded with `mounted && !!currentUser?.id` to prevent SSR/CSR mismatch.
 
 ### Mobile (`shared/components/templates/bottomNav.tsx`)
-- Bottom bar: Home, Shop, **Harvests** (dedicated tab), More, Cart, Profile
-- "More" popover: scrollable, 4-column icon grid, role-aware sections:
-  - Discover (all), My Account (buyers), Farmer Tools (farmers), Admin (admins)
+- **Bottom bar tabs**: Home, Shop, Harvests, More, Cart, Profile
+- **More popover**: scrollable sheet, 4-column icon grid, role-aware sections
+- Profile tab label and avatar use `mounted` guard: `mounted && currentUser?.name ? "Profile" : "Login"`
 
 ---
 
@@ -393,17 +529,23 @@ WalletModel.findOneAndUpdate(
 
 ### Standard response shape
 ```ts
-{ success: true, message: string, data: T }       // success
-{ success: false, message: string, error?: string } // failure
+{ success: true, message: string, data: T }         // success
+{ success: false, message: string, error?: string }  // failure
+// Rate limited:
+{ success: false, message: "Too many requests…" }    // HTTP 429
 ```
 
 ### Route file pattern
 ```ts
 import { mongoDB } from "@/shared/lib/db/mongo";
 import { success, failure } from "@/app/api/v1/utils/responses";
+import { checkRateLimit, limiters, getIP } from "@/shared/lib/rateLimit";
 
-export async function GET(req: NextRequest) {
-  await mongoDB();  // always first
+export async function POST(req: NextRequest) {
+  const limited = await checkRateLimit(limiters.login, getIP(req));
+  if (limited) return limited;
+
+  await mongoDB();   // always before any DB operation
   // validate → query → return
 }
 ```
@@ -431,7 +573,7 @@ export async function GET(req: NextRequest) {
 ```ts
 // Client component
 export default function Page({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = React.use(params);  // React.use() in client components
+  const { id } = React.use(params);
 }
 
 // Server component / page
@@ -447,8 +589,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
 
 ### Schema generic causes TS2322
 
-When a TypeScript interface uses `string` for ID fields but the Mongoose schema uses `Schema.Types.ObjectId`, the generic causes TS2322:
-
 ```ts
 // WRONG
 new Schema<MyType>({ farmerId: { type: Schema.Types.ObjectId } })
@@ -457,7 +597,26 @@ new Schema<MyType>({ farmerId: { type: Schema.Types.ObjectId } })
 new Schema({ farmerId: { type: Schema.Types.ObjectId } })
 ```
 
-Affected models pattern: any model that has ObjectId fields where the interface declares `string`.
+### SSR / client hydration mismatch (auth-conditional UI)
+
+```tsx
+// WRONG — useUser() returns null on server → mismatch
+{currentUser?.id ? <ProfileButton /> : <LoginLink />}
+
+// CORRECT — always render Login during SSR, swap after mount
+const [mounted, setMounted] = useState(false);
+useEffect(() => { setMounted(true); }, []);
+
+{!mounted || !currentUser?.id ? <LoginLink /> : <ProfileButton />}
+```
+
+### serverExternalPackages for native Node modules
+
+`ioredis` and `bullmq` must be excluded from Next.js bundling:
+```ts
+// next.config.ts
+serverExternalPackages: ["ioredis", "bullmq"]
+```
 
 ---
 
@@ -468,16 +627,21 @@ Affected models pattern: any model that has ObjectId fields where the interface 
 3. **Always use `success()` / `failure()` helpers** from `@/app/api/v1/utils/responses`.
 4. **Models use singleton pattern**: `mongoose.models.X || mongoose.model(...)`.
 5. **`"use client"` at top** for all client components; server components are default.
-6. **`user.type` is capitalised** — `"Farmer"` not `"farmer"`, `"Logistics Provider"` not `"logistics provider"`, `"Admin"` not `"admin"`.
+6. **`user.type` is capitalised** — `"Farmer"` not `"farmer"`, `"Logistics Provider"` not `"logistics provider"`.
 7. **farmerId ≠ user.id**: Farmer document `_id` is separate from auth User `_id`. Resolve via `GET /api/v1/farmers?profileId=<user.id>`.
-8. **Never use raw palette classes** in app pages. All colors via design tokens. Navbar/bottomNav uses emerald/stone classes (legacy, not design tokens) — do not try to change these.
+8. **Never use raw palette classes** in app pages. All colors via design tokens.
 9. **cx() from `@/shared/lib/utils`** for all conditional classNames.
 10. **All icons from lucide-react** — no inline SVGs, no other icon libraries.
-11. **Atomic MongoDB for concurrency**: use `findOneAndUpdate` with filter conditions — e.g., harvest prebook uses `{ _id, status: "open" }`, wallet debit uses `{ userId, balance: { $gte: amount } }`.
-12. **Sticky save bar pattern** for all edit pages — `fixed bottom-0 left-0 right-0 z-50 border-t border-border bg-surface-card/95 backdrop-blur-sm`.
-13. **Loading skeleton with `animate-pulse`** — always show a skeleton while fetching, never a spinner alone.
-14. **BuyerOrders and FarmerOrders are separate collections** — never conflate schemas or queries.
-15. **SubOrders are children of BuyerOrders** — created by splitting a BuyerOrder per `farmerId` via `POST /api/v1/orders/[id]/split`.
+11. **Atomic MongoDB for concurrency**: use `findOneAndUpdate` with filter conditions.
+12. **Sticky save bar pattern** for all edit pages — `fixed bottom-0 left-0 right-0 z-50`.
+13. **Loading skeleton with `animate-pulse`** — always show skeleton while fetching.
+14. **BuyerOrders and FarmerOrders are separate collections** — never conflate.
+15. **SubOrders are children of BuyerOrders** — created by `POST /api/v1/orders/[id]/split`.
+16. **Community model user IDs must be `String`** — not `Schema.Types.ObjectId`. Auth user IDs are not guaranteed to be valid ObjectIds.
+17. **Fail-open Redis**: all `checkRateLimit()`, cache, and OTP operations catch errors and allow requests through if Redis is down.
+18. **safeEnqueue for all queue producers**: wrap every `queue.add()` so queue failures never break the API response.
+19. **OTP is in Redis, not MongoDB**: use `storeOtp()` / `verifyOtp()` from `shared/lib/otp.ts`. Do not use `ResetTokenModel`.
+20. **Never prefix Redis env vars with `NEXT_PUBLIC_`** — they are server-only. `REDIS_URL`, `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` must never reach the browser bundle.
 
 ---
 
@@ -495,7 +659,7 @@ type BadgeId =
   | "community_member";  // joined a community group
 ```
 
-Award via `POST /api/v1/badges { userId, badgeId }` — idempotent (compound unique index on userId+badgeId).
+Award via `POST /api/v1/badges { userId, badgeId }` — idempotent (compound unique index).
 
 ---
 
@@ -506,14 +670,20 @@ Award via `POST /api/v1/badges { userId, badgeId }` — idempotent (compound uni
 | `MONGODB_URI` | MongoDB Atlas connection string |
 | `JWT_SECRET` | JWT signing secret |
 | `JWT_EXPIRES_IN` | Token expiry (`7d`) |
+| `BCRYPT_SALT_ROUNDS` | Password hashing rounds (`12`) |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-side Supabase key |
 | `NEXT_PUBLIC_SUPABASE_SUPABASE_BUCKET` | Avatar bucket name (`avatars`) |
 | `OPENAI_API_KEY` | OpenAI for voice/AI features |
-| `BREVO_HOST/PORT/USER/PASS` | Brevo SMTP for transactional email |
-| `ZOHO_USER/PASS` | Zoho fallback SMTP |
-| `BCRYPT_SALT_ROUNDS` | Password hashing rounds (`12`) |
+| `EMAIL_FROM` | Sender address for all outbound email |
+| `ZOHO_HOST` / `ZOHO_PORT` / `ZOHO_USER` / `ZOHO_PASS` | Zoho SMTP (primary) |
+| `BREVO_HOST` / `BREVO_PORT` / `BREVO_USER` / `BREVO_PASS` | Brevo SMTP (secondary) |
+| `BREVO_API_KEY` | Brevo HTTP API (tertiary fallback) |
+| `REDIS_URL` | Upstash Redis TCP URL (`rediss://...`) — **server-only, never NEXT_PUBLIC_** |
+| `UPSTASH_REDIS_REST_URL` | Upstash REST URL — **server-only, never NEXT_PUBLIC_** |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token — **server-only, never NEXT_PUBLIC_** |
+| `OTP_EXPIRY_SECONDS` | OTP TTL in Redis (default `600` = 10 min) |
 | `NEXT_PUBLIC_APP_NAME` | Brand name (`FR3SH`) |
 
 ---
@@ -548,4 +718,5 @@ Harvest
 
 CommunityGroup
  └─ GroupOrder[] (communityGroupId → CommunityGroup._id)
+   └─ individual ops via /community/[id]/orders/[orderId]  (GET, PATCH, DELETE)
 ```
