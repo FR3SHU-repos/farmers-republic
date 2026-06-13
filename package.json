@@ -5,13 +5,21 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
-    "start": "next start"
+    "start": "next start",
+    "worker:email": "tsx --tsconfig tsconfig.json workers/emailWorker.ts",
+    "worker:notification": "tsx --tsconfig tsconfig.json workers/notificationWorker.ts",
+    "worker:order": "tsx --tsconfig tsconfig.json workers/orderWorker.ts",
+    "workers": "concurrently \"npm run worker:email\" \"npm run worker:notification\" \"npm run worker:order\""
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.58.0",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.0",
     "bcryptjs": "^3.0.2",
+    "bullmq": "^5.78.0",
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.22",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
     "mongodb": "^6.20.0",
@@ -30,7 +38,15 @@
     "@types/nodemailer": "^7.0.4",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "concurrently": "^10.0.3",
     "tailwindcss": "^4",
+    "tsx": "^4.22.4",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "esbuild@0.28.1": true,
+    "msgpackr-extract@3.0.4": true,
+    "sharp@0.34.5": true,
+    "fsevents@2.3.3": true
   }
 }

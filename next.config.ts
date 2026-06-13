@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Prevent Next.js from bundling native Node.js packages used server-side only
+  serverExternalPackages: ["ioredis", "bullmq"],
   images: {
     remotePatterns: [
       {

@@ -1,92 +1,91 @@
 // app/api/v1/orders/[id]/route.tsx
 
 import { NextRequest, NextResponse } from "next/server";
-import { mongoDB } from "@/shared/lib/db/mongo";
-import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
-import ProductModel from "@/shared/models/mongodb/products/products";
-import DeliveryEarningModel from "@/shared/models/mongodb/delivery/deliveryEarning";
-import { success, failure } from "@/app/api/v1/utils/responses";
+import { mongoDB }             from "@/shared/lib/db/mongo";
+import OrderModel              from "@/shared/models/mongodb/orders/buyerOrders";
+import ProductModel            from "@/shared/models/mongodb/products/products";
+import DeliveryEarningModel    from "@/shared/models/mongodb/delivery/deliveryEarning";
+import { success, failure }    from "@/app/api/v1/utils/responses";
+import { checkRateLimit, limiters, getIP } from "@/shared/lib/rateLimit";
+import { emailQueue }          from "@/shared/queues/emailQueue";
+import { notificationQueue }   from "@/shared/queues/notificationQueue";
+import { orderQueue }          from "@/shared/queues/orderQueue";
 
 type ParamsContext = {
   params: { id: string } | Promise<{ id: string }>;
 };
 
-// Active statuses = reservation is live on these products
 const ACTIVE_STATUSES = new Set([
   "pending", "confirmed", "packed", "picked_up", "in_transit", "out_for_delivery",
 ]);
 
-// Infer the actor type from the status value when not explicitly provided.
-function inferActorType(
-  status: string
-): "farmer" | "delivery" | "buyer" | "system" {
+function inferActorType(status: string): "farmer" | "delivery" | "buyer" | "system" {
   if (["confirmed", "packed"].includes(status)) return "farmer";
-  if (["picked_up", "in_transit", "out_for_delivery", "delivered"].includes(status))
-    return "delivery";
+  if (["picked_up", "in_transit", "out_for_delivery", "delivered"].includes(status)) return "delivery";
   if (["cancelled", "returned"].includes(status)) return "buyer";
   return "system";
 }
 
-// ─── Inventory operations ─────────────────────────────────────────────────
-
 type ItemRef = { productId: string; qty: number };
 
-// Called on DELIVERED: physically consume stock.
-// stockQty -= qty, reservedQty -= qty, availableQty stays (already decremented at order creation).
 async function consumeStock(items: ItemRef[]) {
   await Promise.all(
     items.map(async ({ productId, qty }) => {
       const after = await ProductModel.findByIdAndUpdate(
         productId,
         { $inc: { stockQty: -qty, reservedQty: -qty } },
-        { new: true }
+        { new: true },
       ).lean() as any;
       if (after && after.stockQty <= 0) {
         await ProductModel.findByIdAndUpdate(productId, {
           $set: { inStock: false, status: "out_of_stock" },
         });
       }
-    })
+    }),
   );
   console.log(`[inventory] consumed stock for ${items.length} product(s)`);
 }
 
-// Called on CANCELLED or RETURNED: release reservation back to buyers.
-// reservedQty -= qty, availableQty += qty. stockQty is unchanged.
 async function releaseReservations(items: ItemRef[]) {
   await Promise.all(
     items.map(async ({ productId, qty }) => {
       const after = await ProductModel.findByIdAndUpdate(
         productId,
         { $inc: { reservedQty: -qty, availableQty: qty } },
-        { new: true }
+        { new: true },
       ).lean() as any;
       if (after && after.availableQty > 0) {
-        await ProductModel.findByIdAndUpdate(productId, {
-          $set: { inStock: true },
-        });
-        // Re-enable listing only if it was auto-disabled (out_of_stock → active)
+        await ProductModel.findByIdAndUpdate(productId, { $set: { inStock: true } });
         await ProductModel.findOneAndUpdate(
           { _id: productId, status: "out_of_stock" },
-          { $set: { status: "active" } }
+          { $set: { status: "active" } },
         );
       }
-    })
+    }),
   );
   console.log(`[inventory] released reservations for ${items.length} product(s)`);
 }
 
-// ─── GET ──────────────────────────────────────────────────────────────────
+// ── Safely enqueue — errors are logged but never break the response ───────────
+async function safeEnqueue(fn: () => Promise<unknown>, label: string) {
+  try {
+    await fn();
+  } catch (err: any) {
+    console.error(`[Queue] failed to enqueue ${label}:`, err?.message);
+  }
+}
 
+// ─── GET ──────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest, context: ParamsContext) {
-  const { id } = await Promise.resolve(context.params);
+  // Rate limit: 20 requests / minute / IP
+  const limited = await checkRateLimit(limiters.orderApis, getIP(req));
+  if (limited) return limited;
 
+  const { id } = await Promise.resolve(context.params);
   try {
     await mongoDB();
     const orderDoc = await OrderModel.findById(id).lean().exec();
-    if (!orderDoc) {
-      return NextResponse.json(failure("Order not found"), { status: 404 });
-    }
+    if (!orderDoc) return NextResponse.json(failure("Order not found"), { status: 404 });
     return NextResponse.json(success(orderDoc, "Order fetched"), { status: 200 });
   } catch (err: any) {
     console.error("order GET error:", err);
@@ -94,11 +93,7 @@ export async function GET(req: NextRequest, context: ParamsContext) {
   }
 }
 
-// ─── PATCH ────────────────────────────────────────────────────────────────
-// Updates status / paymentStatus / delivery person info.
-// Appends a timeline entry on every status change.
-// Triggers inventory consume or release depending on the status transition.
-
+// ─── PATCH ────────────────────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest, context: ParamsContext) {
   const { id } = await Promise.resolve(context.params);
 
@@ -107,71 +102,49 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
 
     const body = await req.json();
     const {
-      status,
-      paymentStatus,
-      deliveryPersonId,
-      deliveryPersonName,
-      deliveryEarning,
-      actorType,
-      actorId,
-      actorName,
-      timelineNote,
+      status, paymentStatus,
+      deliveryPersonId, deliveryPersonName, deliveryEarning,
+      actorType, actorId, actorName, timelineNote,
     } = body || {};
 
-    // ── Fetch current order to capture previous status ────────────────
-    // (needed to guard against duplicate inventory ops on repeated PATCHes)
     const currentOrder = await OrderModel.findById(id).lean() as any;
-    if (!currentOrder) {
-      return NextResponse.json(failure("Order not found"), { status: 404 });
-    }
+    if (!currentOrder) return NextResponse.json(failure("Order not found"), { status: 404 });
     const previousStatus: string = currentOrder.status || "pending";
 
-    // ── Build $set for the order ──────────────────────────────────────
     const $set: Record<string, any> = {};
-
     if (typeof status === "string") {
       $set.status = status;
       if (status === "delivered") $set.deliveredAt = new Date();
     }
-    if (typeof paymentStatus === "string")    $set.paymentStatus    = paymentStatus;
+    if (typeof paymentStatus    === "string") $set.paymentStatus    = paymentStatus;
     if (typeof deliveryPersonId === "string") $set.deliveryPersonId = deliveryPersonId;
     if (typeof deliveryPersonName === "string") $set.deliveryPersonName = deliveryPersonName;
-    if (typeof deliveryEarning === "number")  $set.deliveryEarning  = deliveryEarning;
+    if (typeof deliveryEarning  === "number")  $set.deliveryEarning  = deliveryEarning;
 
     if (Object.keys($set).length === 0) {
       return NextResponse.json(failure("Nothing to update"), { status: 400 });
     }
 
-    // ── Build $push for timeline (only on status change) ──────────────
     const updateOp: Record<string, any> = { $set };
-
     if (typeof status === "string") {
-      const resolvedActorType =
-        typeof actorType === "string" ? actorType : inferActorType(status);
-
+      const resolvedActorType = typeof actorType === "string" ? actorType : inferActorType(status);
       const timelineEntry: Record<string, any> = {
         status,
         timestamp: new Date(),
         actorType: resolvedActorType,
       };
-      if (timelineNote) timelineEntry.note = timelineNote;
-      if (actorId) timelineEntry.actorId = String(actorId);
-      if (actorName) timelineEntry.actorName = String(actorName);
-
+      if (timelineNote) timelineEntry.note    = String(timelineNote);
+      if (actorId)      timelineEntry.actorId = String(actorId);
+      if (actorName)    timelineEntry.actorName = String(actorName);
       updateOp.$push = { timeline: timelineEntry };
     }
 
-    const updatedOrder = await OrderModel.findByIdAndUpdate(id, updateOp, {
-      new: true,
-    }).lean() as any;
+    const updatedOrder = await OrderModel.findByIdAndUpdate(id, updateOp, { new: true }).lean() as any;
+    if (!updatedOrder) return NextResponse.json(failure("Order not found"), { status: 404 });
 
-    if (!updatedOrder) {
-      return NextResponse.json(failure("Order not found"), { status: 404 });
-    }
-
-    // ── Inventory operations (only on genuine status transitions) ─────
+    // ── Inventory operations ──────────────────────────────────────────────
     const isStatusChange = typeof status === "string" && status !== previousStatus;
-    const wasActive = ACTIVE_STATUSES.has(previousStatus);
+    const wasActive      = ACTIVE_STATUSES.has(previousStatus);
 
     if (isStatusChange && wasActive) {
       const itemRefs: ItemRef[] = (updatedOrder.items || [])
@@ -185,12 +158,12 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
       }
     }
 
-    // ── DeliveryEarning record when delivered ─────────────────────────
+    // ── DeliveryEarning record ────────────────────────────────────────────
+    let earningDoc: any = null;
     if ($set.status === "delivered") {
       const dpId   = deliveryPersonId   ?? updatedOrder.deliveryPersonId;
       const dpName = deliveryPersonName ?? updatedOrder.deliveryPersonName;
-
-      const fee     = typeof updatedOrder.deliveryFee === "number" ? updatedOrder.deliveryFee : 0;
+      const fee    = typeof updatedOrder.deliveryFee === "number" ? updatedOrder.deliveryFee : 0;
       const earning = typeof deliveryEarning === "number"
         ? deliveryEarning
         : (typeof updatedOrder.deliveryEarning === "number" ? updatedOrder.deliveryEarning : null)
@@ -198,11 +171,9 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
 
       if (dpId) {
         const itemCount = (updatedOrder.items || []).reduce(
-          (s: number, i: any) => s + (i.qty || 0),
-          0
+          (s: number, i: any) => s + (i.qty || 0), 0,
         );
-
-        await DeliveryEarningModel.findOneAndUpdate(
+        earningDoc = await DeliveryEarningModel.findOneAndUpdate(
           { orderId: String(id) },
           {
             $setOnInsert: { orderId: String(id) },
@@ -213,23 +184,82 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
               orderTotal:         updatedOrder.total || 0,
               deliveryFee:        fee,
               earning,
-              paymentMode:        updatedOrder.paymentMode || "cod",
+              paymentMode:        updatedOrder.paymentMode  || "cod",
               paymentStatus:      updatedOrder.paymentStatus || "unpaid",
               itemCount,
               deliveredAt:        $set.deliveredAt,
             },
           },
-          { upsert: true, new: true }
+          { upsert: true, new: true },
+        );
+        console.log(`[delivery-earning] created/updated for order ${id}, person ${dpId}, ₹${earning}`);
+
+        // ── Queue: order delivered + delivery earning ─────────────────────
+        await safeEnqueue(
+          () => orderQueue.add("order.delivered", {
+            type:             "order.delivered",
+            orderId:          String(id),
+            deliveryPersonId: String(dpId),
+            earning,
+          }),
+          "order.delivered",
         );
 
-        console.log(
-          `[delivery-earning] created/updated for order ${id}, person ${dpId}, ₹${earning}`
-        );
+        if (earningDoc?._id) {
+          await safeEnqueue(
+            () => orderQueue.add("delivery.earning.created", {
+              type:             "delivery.earning.created",
+              earningId:        String(earningDoc._id),
+              orderId:          String(id),
+              deliveryPersonId: String(dpId),
+              amount:           earning,
+            }),
+            "delivery.earning.created",
+          );
+        }
+
+        // ── Queue: delivery confirmation email to buyer ───────────────────
+        if (updatedOrder.buyerEmail) {
+          await safeEnqueue(
+            () => emailQueue.add("deliveryConfirmation", {
+              type:        "deliveryConfirmation",
+              to:          updatedOrder.buyerEmail,
+              name:        updatedOrder.buyerName || "Customer",
+              orderId:     String(id),
+              deliveredAt: new Date().toLocaleDateString("en-IN"),
+            }),
+            "email.deliveryConfirmation",
+          );
+        }
+
+        // ── Queue: notify buyer about delivery ────────────────────────────
+        if (updatedOrder.buyerId) {
+          await safeEnqueue(
+            () => notificationQueue.add("notify.buyer", {
+              type:     "notify.buyer",
+              buyerId:  String(updatedOrder.buyerId),
+              orderId:  String(id),
+              status:   "delivered",
+            }),
+            "notify.buyer",
+          );
+        }
       } else {
-        console.warn(
-          `[delivery-earning] order ${id} marked delivered but no deliveryPersonId — skipping earning record`
-        );
+        console.warn(`[delivery-earning] order ${id} delivered but no deliveryPersonId — skipping`);
       }
+    }
+
+    // ── Queue: status change notification to buyer ────────────────────────
+    if (isStatusChange && status !== "delivered" && updatedOrder.buyerId) {
+      await safeEnqueue(
+        () => notificationQueue.add("notify.buyer", {
+          type:    "notify.buyer",
+          buyerId: String(updatedOrder.buyerId),
+          orderId: String(id),
+          status,
+        }),
+        "notify.buyer.status",
+      );
     }
 
     return NextResponse.json(
@@ -240,9 +270,9 @@ export async function PATCH(req: NextRequest, context: ParamsContext) {
           paymentStatus: updatedOrder.paymentStatus || "unpaid",
           timeline:      updatedOrder.timeline      || [],
         },
-        "Order updated"
+        "Order updated",
       ),
-      { status: 200 }
+      { status: 200 },
     );
   } catch (err: any) {
     console.error("order PATCH error:", err);
