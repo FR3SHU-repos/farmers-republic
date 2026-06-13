@@ -9,6 +9,7 @@ import {
   BadgeCheck,
   Calendar,
   CheckCheck,
+  Clock,
   CreditCard,
   IndianRupee,
   Mail,
@@ -21,6 +22,7 @@ import {
 import toast from "react-hot-toast";
 import { useUser } from "@/shared/context/UserContext";
 import { cx } from "@/shared/lib/utils";
+import type { OrderTimelineEntry } from "@/shared/interfaces/mongodb/orders/buyerOrders";
 
 // ─── Types ────────────────────────────────────────────────────
 
@@ -59,38 +61,83 @@ type FarmerOrderDetail = {
   platformFeeTotal?: number;
   discountTotal?: number;
   items: OrderItem[];
+  timeline?: OrderTimelineEntry[];
 };
 
 // ─── Constants ────────────────────────────────────────────────
 
+// All 12 lifecycle statuses for the "Manage order" select
 const STATUS_OPTIONS = [
+  "payment_pending",
   "pending",
   "confirmed",
+  "packed",
+  "picked_up",
+  "in_transit",
   "out_for_delivery",
   "delivered",
   "cancelled",
+  "returned",
+  "refund_initiated",
+  "refunded",
 ] as const;
+
+// Farmer-visible quick-action progression
+const FARMER_STATUS_FLOW: Record<string, { next: string; label: string }> = {
+  pending:   { next: "confirmed", label: "Confirm Order" },
+  confirmed: { next: "packed",    label: "Mark as Packed" },
+};
 
 const PAYMENT_STATUS_OPTIONS = ["unpaid", "paid"] as const;
 
-const STATUS_ORDER = ["pending", "confirmed", "out_for_delivery", "delivered"] as const;
+const STATUS_ORDER = [
+  "payment_pending",
+  "pending",
+  "confirmed",
+  "packed",
+  "picked_up",
+  "in_transit",
+  "out_for_delivery",
+  "delivered",
+] as const;
 
 // ─── Helpers ─────────────────────────────────────────────────
 
 function statusBadgeClass(s: string) {
   switch (s) {
+    case "payment_pending":
+      return "bg-status-warning-surface text-status-warning border-status-warning/30";
     case "pending":
       return "bg-status-warning-surface text-status-warning border-status-warning/30";
     case "confirmed":
       return "bg-status-info-surface text-status-info border-status-info/30";
-    case "out_for_delivery":
+    case "packed":
       return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
+    case "picked_up":
+      return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
+    case "in_transit":
+      return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
+    case "out_for_delivery":
+      return "bg-primary/10 text-primary border-primary/30";
     case "delivered":
       return "bg-status-success-surface text-status-success border-status-success/30";
     case "cancelled":
       return "bg-status-danger-surface text-status-danger border-status-danger/30";
+    case "returned":
+    case "refund_initiated":
+    case "refunded":
+      return "bg-status-danger-surface text-status-danger border-status-danger/30";
     default:
       return "bg-surface text-foreground-muted border-border";
+  }
+}
+
+function actorBadgeClass(actorType?: string) {
+  switch (actorType) {
+    case "farmer":   return "bg-secondary-subtle text-secondary-foreground";
+    case "delivery": return "bg-primary/10 text-primary";
+    case "buyer":    return "bg-status-info-surface text-status-info";
+    default:         return "bg-surface text-foreground-muted";
   }
 }
 
@@ -98,12 +145,23 @@ function labelFor(s: string) {
   return s.split("_").map((p) => p[0].toUpperCase() + p.slice(1)).join(" ");
 }
 
-function fmtDate(str?: string) {
+function fmtDate(str?: string | Date) {
   if (!str) return "—";
-  return new Date(str).toLocaleString("en-IN", {
+  return new Date(str as string).toLocaleString("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function fmtDateShort(str?: string | Date) {
+  if (!str) return "—";
+  const d = new Date(str as string);
+  return d.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -154,6 +212,94 @@ function InfoRow({
   );
 }
 
+// ─── Timeline component ───────────────────────────────────────
+
+function OrderTimeline({
+  timeline,
+  createdAt,
+}: {
+  timeline?: OrderTimelineEntry[];
+  createdAt: string;
+}) {
+  const entries: OrderTimelineEntry[] = [
+    { status: "pending", timestamp: createdAt, actorType: "system", note: "Order placed" },
+    ...(timeline || []),
+  ];
+
+  return (
+    <div className="mb-5 rounded-2xl border border-border bg-surface-card p-5">
+      <h2 className="mb-5 flex items-center gap-2 text-sm font-semibold text-foreground-heading">
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface">
+          <Clock className="h-3.5 w-3.5 text-brand" />
+        </div>
+        Order timeline
+      </h2>
+
+      <div className="relative space-y-0">
+        {entries.map((entry, idx) => {
+          const isLast = idx === entries.length - 1;
+          const isFirst = idx === 0;
+          return (
+            <div key={idx} className="flex gap-4">
+              {/* Dot + line */}
+              <div className="flex flex-col items-center">
+                <div
+                  className={cx(
+                    "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full border-2",
+                    isLast
+                      ? "border-primary bg-primary"
+                      : "border-border bg-surface"
+                  )}
+                >
+                  {isLast ? (
+                    <CheckCheck className="h-4 w-4 text-primary-foreground" />
+                  ) : (
+                    <div className="h-2 w-2 rounded-full bg-foreground-muted/40" />
+                  )}
+                </div>
+                {!isLast && (
+                  <div className="mt-1 h-full w-px flex-1 bg-border" style={{ minHeight: "24px" }} />
+                )}
+              </div>
+
+              {/* Content */}
+              <div className={cx("pb-5 min-w-0 flex-1", isLast && "pb-0")}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={cx(
+                      "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                      statusBadgeClass(entry.status)
+                    )}
+                  >
+                    {labelFor(entry.status)}
+                  </span>
+                  {entry.actorType && entry.actorType !== "system" && (
+                    <span
+                      className={cx(
+                        "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold capitalize",
+                        actorBadgeClass(entry.actorType)
+                      )}
+                    >
+                      {entry.actorType}
+                      {entry.actorName ? ` · ${entry.actorName}` : ""}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-foreground-muted">
+                  {fmtDateShort(entry.timestamp)}
+                </p>
+                {entry.note && (
+                  <p className="mt-0.5 text-xs italic text-foreground-muted">{entry.note}</p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────
 
 export default function FarmerOrderDetailPage() {
@@ -161,7 +307,6 @@ export default function FarmerOrderDetailPage() {
   const orderId = params?.id;
   const searchParams = useSearchParams();
   const farmerId = searchParams.get("farmerId") || "";
-  const router = useRouter();
   const { user } = useUser();
 
   const isFarmer = user?.type === "Farmer";
@@ -214,13 +359,22 @@ export default function FarmerOrderDetailPage() {
     setData((curr) => (curr ? { ...curr, ...patch } : curr));
     try {
       setSaving(true);
+      const body: Record<string, any> = { ...patch };
+      if (patch.status) {
+        body.actorType = "farmer";
+        if (user?.name) body.actorName = user.name;
+      }
       const res = await fetch(`/api/v1/orders/${encodeURIComponent(orderId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.message || "Failed");
+      // Merge returned timeline into local state
+      if (json.data?.timeline) {
+        setData((curr) => curr ? { ...curr, timeline: json.data.timeline } : curr);
+      }
       toast.success("Order updated");
     } catch (err: any) {
       setData(prev);
@@ -302,7 +456,9 @@ export default function FarmerOrderDetailPage() {
 
   const isDelivered = data.status === "delivered";
   const isCancelled = data.status === "cancelled";
-  const itemCount = data.items.reduce((s, i) => s + i.qty, 0);
+  const isTerminal  = ["delivered", "cancelled", "returned", "refunded"].includes(data.status);
+  const itemCount   = data.items.reduce((s, i) => s + i.qty, 0);
+  const farmerAction = FARMER_STATUS_FLOW[data.status];
 
   return (
     <div className="min-h-screen bg-background pb-36 lg:pb-12">
@@ -452,11 +608,7 @@ export default function FarmerOrderDetailPage() {
                 const lineTotal = baseTotal + charges - discount;
 
                 return (
-                  <div
-                    key={it.productId}
-                    className="rounded-xl border border-border bg-surface p-4"
-                  >
-                    {/* Item row */}
+                  <div key={it.productId} className="rounded-xl border border-border bg-surface p-4">
                     <div className="flex gap-4">
                       {it.image ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -557,6 +709,9 @@ export default function FarmerOrderDetailPage() {
           )}
         </div>
 
+        {/* ── Timeline ──────────────────────────────── */}
+        <OrderTimeline timeline={data.timeline} createdAt={data.createdAt} />
+
         {/* ── Payment summary ───────────────────────── */}
         <div className="mb-5 rounded-2xl border border-border bg-surface-card p-5">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground-heading">
@@ -580,21 +735,13 @@ export default function FarmerOrderDetailPage() {
             {(data.platformFeeTotal ?? 0) > 0 && (
               <InfoRow
                 label="Platform fees"
-                value={
-                  <span className="text-status-danger">
-                    -₹{(data.platformFeeTotal ?? 0).toFixed(2)}
-                  </span>
-                }
+                value={<span className="text-status-danger">-₹{(data.platformFeeTotal ?? 0).toFixed(2)}</span>}
               />
             )}
             {(data.discountTotal ?? 0) > 0 && (
               <InfoRow
                 label="Discounts"
-                value={
-                  <span className="text-status-danger">
-                    -₹{(data.discountTotal ?? 0).toFixed(2)}
-                  </span>
-                }
+                value={<span className="text-status-danger">-₹{(data.discountTotal ?? 0).toFixed(2)}</span>}
               />
             )}
             <InfoRow
@@ -645,7 +792,6 @@ export default function FarmerOrderDetailPage() {
             </h2>
 
             <div className="space-y-4">
-              {/* Status select */}
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-foreground-muted">
                   Order status
@@ -662,7 +808,6 @@ export default function FarmerOrderDetailPage() {
                 </select>
               </div>
 
-              {/* Payment status */}
               <div>
                 <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-foreground-muted">
                   Payment status
@@ -692,56 +837,36 @@ export default function FarmerOrderDetailPage() {
           </div>
         )}
 
-        {/* ── Quick action buttons ──────────────────── */}
-        {isFarmer && !isDelivered && !isCancelled && (
+        {/* ── Quick action button ───────────────────── */}
+        {isFarmer && !isTerminal && farmerAction && (
           <div className="space-y-3">
-            {data.status === "pending" && (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => handleUpdate({ status: "confirmed" })}
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-secondary/40 bg-secondary-subtle py-3.5 text-sm font-semibold text-secondary-foreground shadow-sm transition hover:bg-secondary/30 disabled:opacity-50"
-              >
-                {saving ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-secondary-foreground border-t-transparent" />
-                ) : (
-                  <CheckCheck className="h-4 w-4" />
-                )}
-                Confirm Order
-              </button>
-            )}
-
-            {data.status === "confirmed" && (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => handleUpdate({ status: "out_for_delivery" })}
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-secondary/40 bg-secondary-subtle py-3.5 text-sm font-semibold text-secondary-foreground shadow-sm transition hover:bg-secondary/30 disabled:opacity-50"
-              >
-                {saving ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-secondary-foreground border-t-transparent" />
-                ) : (
-                  <Truck className="h-4 w-4" />
-                )}
-                Ready for Pickup
-              </button>
-            )}
-
-            {data.status === "out_for_delivery" && (
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => handleUpdate({ status: "delivered" })}
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover disabled:opacity-50"
-              >
-                {saving ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                ) : (
-                  <CheckCheck className="h-4 w-4" />
-                )}
-                Mark as Delivered
-              </button>
-            )}
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => handleUpdate({ status: farmerAction.next })}
+              className={cx(
+                "flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold shadow-sm transition disabled:opacity-50",
+                farmerAction.next === "packed"
+                  ? "bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary-hover"
+                  : "border border-secondary/40 bg-secondary-subtle text-secondary-foreground hover:bg-secondary/30"
+              )}
+            >
+              {saving ? (
+                <span
+                  className={cx(
+                    "h-4 w-4 animate-spin rounded-full border-2 border-t-transparent",
+                    farmerAction.next === "packed"
+                      ? "border-primary-foreground"
+                      : "border-secondary-foreground"
+                  )}
+                />
+              ) : farmerAction.next === "packed" ? (
+                <CheckCheck className="h-4 w-4" />
+              ) : (
+                <Truck className="h-4 w-4" />
+              )}
+              {farmerAction.label}
+            </button>
           </div>
         )}
 
@@ -752,6 +877,17 @@ export default function FarmerOrderDetailPage() {
             <p className="text-base font-bold text-status-success">Order Delivered!</p>
             <p className="text-xs text-foreground-muted">
               This order has been successfully fulfilled.
+            </p>
+          </div>
+        )}
+
+        {/* Cancelled / returned state */}
+        {(isCancelled || ["returned", "refund_initiated", "refunded"].includes(data.status)) && (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-status-danger/30 bg-status-danger-surface p-6 text-center">
+            <Package className="h-10 w-10 text-status-danger" />
+            <p className="text-base font-bold text-status-danger">{labelFor(data.status)}</p>
+            <p className="text-xs text-foreground-muted">
+              This order is no longer active.
             </p>
           </div>
         )}

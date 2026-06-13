@@ -145,6 +145,23 @@ const orderItemSchema = new Schema(
   { _id: false }
 );
 
+// 🔹 Timeline entry sub-schema — one doc pushed per status transition
+const timelineEntrySchema = new Schema(
+  {
+    status:    { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    note:      { type: String },
+    actorType: {
+      type: String,
+      enum: ["farmer", "delivery", "buyer", "system"],
+      default: "system",
+    },
+    actorId:   { type: String },
+    actorName: { type: String },
+  },
+  { _id: false }
+);
+
 // 🔹 Order schema – overall order + array of items
 const orderSchema = new Schema<Order>(
   {
@@ -172,6 +189,9 @@ const orderSchema = new Schema<Order>(
     deliveredAt:        { type: Date },
 
     items: { type: [orderItemSchema], required: true },
+
+    // Lifecycle timeline — one entry appended per status change
+    timeline: { type: [timelineEntrySchema], default: [] },
   },
   { timestamps: true }
 );

@@ -123,10 +123,17 @@ export async function PATCH(
         body.maxOrderQty != null ? Number(body.maxOrderQty) : undefined,
       stepQty: body.stepQty != null ? Number(body.stepQty) : undefined,
 
-      // Inventory
-      stockQty: body.stockQty != null ? Number(body.stockQty) : undefined,
-      inStock: body.inStock,
-      allowBackorder: body.allowBackorder,
+      // Inventory — availableQty is ALWAYS recomputed when stockQty changes
+      // so we skip it here and handle it with $set after fetching reservedQty
+      stockQty:          body.stockQty != null ? Number(body.stockQty) : undefined,
+      inStock:           body.inStock,
+      allowBackorder:    body.allowBackorder,
+      lowStockThreshold: body.lowStockThreshold != null ? Number(body.lowStockThreshold) : undefined,
+
+      // Produce freshness
+      harvestDate: body.harvestDate ? new Date(body.harvestDate) : undefined,
+      expiryDate:  body.expiryDate  ? new Date(body.expiryDate)  : undefined,
+      batchId:     body.batchId     || undefined,
 
       // Ratings / social proof
       rating: body.rating,
@@ -194,6 +201,22 @@ export async function PATCH(
     Object.keys(updateDoc).forEach((key) => {
       if (updateDoc[key] === undefined) delete updateDoc[key];
     });
+
+    // When stockQty is explicitly set, recompute availableQty from the
+    // current reservedQty so the invariant (available = stock - reserved) holds.
+    if (updateDoc.stockQty !== undefined) {
+      const current = await ProductModel.findById(id).select("reservedQty").lean() as any;
+      const currentReserved = current?.reservedQty ?? 0;
+      const newAvailable = Math.max(0, updateDoc.stockQty - currentReserved);
+      updateDoc.availableQty = newAvailable;
+      // Auto-toggle inStock based on recalculated available qty
+      if (updateDoc.inStock === undefined) {
+        updateDoc.inStock = newAvailable > 0;
+      }
+      if (updateDoc.status === undefined && newAvailable === 0) {
+        updateDoc.status = "out_of_stock";
+      }
+    }
 
     const updated = await ProductModel.findByIdAndUpdate(id, updateDoc, {
       new: true,

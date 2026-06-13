@@ -37,10 +37,20 @@ const ProductSchema = new Schema<Product>(
     maxOrderQty: { type: Number },
     stepQty: { type: Number, default: 1 },
 
-    // Inventory
-    stockQty: { type: Number, default: 0 },
-    inStock: { type: Boolean, default: true },
-    allowBackorder: { type: Boolean, default: false },
+    // Inventory — the three quantities that must always satisfy:
+    //   availableQty = stockQty - reservedQty
+    // Never update these individually; use atomic $inc to avoid races.
+    stockQty:          { type: Number, default: 0 },
+    reservedQty:       { type: Number, default: 0, min: 0 },
+    availableQty:      { type: Number, default: 0, index: true },
+    lowStockThreshold: { type: Number, default: 0 },
+    inStock:           { type: Boolean, default: true },
+    allowBackorder:    { type: Boolean, default: false },
+
+    // Produce freshness
+    harvestDate: { type: Date },
+    expiryDate:  { type: Date, index: true },
+    batchId:     { type: String },
 
     // Ratings / social proof
     rating: { type: Number, default: 0 },

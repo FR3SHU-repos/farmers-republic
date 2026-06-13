@@ -45,12 +45,13 @@ type DeliveryOrder = {
   createdAt?: string;
 };
 
-type StatusFilter = "all" | "pending" | "confirmed" | "out_for_delivery";
+type StatusFilter = "all" | "confirmed" | "packed" | "picked_up" | "in_transit" | "out_for_delivery";
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
-  { key: "confirmed", label: "Confirmed" },
+  { key: "all",              label: "All" },
+  { key: "confirmed",        label: "Confirmed" },
+  { key: "packed",           label: "Packed" },
+  { key: "picked_up",        label: "Picked Up" },
   { key: "out_for_delivery", label: "Out for Delivery" },
 ];
 
@@ -58,14 +59,24 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
 
 function statusBadgeClass(s: string) {
   switch (s) {
+    case "payment_pending":
     case "pending":
       return "bg-status-warning-surface text-status-warning border-status-warning/30";
     case "confirmed":
       return "bg-status-info-surface text-status-info border-status-info/30";
-    case "out_for_delivery":
+    case "packed":
+    case "picked_up":
+    case "in_transit":
       return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
+    case "out_for_delivery":
+      return "bg-primary/10 text-primary border-primary/30";
     case "delivered":
       return "bg-status-success-surface text-status-success border-status-success/30";
+    case "cancelled":
+    case "returned":
+    case "refund_initiated":
+    case "refunded":
+      return "bg-status-danger-surface text-status-danger border-status-danger/30";
     default:
       return "bg-surface text-foreground-muted border-border";
   }
@@ -135,24 +146,29 @@ export default function DeliveryDashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, userLoading, filter]);
 
-  // Quick status update from card
+  const EARNING_STATUSES = new Set(["picked_up", "in_transit", "out_for_delivery", "delivered"]);
+
+  // Quick status update from card — always attaches delivery person info from
+  // pickup onward so the earning record is available on final delivery.
   const quickUpdate = async (orderId: string, newStatus: string) => {
     setUpdating(orderId);
     try {
       const order = orders.find((o) => o._id === orderId);
-      // Always include delivery person info on pickup AND delivery so the
-      // PATCH route has enough data to create the DeliveryEarning record.
-      const extra: Record<string, unknown> = {};
-      if ((newStatus === "out_for_delivery" || newStatus === "delivered") && user) {
-        extra.deliveryPersonId   = user.id;
-        extra.deliveryPersonName = user.name || user.email;
-        extra.deliveryEarning    = (order?.deliveryFee ?? 0) > 0 ? order!.deliveryFee : 30;
+      const body: Record<string, unknown> = {
+        status:    newStatus,
+        actorType: "delivery",
+      };
+      if (EARNING_STATUSES.has(newStatus) && user) {
+        body.deliveryPersonId   = user.id;
+        body.deliveryPersonName = user.name || user.email;
+        body.deliveryEarning    = (order?.deliveryFee ?? 0) > 0 ? order!.deliveryFee : 30;
+        body.actorName          = user.name || user.email;
       }
 
       const res = await fetch(`/api/v1/orders/${orderId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, ...extra }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.message);
@@ -167,10 +183,10 @@ export default function DeliveryDashboardPage() {
   };
 
   const stats = useMemo(() => ({
-    total: orders.length,
-    pending: orders.filter((o) => o.status === "pending").length,
-    outForDelivery: orders.filter((o) => o.status === "out_for_delivery").length,
-    cod: orders.filter((o) => o.paymentMode === "cod" && o.paymentStatus !== "paid").length,
+    total:         orders.length,
+    readyToPickup: orders.filter((o) => ["confirmed", "packed"].includes(o.status)).length,
+    inTransit:     orders.filter((o) => ["picked_up", "in_transit", "out_for_delivery"].includes(o.status)).length,
+    cod:           orders.filter((o) => o.paymentMode === "cod" && o.paymentStatus !== "paid").length,
   }), [orders]);
 
   if (!user && !userLoading) return null;
@@ -206,10 +222,10 @@ export default function DeliveryDashboardPage() {
         {/* Stats row */}
         <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[
-            { icon: Package, label: "Total", value: stats.total, color: "text-brand", bg: "bg-secondary-subtle" },
-            { icon: Clock, label: "Pending", value: stats.pending, color: "text-status-warning", bg: "bg-status-warning-surface" },
-            { icon: Truck, label: "In Transit", value: stats.outForDelivery, color: "text-status-info", bg: "bg-status-info-surface" },
-            { icon: Wallet, label: "COD to Collect", value: stats.cod, color: "text-status-danger", bg: "bg-status-danger-surface" },
+            { icon: Package, label: "Total",          value: stats.total,         color: "text-brand",          bg: "bg-secondary-subtle" },
+            { icon: Clock,   label: "Ready to Pickup", value: stats.readyToPickup, color: "text-status-warning",  bg: "bg-status-warning-surface" },
+            { icon: Truck,   label: "In Transit",      value: stats.inTransit,     color: "text-status-info",    bg: "bg-status-info-surface" },
+            { icon: Wallet,  label: "COD to Collect",  value: stats.cod,           color: "text-status-danger",  bg: "bg-status-danger-surface" },
           ].map(({ icon: Icon, label, value, color, bg }) => (
             <div key={label} className="rounded-2xl border border-border bg-surface-card p-4">
               <div className={cx("mb-3 flex h-9 w-9 items-center justify-center rounded-xl", bg)}>
@@ -387,10 +403,11 @@ export default function DeliveryDashboardPage() {
                     </Link>
 
                     <div className="ml-auto flex gap-2">
-                      {order.status === "confirmed" && (
+                      {/* Pick up: available when farmer has confirmed or packed */}
+                      {(order.status === "confirmed" || order.status === "packed") && (
                         <button
                           disabled={isUpdating}
-                          onClick={() => quickUpdate(order._id, "out_for_delivery")}
+                          onClick={() => quickUpdate(order._id, "picked_up")}
                           className="flex items-center gap-1.5 rounded-full border border-secondary/40 bg-secondary-subtle px-3.5 py-1.5 text-xs font-semibold text-secondary-foreground transition hover:bg-secondary/30 disabled:opacity-50"
                         >
                           {isUpdating ? (
@@ -401,6 +418,7 @@ export default function DeliveryDashboardPage() {
                           Pick up
                         </button>
                       )}
+                      {/* Mark delivered: available when out for delivery */}
                       {order.status === "out_for_delivery" && (
                         <button
                           disabled={isUpdating}
@@ -414,6 +432,16 @@ export default function DeliveryDashboardPage() {
                           )}
                           Mark delivered
                         </button>
+                      )}
+                      {/* In-between steps: link to detail for finer control */}
+                      {(order.status === "picked_up" || order.status === "in_transit") && (
+                        <Link
+                          href={`/delivery/${order._id}`}
+                          className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs font-semibold text-foreground-body transition hover:bg-surface-card"
+                        >
+                          <MapPin className="h-3.5 w-3.5" />
+                          Update
+                        </Link>
                       )}
                     </div>
                   </div>

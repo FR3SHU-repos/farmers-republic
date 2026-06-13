@@ -66,9 +66,17 @@ export type Product = {
   stepQty?: number;       // buy in steps (e.g. 0.5kg, 2kg multiples)
 
   // Inventory
-  stockQty?: number;      // how many units left
-  inStock?: boolean;      // quick flag for listings
-  allowBackorder?: boolean;
+  stockQty?: number;           // physical units the farmer has in hand
+  reservedQty?: number;        // locked by active (non-terminal) orders — auto-managed
+  availableQty?: number;       // stockQty − reservedQty — auto-maintained, what buyers can order
+  lowStockThreshold?: number;  // flag as "low stock" when availableQty ≤ this value
+  inStock?: boolean;           // quick flag for listings (auto-updated when availableQty hits 0)
+  allowBackorder?: boolean;    // if true, skip the availableQty ≥ qty guard on order creation
+
+  // Produce freshness (critical for perishables)
+  harvestDate?: Date | string; // when this batch was harvested
+  expiryDate?: Date | string;  // when this batch expires
+  batchId?: string;            // farm batch identifier for traceability
 
   // Ratings / social proof
   rating?: number;        // 0–5

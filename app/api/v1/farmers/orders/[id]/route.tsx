@@ -39,6 +39,14 @@ type MongoOrder = {
   createdAt?: Date;
   updatedAt?: Date;
   items?: MongoOrderItem[];
+  timeline?: Array<{
+    status: string;
+    timestamp: Date | string;
+    note?: string;
+    actorType?: string;
+    actorId?: string;
+    actorName?: string;
+  }>;
 };
 
 // 👇 important: support both plain object & Promise for params
@@ -118,6 +126,9 @@ export async function GET(req: NextRequest, context: ParamsContext) {
         subtotal: subtotalForFarmer,
         total: totalForFarmer,
         itemsCount,
+
+        // Include the full order timeline so the detail page can display it
+        timeline: (order as any).timeline || [],
 
         items: itemsForFarmer.map((it) => ({
           productId: it.productId || "",

@@ -13,6 +13,7 @@ import {
   CheckCheck,
   CreditCard,
   ImageOff,
+  MapPin,
   Package,
   Phone,
   ShoppingBag,
@@ -50,19 +51,43 @@ type DeliveryOrder = {
   updatedAt?: string;
 };
 
+// ─── Delivery lifecycle (person's steps only) ────────────────
+
+const DELIVERY_STEPS: Record<string, { next: string; label: string; primary: boolean }> = {
+  confirmed:       { next: "picked_up",       label: "Pick Up Order",       primary: false },
+  packed:          { next: "picked_up",       label: "Pick Up Order",       primary: false },
+  picked_up:       { next: "in_transit",      label: "Start Transit",       primary: false },
+  in_transit:      { next: "out_for_delivery",label: "Out for Delivery",    primary: false },
+  out_for_delivery:{ next: "delivered",       label: "Mark as Delivered",   primary: true  },
+};
+
+// Statuses where we must attach delivery person identity (for earning record)
+const EARNING_STATUSES = new Set(["picked_up", "in_transit", "out_for_delivery", "delivered"]);
+
 // ─── Helpers ─────────────────────────────────────────────────
 
 function statusBadgeClass(s: string) {
   switch (s) {
+    case "payment_pending":
+      return "bg-status-warning-surface text-status-warning border-status-warning/30";
     case "pending":
       return "bg-status-warning-surface text-status-warning border-status-warning/30";
     case "confirmed":
       return "bg-status-info-surface text-status-info border-status-info/30";
-    case "out_for_delivery":
+    case "packed":
       return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
+    case "picked_up":
+      return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
+    case "in_transit":
+      return "bg-secondary-subtle text-secondary-foreground border-secondary/40";
+    case "out_for_delivery":
+      return "bg-primary/10 text-primary border-primary/30";
     case "delivered":
       return "bg-status-success-surface text-status-success border-status-success/30";
     case "cancelled":
+    case "returned":
+    case "refund_initiated":
+    case "refunded":
       return "bg-status-danger-surface text-status-danger border-status-danger/30";
     default:
       return "bg-surface text-foreground-muted border-border";
@@ -107,7 +132,6 @@ export default function DeliveryOrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
 
-  // Gate
   useEffect(() => {
     if (!userLoading && user && user.type !== "Logistics Provider") {
       router.replace("/");
@@ -129,7 +153,6 @@ export default function DeliveryOrderDetailPage() {
         setLoading(false);
       }
     };
-
     if (id) fetchOrder();
   }, [id]);
 
@@ -137,29 +160,36 @@ export default function DeliveryOrderDetailPage() {
     if (!order) return;
     setUpdating(true);
     try {
-      // Always include delivery person info on pickup AND delivery so the
-      // PATCH route can create the DeliveryEarning record reliably.
-      const extra: Record<string, unknown> = {};
-      if ((newStatus === "out_for_delivery" || newStatus === "delivered") && user) {
-        extra.deliveryPersonId   = user.id;
-        extra.deliveryPersonName = user.name || user.email;
-        // Earn the delivery fee; minimum ₹30 for free-delivery orders
-        extra.deliveryEarning    = order.deliveryFee > 0 ? order.deliveryFee : 30;
+      const body: Record<string, unknown> = {
+        status:    newStatus,
+        actorType: "delivery",
+      };
+
+      // Attach delivery person info from pickup onward so the earning record
+      // is always reachable even if the delivered PATCH is the first call.
+      if (EARNING_STATUSES.has(newStatus) && user) {
+        body.deliveryPersonId   = user.id;
+        body.deliveryPersonName = user.name || user.email;
+        body.deliveryEarning    = order.deliveryFee > 0 ? order.deliveryFee : 30;
+        body.actorName          = user.name || user.email;
       }
 
       const res = await fetch(`/api/v1/orders/${order._id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: newStatus, ...extra }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!res.ok || !json.success) throw new Error(json.message);
       setOrder((prev) => prev ? { ...prev, status: newStatus } : prev);
-      toast.success(
-        newStatus === "out_for_delivery"
-          ? "Order picked up — you're on the way!"
-          : "Order marked as delivered!"
-      );
+
+      const toastMsg: Record<string, string> = {
+        picked_up:        "Order picked up!",
+        in_transit:       "In transit — on the way!",
+        out_for_delivery: "Out for delivery — nearly there!",
+        delivered:        "Order marked as delivered!",
+      };
+      toast.success(toastMsg[newStatus] || "Status updated");
     } catch (err: any) {
       toast.error(err?.message || "Update failed");
     } finally {
@@ -195,10 +225,11 @@ export default function DeliveryOrderDetailPage() {
     );
   }
 
-  const isCodUnpaid = order.paymentMode === "cod" && order.paymentStatus !== "paid";
-  const itemCount = order.items.reduce((s, i) => s + i.qty, 0);
-  const isDelivered = order.status === "delivered";
-  const isCancelled = order.status === "cancelled";
+  const isCodUnpaid  = order.paymentMode === "cod" && order.paymentStatus !== "paid";
+  const itemCount    = order.items.reduce((s, i) => s + i.qty, 0);
+  const isDelivered  = order.status === "delivered";
+  const isTerminal   = ["delivered", "cancelled", "returned", "refunded"].includes(order.status);
+  const currentStep  = DELIVERY_STEPS[order.status];
 
   return (
     <div className="min-h-screen bg-background pb-36 lg:pb-12">
@@ -274,8 +305,51 @@ export default function DeliveryOrderDetailPage() {
                 Collect ₹{order.total.toFixed(2)} cash on delivery
               </p>
               <p className="mt-0.5 text-xs text-status-warning/80">
-                Payment has not been received yet — collect before handing over.
+                Payment not received yet — collect before handing over.
               </p>
+            </div>
+          </div>
+        )}
+
+        {/* Step indicator strip */}
+        {!isTerminal && (
+          <div className="mb-5 overflow-x-auto rounded-2xl border border-border bg-surface-card p-4">
+            <div className="flex min-w-max items-center gap-1">
+              {(["packed", "picked_up", "in_transit", "out_for_delivery", "delivered"] as const).map(
+                (step, idx, arr) => {
+                  const STEP_ORDER = ["confirmed","packed","picked_up","in_transit","out_for_delivery","delivered"];
+                  const currentIdx = STEP_ORDER.indexOf(order.status);
+                  const stepIdx    = STEP_ORDER.indexOf(step);
+                  const isDone     = stepIdx < currentIdx;
+                  const isActive   = step === order.status || (order.status === "confirmed" && step === "packed");
+                  return (
+                    <div key={step} className="flex items-center gap-1">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className={cx(
+                          "flex h-7 w-7 items-center justify-center rounded-full border-2 text-[10px] font-bold transition",
+                          isDone   ? "border-primary bg-primary text-primary-foreground"
+                          : isActive ? "border-primary bg-primary/10 text-primary"
+                          : "border-border bg-surface text-foreground-muted"
+                        )}>
+                          {isDone ? <CheckCheck className="h-3.5 w-3.5" /> : idx + 1}
+                        </div>
+                        <span className={cx(
+                          "text-[9px] font-semibold whitespace-nowrap",
+                          isActive ? "text-primary" : isDone ? "text-foreground-muted" : "text-foreground-muted/60"
+                        )}>
+                          {labelFor(step)}
+                        </span>
+                      </div>
+                      {idx < arr.length - 1 && (
+                        <div className={cx(
+                          "mb-4 h-px w-6 flex-shrink-0",
+                          isDone ? "bg-primary" : "bg-border"
+                        )} />
+                      )}
+                    </div>
+                  );
+                }
+              )}
             </div>
           </div>
         )}
@@ -284,7 +358,7 @@ export default function DeliveryOrderDetailPage() {
         <div className="mb-5 rounded-2xl border border-border bg-surface-card p-5">
           <h2 className="mb-4 flex items-center gap-2 text-sm font-semibold text-foreground-heading">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-surface">
-              <Phone className="h-3.5 w-3.5 text-brand" />
+              <MapPin className="h-3.5 w-3.5 text-brand" />
             </div>
             Deliver To
           </h2>
@@ -349,11 +423,7 @@ export default function DeliveryOrderDetailPage() {
 
           <div className="space-y-3">
             {order.items.map((item, i) => (
-              <div
-                key={i}
-                className="flex gap-4 rounded-xl border border-border bg-surface p-3"
-              >
-                {/* Image */}
+              <div key={i} className="flex gap-4 rounded-xl border border-border bg-surface p-3">
                 <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-xl bg-background">
                   {item.image ? (
                     <Image
@@ -370,7 +440,6 @@ export default function DeliveryOrderDetailPage() {
                   )}
                 </div>
 
-                {/* Details */}
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold text-foreground-heading line-clamp-1">
                     {item.name}
@@ -380,7 +449,7 @@ export default function DeliveryOrderDetailPage() {
                   </p>
                   {item.farmerId && (
                     <p className="mt-0.5 text-xs text-foreground-muted">
-                      Farmer ID:{" "}
+                      Farmer:{" "}
                       <Link
                         href={`/farmers/${item.farmerId}`}
                         className="text-primary hover:underline"
@@ -391,7 +460,6 @@ export default function DeliveryOrderDetailPage() {
                   )}
                 </div>
 
-                {/* Qty + line total */}
                 <div className="flex-shrink-0 text-right">
                   <div className="inline-flex items-center rounded-full border border-border bg-background px-2.5 py-1 text-xs font-bold text-foreground-heading">
                     × {item.qty}
@@ -456,44 +524,36 @@ export default function DeliveryOrderDetailPage() {
           </div>
         </div>
 
-        {/* Action buttons — visible if not terminal status */}
-        {!isDelivered && !isCancelled && (
-          <div className="space-y-3">
-            {order.status === "confirmed" && (
-              <button
-                onClick={() => updateStatus("out_for_delivery")}
-                disabled={updating}
-                className="flex w-full items-center justify-center gap-2 rounded-full border border-secondary/40 bg-secondary-subtle py-3.5 text-sm font-semibold text-secondary-foreground shadow-sm transition hover:bg-secondary/30 disabled:opacity-50"
-              >
-                {updating ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-secondary-foreground border-t-transparent" />
-                ) : (
-                  <Truck className="h-4 w-4" />
-                )}
-                I've picked up — Start Delivery
-              </button>
+        {/* Action button — advances to the next step in DELIVERY_STEPS */}
+        {!isTerminal && currentStep && (
+          <button
+            onClick={() => updateStatus(currentStep.next)}
+            disabled={updating}
+            className={cx(
+              "flex w-full items-center justify-center gap-2 rounded-full py-3.5 text-sm font-semibold shadow-sm transition disabled:opacity-50",
+              currentStep.primary
+                ? "bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary-hover"
+                : "border border-secondary/40 bg-secondary-subtle text-secondary-foreground hover:bg-secondary/30"
             )}
+          >
+            {updating ? (
+              <span className={cx(
+                "h-4 w-4 animate-spin rounded-full border-2 border-t-transparent",
+                currentStep.primary ? "border-primary-foreground" : "border-secondary-foreground"
+              )} />
+            ) : currentStep.primary ? (
+              <CheckCheck className="h-4 w-4" />
+            ) : (
+              <Truck className="h-4 w-4" />
+            )}
+            {currentStep.label}
+          </button>
+        )}
 
-            {order.status === "out_for_delivery" && (
-              <button
-                onClick={() => updateStatus("delivered")}
-                disabled={updating}
-                className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-3.5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover disabled:opacity-50"
-              >
-                {updating ? (
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                ) : (
-                  <CheckCheck className="h-4 w-4" />
-                )}
-                Mark as Delivered
-              </button>
-            )}
-
-            {order.status === "pending" && (
-              <div className="rounded-2xl border border-border bg-surface p-4 text-center text-sm text-foreground-muted">
-                Waiting for this order to be confirmed before pickup.
-              </div>
-            )}
+        {/* Waiting for farmer */}
+        {!isTerminal && !currentStep && (
+          <div className="rounded-2xl border border-border bg-surface p-4 text-center text-sm text-foreground-muted">
+            Waiting for this order to be packed by the farmer before pickup.
           </div>
         )}
 
@@ -507,6 +567,16 @@ export default function DeliveryOrderDetailPage() {
             </p>
           </div>
         )}
+
+        {/* Cancelled / returned */}
+        {["cancelled", "returned", "refund_initiated", "refunded"].includes(order.status) && (
+          <div className="flex flex-col items-center gap-3 rounded-2xl border border-status-danger/30 bg-status-danger-surface p-6 text-center">
+            <Package className="h-10 w-10 text-status-danger" />
+            <p className="text-base font-bold text-status-danger">{labelFor(order.status)}</p>
+            <p className="text-xs text-foreground-muted">This order is no longer active.</p>
+          </div>
+        )}
+
       </div>
     </div>
   );

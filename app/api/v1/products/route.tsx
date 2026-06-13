@@ -85,10 +85,19 @@ export async function POST(req: NextRequest) {
       maxOrderQty: body.maxOrderQty != null ? Number(body.maxOrderQty) : undefined,
       stepQty: body.stepQty != null ? Number(body.stepQty) : 1,
 
-      // Inventory
-      stockQty: body.stockQty != null ? Number(body.stockQty) : 0,
-      inStock: body.inStock ?? true,
-      allowBackorder: body.allowBackorder ?? false,
+      // Inventory — availableQty is always initialised to stockQty on creation
+      // (reservedQty starts at 0, so availableQty = stockQty - 0 = stockQty)
+      stockQty:          body.stockQty != null ? Number(body.stockQty) : 0,
+      reservedQty:       0,
+      availableQty:      body.stockQty != null ? Number(body.stockQty) : 0,
+      lowStockThreshold: body.lowStockThreshold != null ? Number(body.lowStockThreshold) : 0,
+      inStock:           body.inStock ?? true,
+      allowBackorder:    body.allowBackorder ?? false,
+
+      // Produce freshness
+      harvestDate: body.harvestDate ? new Date(body.harvestDate) : undefined,
+      expiryDate:  body.expiryDate  ? new Date(body.expiryDate)  : undefined,
+      batchId:     body.batchId     || undefined,
 
       // Ratings / social proof
       rating: body.rating ?? 0,

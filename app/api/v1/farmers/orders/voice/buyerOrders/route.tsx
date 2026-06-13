@@ -22,7 +22,6 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // simple pagination (optional)
     const page = Number(url.searchParams.get("page") || "1");
     const limit = Number(url.searchParams.get("limit") || "50");
     const skip = (page - 1) * limit;
@@ -40,16 +39,7 @@ export async function GET(req: NextRequest) {
     const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
 
     return NextResponse.json(
-      success(
-        {
-          orders,
-          page,
-          limit,
-          total,
-          totalPages,
-        },
-        "Buyer orders fetched"
-      ),
+      success({ orders, page, limit, total, totalPages }, "Buyer orders fetched"),
       { status: 200 }
     );
   } catch (err: any) {
@@ -61,16 +51,79 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// called from cart checkout
+// ─── Inventory helpers ─────────────────────────────────────────────────────
+
+// Atomically reserve qty for a single product.
+// Uses a filter that checks availableQty >= qty (unless backorder is allowed).
+// Returns the updated product doc, or null if insufficient stock.
+async function reserveStock(
+  productId: string,
+  qty: number
+): Promise<{ reserved: true } | { reserved: false; productName: string; available: number }> {
+  const updated = await ProductModel.findOneAndUpdate(
+    {
+      _id: productId,
+      $or: [
+        { allowBackorder: true },
+        { availableQty: { $gte: qty } },
+      ],
+    },
+    { $inc: { reservedQty: qty, availableQty: -qty } },
+    { new: true }
+  ).lean() as any;
+
+  if (!updated) {
+    // Fetch the product to return a helpful error message
+    const prod = await ProductModel.findById(productId)
+      .select("name availableQty stockQty allowBackorder")
+      .lean() as any;
+
+    if (!prod) return { reserved: false, productName: `Product ${productId}`, available: 0 };
+    return {
+      reserved: false,
+      productName: prod.name || productId,
+      available: prod.availableQty ?? prod.stockQty ?? 0,
+    };
+  }
+
+  // Auto-mark out of stock when availableQty hits 0
+  if (updated.availableQty <= 0 && !updated.allowBackorder) {
+    await ProductModel.findByIdAndUpdate(productId, {
+      $set: { inStock: false, status: "out_of_stock" },
+    });
+  }
+
+  return { reserved: true };
+}
+
+// Roll back reservations that were already made (on partial failure)
+async function releaseStock(reservations: Array<{ productId: string; qty: number }>) {
+  await Promise.all(
+    reservations.map(({ productId, qty }) =>
+      ProductModel.findByIdAndUpdate(productId, {
+        $inc: { reservedQty: -qty, availableQty: qty },
+      }).then(async (prod: any) => {
+        // Re-enable if now back in stock
+        if (prod && (prod.availableQty ?? 0) + qty > 0) {
+          await ProductModel.findByIdAndUpdate(productId, {
+            $set: { inStock: true, status: "active" },
+          });
+        }
+      })
+    )
+  );
+}
+
+// ─── POST – called from cart checkout ─────────────────────────────────────
+
 export async function POST(req: NextRequest) {
   try {
     await mongoDB();
 
     const body = await req.json();
-
     const {
       items,
-      subtotal: _clientSubtotal, // we'll recompute
+      subtotal: _clientSubtotal,
       deliveryFee,
       buyerId,
       buyerName,
@@ -82,42 +135,27 @@ export async function POST(req: NextRequest) {
     } = body || {};
 
     if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json(
-        failure("Order items are required"),
-        { status: 400 }
-      );
+      return NextResponse.json(failure("Order items are required"), { status: 400 });
     }
 
-    // 🔐 Normalise items according to new model/interface
+    // ── Step 1: Normalise items + resolve farmerId ───────────────────────
     const safeItems: OrderItem[] = await Promise.all(
       items.map(async (raw: any): Promise<OrderItem> => {
         const price = Number(raw.price ?? 0);
-        const qty = Number(raw.qty ?? 1);
+        const qty   = Number(raw.qty ?? 1);
 
-        // 🔍 ensure we have farmerId: from payload or from Product
         let farmerIdRaw: string | undefined = raw.farmerId;
-
         if (!farmerIdRaw && raw.productId) {
           try {
             const product = await ProductModel.findById(raw.productId)
               .select("farmerId")
               .lean()
               .exec();
-
             if (product && (product as any).farmerId) {
               farmerIdRaw = String((product as any).farmerId);
-            } else {
-              console.warn(
-                "[buyerOrders POST] product without farmerId",
-                raw.productId
-              );
             }
           } catch (e) {
-            console.error(
-              "[buyerOrders POST] error fetching product for farmerId",
-              raw.productId,
-              e
-            );
+            console.error("[buyerOrders POST] error fetching product for farmerId", raw.productId, e);
           }
         }
 
@@ -137,97 +175,95 @@ export async function POST(req: NextRequest) {
             }))
           : [];
 
-        const platformFeeTotal = Number(raw.platformFeeTotal ?? 0);
-        const discountTotal = Number(raw.discountTotal ?? 0);
-
-        const deliveryCharge = Number(raw.deliveryCharge ?? 0);
-        const extraCharge = Number(raw.extraCharge ?? 0);
-        const serviceCharge = Number(raw.serviceCharge ?? 0);
-
-        const taxAmount = Number(raw.taxAmount ?? 0);
-        const taxBreakup = raw.taxBreakup || {};
-
-        // 🔑 If item-level payment not provided, fallback to order-level, then default
-        const itemPaymentMode =
-          (raw.paymentMode as any) || orderPaymentMode || "cod";
-        const itemPaymentStatus =
-          (raw.paymentStatus as any) || orderPaymentStatus || "unpaid";
-
-        // paidAmount optional – can be calculated later or set explicitly
-        const paidAmount =
-          typeof raw.paidAmount === "number"
-            ? Number(raw.paidAmount)
-            : undefined;
+        const itemPaymentMode   = (raw.paymentMode as any) || orderPaymentMode || "cod";
+        const itemPaymentStatus = (raw.paymentStatus as any) || orderPaymentStatus || "unpaid";
+        const paidAmount        = typeof raw.paidAmount === "number" ? Number(raw.paidAmount) : undefined;
 
         return {
           productId: String(raw.productId),
-          name: raw.name,
+          name:      raw.name,
           price,
-          image: raw.image || "",
+          image:     raw.image || "",
           qty,
-          farmerId: farmerIdRaw, // ✅ now guaranteed when product has it
+          farmerId:  farmerIdRaw,
 
-          status: raw.status || "pending",
-          deliveryCharge,
-          extraCharge,
-          serviceCharge,
+          status:        raw.status || "pending",
+          deliveryCharge: Number(raw.deliveryCharge ?? 0),
+          extraCharge:    Number(raw.extraCharge    ?? 0),
+          serviceCharge:  Number(raw.serviceCharge  ?? 0),
 
           platformFees,
-          platformFeeTotal,
+          platformFeeTotal: Number(raw.platformFeeTotal ?? 0),
 
           discounts,
-          discountTotal,
+          discountTotal: Number(raw.discountTotal ?? 0),
 
-          paymentMode: itemPaymentMode,
+          paymentMode:   itemPaymentMode,
           paymentStatus: itemPaymentStatus,
           paidAmount,
           currency: raw.currency || "INR",
 
-          taxAmount,
+          taxAmount: Number(raw.taxAmount ?? 0),
           taxBreakup: {
-            cgst: Number(taxBreakup.cgst ?? 0),
-            sgst: Number(taxBreakup.sgst ?? 0),
-            igst: Number(taxBreakup.igst ?? 0),
+            cgst: Number(raw.taxBreakup?.cgst ?? 0),
+            sgst: Number(raw.taxBreakup?.sgst ?? 0),
+            igst: Number(raw.taxBreakup?.igst ?? 0),
           },
 
-          farmerPayoutAmount: raw.farmerPayoutAmount
-            ? Number(raw.farmerPayoutAmount)
-            : undefined,
-          farmerSettlementStatus: raw.farmerSettlementStatus || "pending",
-          farmerSettlementAt: raw.farmerSettlementAt
-            ? new Date(raw.farmerSettlementAt)
-            : undefined,
-          settlementReferenceId: raw.settlementReferenceId || undefined,
-
-          paymentReferenceId: raw.paymentReferenceId || undefined,
-          shipmentTrackingId: raw.shipmentTrackingId || undefined,
-          shipmentProvider: raw.shipmentProvider || undefined,
-          promisedDeliveryDate: raw.promisedDeliveryDate
-            ? new Date(raw.promisedDeliveryDate)
-            : undefined,
-          deliveredAt: raw.deliveredAt
-            ? new Date(raw.deliveredAt)
-            : undefined,
+          farmerPayoutAmount:      raw.farmerPayoutAmount ? Number(raw.farmerPayoutAmount) : undefined,
+          farmerSettlementStatus:  raw.farmerSettlementStatus || "pending",
+          farmerSettlementAt:      raw.farmerSettlementAt ? new Date(raw.farmerSettlementAt) : undefined,
+          settlementReferenceId:   raw.settlementReferenceId || undefined,
+          paymentReferenceId:      raw.paymentReferenceId    || undefined,
+          shipmentTrackingId:      raw.shipmentTrackingId    || undefined,
+          shipmentProvider:        raw.shipmentProvider      || undefined,
+          promisedDeliveryDate:    raw.promisedDeliveryDate  ? new Date(raw.promisedDeliveryDate) : undefined,
+          deliveredAt:             raw.deliveredAt            ? new Date(raw.deliveredAt)           : undefined,
         };
       })
     );
 
-    // subtotal from base price * qty
+    // ── Step 2: Atomically reserve inventory for every item ──────────────
+    // If any item fails, roll back all reservations already made.
+    const reservationsMade: Array<{ productId: string; qty: number }> = [];
+    const stockErrors: string[] = [];
+
+    for (const item of safeItems) {
+      const result = await reserveStock(item.productId, item.qty);
+
+      if (result.reserved) {
+        reservationsMade.push({ productId: item.productId, qty: item.qty });
+      } else {
+        stockErrors.push(
+          `"${result.productName}" — only ${result.available} unit(s) available (requested ${item.qty})`
+        );
+      }
+    }
+
+    if (stockErrors.length > 0) {
+      // Release all reservations made in this pass before returning the error
+      await releaseStock(reservationsMade);
+      return NextResponse.json(
+        failure(`Insufficient stock for the following items:\n${stockErrors.join("\n")}`),
+        { status: 422 }
+      );
+    }
+
+    // ── Step 3: Calculate totals & create order ──────────────────────────
     const computedSubtotal = safeItems.reduce<number>(
-      (sum: number, it: OrderItem) => sum + it.price * it.qty,
+      (sum, it) => sum + it.price * it.qty,
       0
     );
 
-    // extra charges/discounts per item
     const extraChargesTotal = safeItems.reduce<number>(
-      (sum: number, it: OrderItem) =>
+      (sum, it) =>
         sum +
-        (Number(it.deliveryCharge ?? 0) +
-          Number(it.extraCharge ?? 0) +
-          Number(it.serviceCharge ?? 0) +
-          Number(it.platformFeeTotal ?? 0) +
-          Number(it.taxAmount ?? 0) -
-          Number(it.discountTotal ?? 0)),
+        (Number(it.deliveryCharge  ?? 0) +
+         Number(it.extraCharge     ?? 0) +
+         Number(it.serviceCharge   ?? 0) +
+         Number(it.platformFeeTotal ?? 0) +
+         Number(it.taxAmount       ?? 0) -
+         Number(it.discountTotal   ?? 0)),
       0
     );
 
@@ -235,27 +271,22 @@ export async function POST(req: NextRequest) {
     const total = computedSubtotal + extraChargesTotal + numericDeliveryFee;
 
     const orderDoc = await OrderModel.create({
-      buyerId: buyerId ?? null,
-      buyerName: buyerName || "",
-      buyerEmail: buyerEmail || "",
-      buyerPhone: buyerPhone || "",
-      subtotal: computedSubtotal,
-      deliveryFee: numericDeliveryFee,
+      buyerId:       buyerId ?? null,
+      buyerName:     buyerName  || "",
+      buyerEmail:    buyerEmail || "",
+      buyerPhone:    buyerPhone || "",
+      subtotal:      computedSubtotal,
+      deliveryFee:   numericDeliveryFee,
       total,
-      status: "pending",
+      status:        "pending",
       paymentStatus: orderPaymentStatus || "unpaid",
-      paymentMode: orderPaymentMode || "cod",
-      source: source || "web",
-      items: safeItems,
+      paymentMode:   orderPaymentMode   || "cod",
+      source:        source             || "web",
+      items:         safeItems,
     });
 
     return NextResponse.json(
-      success(
-        {
-          id: String(orderDoc._id),
-        },
-        "Order created"
-      ),
+      success({ id: String(orderDoc._id) }, "Order created"),
       { status: 201 }
     );
   } catch (err: any) {
@@ -266,93 +297,3 @@ export async function POST(req: NextRequest) {
     );
   }
 }
-
-// export async function PATCH(
-//   req: NextRequest,
-//   { params }: { params: { id: string } }
-// ) {
-//   try {
-//     await mongoDB();
-
-//     const orderId = params.id;
-//     const url = new URL(req.url);
-//     const farmerId = url.searchParams.get("farmerId");
-//     const body = await req.json();
-
-//     const { productId } = body || {};
-//     const {
-//       status,
-//       deliveryCharge,
-//       extraCharge,
-//       serviceCharge,
-//       discountTotal,
-//     } = body || {};
-
-//     if (!farmerId) {
-//       return NextResponse.json(failure("farmerId is required"), {
-//         status: 400,
-//       });
-//     }
-
-//     if (!productId) {
-//       return NextResponse.json(failure("productId is required"), {
-//         status: 400,
-//       });
-//     }
-
-//     const $set: Record<string, any> = {};
-
-//     if (typeof status === "string") {
-//       $set["items.$.status"] = status;
-//     }
-//     if (typeof deliveryCharge === "number") {
-//       $set["items.$.deliveryCharge"] = deliveryCharge;
-//     }
-//     if (typeof extraCharge === "number") {
-//       $set["items.$.extraCharge"] = extraCharge;
-//     }
-//     if (typeof serviceCharge === "number") {
-//       $set["items.$.serviceCharge"] = serviceCharge;
-//     }
-//     // ✅ NEW: allow discountTotal to be updated
-//     if (typeof discountTotal === "number") {
-//       $set["items.$.discountTotal"] = discountTotal;
-//     }
-
-//     if (Object.keys($set).length === 0) {
-//       return NextResponse.json(
-//         failure(
-//           "Nothing to update (status / deliveryCharge / extraCharge / serviceCharge / discountTotal)"
-//         ),
-//         { status: 400 }
-//       );
-//     }
-
-//     const result = await OrderModel.updateOne(
-//       {
-//         _id: orderId,
-//         "items.productId": productId,
-//         "items.farmerId": farmerId,
-//       },
-//       { $set }
-//     );
-
-//     if (!result.matchedCount) {
-//       return NextResponse.json(
-//         failure("Order item not found for this farmer"),
-//         { status: 404 }
-//       );
-//     }
-
-//     return NextResponse.json(success(null, "Farmer item updated"), {
-//       status: 200,
-//     });
-//   } catch (err: any) {
-//     console.error("farmer order PATCH error:", err);
-//     return NextResponse.json(
-//       failure(err?.message || "Failed to update order item"),
-//       { status: 500 }
-//     );
-//   }
-// }
-

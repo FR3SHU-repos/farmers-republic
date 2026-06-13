@@ -5,7 +5,14 @@ import { mongoDB } from "@/shared/lib/db/mongo";
 import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
 import { success, failure } from "@/app/api/v1/utils/responses";
 
-const DELIVERABLE_STATUSES = ["pending", "confirmed", "out_for_delivery"];
+// All statuses that a delivery person can act on or that are in their queue.
+const DELIVERABLE_STATUSES = [
+  "confirmed",
+  "packed",
+  "picked_up",
+  "in_transit",
+  "out_for_delivery",
+];
 
 // GET /api/v1/delivery/orders?status=pending&page=1&limit=20
 export async function GET(req: NextRequest) {

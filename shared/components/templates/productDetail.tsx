@@ -11,6 +11,7 @@ import {
   Leaf,
   Minus,
   Package,
+  Pencil,
   Plus,
   ShieldCheck,
   ShoppingCart,
@@ -21,6 +22,7 @@ import {
 } from "lucide-react";
 import type { Product } from "@/shared/interfaces/mongodb/products/product";
 import { useCart } from "@/shared/context/CartContext";
+import { useUser } from "@/shared/context/UserContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { cx } from "@/shared/lib/utils";
@@ -109,6 +111,9 @@ function PillBadge({
 export default function ProductDetail({ product }: { product: Product }) {
   const router = useRouter();
   const { addToCart } = useCart();
+  const { user } = useUser();
+
+  const isFarmer = user?.type === "Farmer";
 
   const allImages = [
     ...(product.image ? [product.image] : []),
@@ -263,6 +268,32 @@ export default function ProductDetail({ product }: { product: Product }) {
             {product.name}
           </span>
         </nav>
+
+        {/* Farmer edit banner — only visible to Farmer role */}
+        {isFarmer && product.id && (
+          <div className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-secondary/40 bg-secondary-subtle px-5 py-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-secondary/20">
+                <Sprout className="h-4 w-4 text-brand" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground-heading">
+                  This is your product
+                </p>
+                <p className="text-xs text-foreground-muted">
+                  Update stock, price, freshness dates and more
+                </p>
+              </div>
+            </div>
+            <Link
+              href={`/products/${product.id}/edit`}
+              className="flex flex-shrink-0 items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition hover:bg-primary-hover"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit product
+            </Link>
+          </div>
+        )}
 
         <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
           {/* ── Left: Images + content ──────────────── */}
@@ -729,18 +760,10 @@ function ProductIdentity({
         <StarRating value={product.rating} count={product.reviewsCount} />
       )}
 
-      {/* SKU / Edit link */}
-      <div className="flex flex-wrap items-center gap-3 text-xs text-foreground-muted">
-        {product.sku && <span>SKU: {product.sku}</span>}
-        {product.id && (
-          <Link
-            href={`/products/${product.id}/edit`}
-            className="text-primary hover:underline"
-          >
-            Edit product
-          </Link>
-        )}
-      </div>
+      {/* SKU */}
+      {product.sku && (
+        <p className="text-xs text-foreground-muted">SKU: {product.sku}</p>
+      )}
     </div>
   );
 }

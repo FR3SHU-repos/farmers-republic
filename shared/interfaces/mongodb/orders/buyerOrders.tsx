@@ -1,4 +1,39 @@
-// Types for clearer enums
+// shared/interfaces/mongodb/orders/buyerOrders.tsx
+
+// ─── Status enum ─────────────────────────────────────────────
+// Full lifecycle from payment through delivery and refund.
+// Actor ownership:
+//   Farmer:   confirmed, packed
+//   Delivery: picked_up, in_transit, out_for_delivery, delivered
+//   Buyer:    payment_pending, cancelled, returned
+//   System:   refund_initiated, refunded
+export type OrderStatusValue =
+  | "payment_pending"    // awaiting online payment confirmation
+  | "pending"            // payment received / COD order placed
+  | "confirmed"          // farmer has acknowledged the order
+  | "packed"             // farmer has packed and ready for pickup
+  | "picked_up"          // delivery person collected the order
+  | "in_transit"         // on the way to the buyer
+  | "out_for_delivery"   // last-mile, near the buyer
+  | "delivered"          // successfully delivered
+  | "cancelled"          // order cancelled before delivery
+  | "returned"           // buyer returned after delivery
+  | "refund_initiated"   // refund process started
+  | "refunded";          // refund completed
+
+// ─── Timeline entry ──────────────────────────────────────────
+// One entry is pushed every time the order status changes.
+export type OrderTimelineEntry = {
+  status: string;
+  timestamp: Date | string;
+  note?: string;
+  actorType?: "farmer" | "delivery" | "buyer" | "system";
+  actorId?: string;
+  actorName?: string;
+};
+
+// ─── Item sub-types ──────────────────────────────────────────
+
 export type OrderItemPaymentStatus =
   | "unpaid"
   | "paid"
@@ -14,72 +49,59 @@ export type OrderItemSettlementStatus =
   | "settled"
   | "on_hold";
 
-// 🔎 Discount line – keeps it flexible (festive, coupon, farmer discount, etc.)
 export type OrderItemDiscountLine = {
   type: "festive" | "coupon" | "farmer" | "bulk" | "manual";
-  label?: string;             // e.g. "Diwali Offer", "WELCOME10"
-  amount: number;             // positive number = discount amount for this item line
+  label?: string;
+  amount: number;
 };
 
-// 💰 Platform fee line (in case you want multiple types later)
 export type OrderItemPlatformFeeLine = {
   type: "service" | "listing" | "payment_gateway" | "other";
   label?: string;
-  amount: number;             // positive number = fee charged on this item
+  amount: number;
 };
 
 export type OrderItem = {
   productId: string;
   name: string;
-  price: number;        // base price per unit (before per-item charges/discounts)
+  price: number;
   image?: string;
   qty: number;
   farmerId?: string;
 
-  // ✅ Operational status for this product in the order
-  status?: string;            // "pending", "confirmed", "out_for_delivery", "delivered", "cancelled"
+  status?: string;
 
-  // 🚚 Logistics / extra charges per item
-  deliveryCharge?: number;    // e.g. per-item share of delivery
-  extraCharge?: number;       // packing/handling/etc.
-  serviceCharge?: number;     // legacy field – you can treat as generic extra
+  deliveryCharge?: number;
+  extraCharge?: number;
+  serviceCharge?: number;
 
-  // 💰 Platform fee (per item)
-  platformFees?: OrderItemPlatformFeeLine[]; // detailed fees
-  platformFeeTotal?: number;                 // sum(platformFees.amount) for quick queries
+  platformFees?: OrderItemPlatformFeeLine[];
+  platformFeeTotal?: number;
 
-  // 🎉 Discounts (including festive offers)
-  discounts?: OrderItemDiscountLine[];       // each line like { type: "festive", amount: 50 }
-  discountTotal?: number;                    // sum(discounts.amount)
+  discounts?: OrderItemDiscountLine[];
+  discountTotal?: number;
 
-  // 💳 Payment per item (can differ from order-level)
-  paymentMode?: OrderItemPaymentMode;        // default to order.paymentMode if empty
-  paymentStatus?: OrderItemPaymentStatus;    // default to order.paymentStatus
-  paidAmount?: number;                       // what buyer actually pays for this item line
-  currency?: string;                         // "INR" (future-proof)
+  paymentMode?: OrderItemPaymentMode;
+  paymentStatus?: OrderItemPaymentStatus;
+  paidAmount?: number;
+  currency?: string;
 
-  // 🧾 Tax per item
-  taxAmount?: number;                        // total GST for this item
-  taxBreakup?: {
-    cgst?: number;
-    sgst?: number;
-    igst?: number;
-  };
+  taxAmount?: number;
+  taxBreakup?: { cgst?: number; sgst?: number; igst?: number };
 
-  // 💸 Payout to farmer for this item
-  farmerPayoutAmount?: number;               // what farmer should receive for this item
+  farmerPayoutAmount?: number;
   farmerSettlementStatus?: OrderItemSettlementStatus;
   farmerSettlementAt?: Date | string;
-  settlementReferenceId?: string;            // payout id from bank/gateway
+  settlementReferenceId?: string;
 
-  // 🔗 References
-  paymentReferenceId?: string;               // PG transaction id if item-level
+  paymentReferenceId?: string;
   shipmentTrackingId?: string;
   shipmentProvider?: string;
   promisedDeliveryDate?: Date | string;
   deliveredAt?: Date | string;
 };
 
+// ─── Order ───────────────────────────────────────────────────
 
 export type Order = {
   _id?: string;
@@ -96,10 +118,16 @@ export type Order = {
   source?: string;
   items: OrderItem[];
   paymentReferenceId?: string;
+
+  // Delivery person tracking
   deliveryPersonId?: string;
   deliveryPersonName?: string;
   deliveryEarning?: number;
   deliveredAt?: Date | string;
+
+  // Order lifecycle timeline — one entry per status transition
+  timeline?: OrderTimelineEntry[];
+
   createdAt?: Date;
   updatedAt?: Date;
 };
