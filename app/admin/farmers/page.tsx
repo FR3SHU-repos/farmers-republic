@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useUser } from "@/shared/context/UserContext";
 import { cx } from "@/shared/lib/utils";
@@ -180,7 +180,7 @@ function DocLink({ label, url }: { label: string; url?: string }) {
   );
 }
 
-export default function AdminFarmersPage() {
+function AdminFarmersContent() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -434,5 +434,13 @@ export default function AdminFarmersPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function AdminFarmersPage() {
+  return (
+    <Suspense>
+      <AdminFarmersContent />
+    </Suspense>
   );
 }
