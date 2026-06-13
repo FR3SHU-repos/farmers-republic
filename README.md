@@ -18,11 +18,18 @@ Brand tagline: *"Pick fresh. Eat fresh."*
 - **JWT + bcryptjs** for auth/session primitives (httpOnly cookie, 7-day expiry).
 - **Supabase Storage** for media upload/storage (avatars bucket, product-images bucket).
 
+### Redis & Background Jobs
+- **Upstash Redis** — managed Redis with TLS. Accessed two ways:
+  - **`@upstash/redis`** (HTTP REST) — for rate limiting, OTP storage, and product caching inside Next.js serverless API routes.
+  - **`ioredis`** (TCP + TLS) — for BullMQ queue producers and workers.
+- **BullMQ** — job queues for email delivery, order lifecycle events, and push notifications. Three queues: `email`, `notifications`, `orders`.
+- **`@upstash/ratelimit`** — sliding-window rate limiting on auth, order, and product APIs.
+
 ### UX & Utilities
 - **react-hot-toast** for notifications.
 - **framer-motion** for UI animations.
 - **lucide-react** for all iconography (no inline SVGs).
-- **Nodemailer** for transactional email (Brevo SMTP primary, Zoho fallback).
+- **Nodemailer** for transactional email (Zoho SMTP primary → Brevo SMTP → Brevo HTTP API fallback).
 - **OpenAI SDK** for voice order transcription (Whisper) and AI extensions.
 
 ---
@@ -81,13 +88,88 @@ App Router Pages (app/**/page.tsx)
   ├─ shared templates/components for UI composition
   ├─ shared context (UserContext, CartContext) for cross-page state
   ├─ API routes (/api/v1/*) for all CRUD operations
-  └─ API routes → MongoDB via Mongoose models
-                → Supabase for media
+  │    ├─ Rate limiting via @upstash/ratelimit (Redis-backed)
+  │    ├─ Product responses cached in Redis (60–120 s TTL)
+  │    ├─ OTP storage in Redis (not MongoDB)
+  │    └─ Queue producers → BullMQ (email / notification / order jobs)
+  │
+  ├─ API routes → MongoDB via Mongoose models
+  │            → Supabase for media
+  │
+workers/ (separate long-running Node.js processes)
+  ├─ emailWorker.ts       — sends emails via Nodemailer
+  ├─ notificationWorker.ts — push/SMS notifications (stubs — wire up FCM/Twilio)
+  └─ orderWorker.ts       — order lifecycle side-effects (loyalty, wallet credits)
 ```
 
 ---
 
-## 5) Pages & Routes
+## 5) Redis + BullMQ Architecture
+
+### What uses Redis
+
+| Use case | Client | TTL / limit |
+|---|---|---|
+| Rate limit — login | `@upstash/ratelimit` | 5 req / 1 min / IP |
+| Rate limit — register | `@upstash/ratelimit` | 3 req / 1 min / IP |
+| Rate limit — OTP | `@upstash/ratelimit` | 3 req / 10 min / IP |
+| Rate limit — order APIs | `@upstash/ratelimit` | 20 req / 1 min / user |
+| Rate limit — product create | `@upstash/ratelimit` | 10 req / 1 hr / farmer |
+| OTP storage | `@upstash/redis` | 10 min TTL |
+| OTP attempt counter | `@upstash/redis` | max 5 attempts |
+| Product list cache | `@upstash/redis` | 60 s |
+| Product detail cache | `@upstash/redis` | 120 s |
+| Categories cache | `@upstash/redis` | 1 hr |
+| BullMQ queue backend | `ioredis` | persistent |
+
+### Cache key layout
+```
+products:list:{queryHash}     # 60 s TTL — invalidated on product mutation
+products:detail:{id}          # 120 s TTL
+categories:all                # 1 hr TTL
+reset_otp:{email}             # 10 min TTL (SHA-256 hash, not raw OTP)
+reset_otp_attempts:{email}    # 10 min TTL
+```
+
+### BullMQ queues
+
+| Queue | Worker file | Job types |
+|---|---|---|
+| `email` | `workers/emailWorker.ts` | `passwordResetOtp`, `orderConfirmation`, `deliveryConfirmation`, `generic` |
+| `notifications` | `workers/notificationWorker.ts` | `notify.farmer`, `notify.buyer`, `notify.delivery` |
+| `orders` | `workers/orderWorker.ts` | `order.created`, `order.delivered`, `delivery.earning.created` |
+
+All jobs: 3 attempts, exponential backoff (5 s base), `removeOnComplete: true`, `removeOnFail: false`.
+
+### Queue producers (where jobs are added)
+
+| API route | Event | Jobs added |
+|---|---|---|
+| `POST /api/v1/auth/send-reset-otp` | OTP requested | `email → passwordResetOtp` |
+| `PATCH /api/v1/orders/[id]` (status → `delivered`) | Order delivered | `order.delivered`, `delivery.earning.created`, `email → deliveryConfirmation`, `notify.buyer` |
+| `PATCH /api/v1/orders/[id]` (any status change) | Status updated | `notify.buyer` |
+
+> **To add a new queue producer**: import the queue from `shared/queues/`, call `queue.add(name, data)` inside a `safeEnqueue()` wrapper so a queue failure never breaks the API response.
+
+### Worker commands
+```bash
+npm run worker:email          # email queue
+npm run worker:notification   # notification queue
+npm run worker:order          # order lifecycle queue
+npm run workers               # all three in parallel (uses concurrently)
+```
+
+> **Important**: Workers are long-running Node.js processes. They must run on a server or container — they cannot be hosted on serverless-only platforms (Vercel functions, AWS Lambda). Use Railway, Render, or a VPS for worker deployment.
+
+### Safe fallback behaviour
+- **Rate limiter down**: requests are allowed through (fail-open), error logged.
+- **Cache down**: API falls through to MongoDB, returns fresh data.
+- **Queue unavailable on OTP**: email is sent directly via Nodemailer before returning.
+- **Queue unavailable on order events**: `safeEnqueue()` catches and logs — API response is never blocked.
+
+---
+
+## 6) Pages & Routes
 
 ### Authentication
 | Route | Description |
@@ -109,12 +191,12 @@ App Router Pages (app/**/page.tsx)
 ### Harvests (Harvest-Based Commerce)
 | Route | Description |
 |---|---|
-| `/harvests` | Public marketplace — countdown badges, crop search, date filter pills, pre-booking CTA, link to My Pre-bookings |
+| `/harvests` | Public marketplace — countdown badges, crop search, date filter pills, pre-booking CTA |
 | `/harvests/[id]` | Harvest detail — freshness timeline, sticky pre-book form, success state, fully-booked guard |
-| `/farmers/harvests` | Farmer dashboard — stats cards, list of all own harvest announcements, status filter tabs, Mark Harvested quick action |
-| `/farmers/harvests/new` | Announce a new harvest — live preview card, UNIT_OPTIONS |
-| `/farmers/harvests/[id]` | Farmer manage — inline edit toggle, pre-bookings table with confirm/fulfill/cancel per booking |
-| `/profile/prebookings` | Buyer's pre-bookings list — status filter tabs, summary stats, link back to harvest detail |
+| `/farmers/harvests` | Farmer dashboard — stats cards, list of all own harvest announcements, status filter tabs |
+| `/farmers/harvests/new` | Announce a new harvest — live preview card |
+| `/farmers/harvests/[id]` | Farmer manage — inline edit toggle, pre-bookings table with confirm/fulfill/cancel |
+| `/profile/prebookings` | Buyer's pre-bookings list — status filter tabs, summary stats |
 
 ### Farmers
 | Route | Description |
@@ -124,7 +206,7 @@ App Router Pages (app/**/page.tsx)
 | `/farmers/[id]` | Farmer public profile |
 | `/farmers/edit/[id]` | Edit farmer profile — redesigned with design tokens, 8 section tabs, sticky save bar, avatar upload |
 | `/farmers/dashboard` | Farmer dashboard with stats |
-| `/farmers/orders` | Farmer orders list — buyer orders containing this farmer's products, stat cards, status filters |
+| `/farmers/orders` | Farmer orders list — buyer orders containing this farmer's products |
 | `/farmers/orders/[id]` | Farmer order detail — buyer info, per-item management, earnings summary |
 | `/farmers/kyc` | KYC document submission for farmers |
 | `/farmers/analytics` | Farmer analytics — revenue, orders, top products, bar chart dashboard |
@@ -155,7 +237,7 @@ App Router Pages (app/**/page.tsx)
 | Route | Description |
 |---|---|
 | `/admin` | Admin overview — platform stats (users, orders, farmers, GMV), recent orders |
-| `/admin/analytics` | Business intelligence — 11 aggregations with period filter (7d/30d/90d/all), bar charts |
+| `/admin/analytics` | Business intelligence — 11 aggregations with period filter (7d/30d/90d/all) |
 | `/admin/farmers` | Farmer management — KYC review workflow (pending/verified/rejected) |
 | `/admin/orders` | Platform order management |
 | `/admin/products` | Product moderation |
@@ -187,117 +269,113 @@ App Router Pages (app/**/page.tsx)
 
 ---
 
-## 6) Navigation
+## 7) Navigation
 
-### Desktop navbar
-- **Primary nav pills**: Farmers, FPOs, Shop, Harvests, Community
-- **More dropdown** (role-aware sections):
-  - *Buyers*: My Pre-bookings, Referral
-  - *Farmers*: My Harvests, Analytics, Announce Harvest, Add Product
-  - *Admins*: Admin Panel, Analytics
-  - *All*: Adopted Farmers
+### Desktop navbar (`shared/components/templates/navbar.tsx`)
+- **Logo** left, **4 primary nav pills** (Farmers, Shop, Harvests, Community), **Browse ▾** mega-menu right.
+- **Browse mega-menu** (500 px wide, 3-column grid per section, opens on click):
+  - *Explore* (all users): Shop, Farmers, FPOs, Harvests, Community, Adopted Farmers, FR3SH Plus
+  - *My Account* (logged in): Profile, Wallet, Pre-bookings, Orders, Referral, Badges
+  - *Farmer Tools* (farmers): Dashboard, My Harvests, Announce Harvest, Add Product, My Orders, Analytics, KYC Status
+  - *Admin* (admins): Admin Panel, Users, Farmers, Orders, Products, Analytics
+- **Right actions**: Search | Cart | Browse ▾ | Profile button (avatar) / Login
 
-### Mobile bottom nav
-- **Bottom bar tabs**: Home, Shop, **Harvests** (direct tab), More, Cart, Profile
-- **More popover** (scrollable, 4-column icon grid, role-aware sections):
-  - *Discover*: Harvests, Community, Farmers, Products
-  - *My Account (buyers)*: My Orders, Pre-bookings, Referral
-  - *Farmer Tools*: My Harvests, Analytics, New Harvest, Referral
-  - *Admin*: Admin Panel, Analytics
+### Mobile bottom nav (`shared/components/templates/bottomNav.tsx`)
+- **Bottom bar tabs**: Home, Shop, Harvests (dedicated), More, Cart, Profile
+- **More popover** (scrollable sheet, 4-column icon grid, role-aware sections):
+  - Discover, My Account (buyers), Farmer Tools (farmers), Admin (admins)
 
 ---
 
-## 7) API Surface (`/api/v1`)
+## 8) API Surface (`/api/v1`)
 
-All handlers: `await mongoDB()` → validate → query/mutate → return `{ success, message, data }`.
+All handlers: `await mongoDB()` → validate → query/mutate → return `{ success, message, data }`.  
+Rate-limited endpoints return `{ success: false, message: "Too many requests…" }` with HTTP 429.
 
 ### Auth
-| Endpoint | Methods | Description |
-|---|---|---|
-| `/api/v1/auth/register` | POST | Create user account |
-| `/api/v1/auth/login` | POST | Issue JWT cookie |
-| `/api/v1/auth/logout` | POST | Clear JWT cookie |
-| `/api/v1/auth/me` | GET | Return current user from cookie |
-| `/api/v1/auth/send-reset-otp` | POST | Email OTP for password reset |
-| `/api/v1/auth/verify-reset-otp` | POST | Validate OTP |
+| Endpoint | Methods | Rate limit | Description |
+|---|---|---|---|
+| `/api/v1/auth/register` | POST | 3/min/IP | Create user account |
+| `/api/v1/auth/login` | POST | 5/min/IP | Issue JWT cookie |
+| `/api/v1/auth/logout` | POST | — | Clear JWT cookie |
+| `/api/v1/auth/me` | GET | — | Return current user from cookie |
+| `/api/v1/auth/send-reset-otp` | POST | 3/10min/IP | Store OTP in Redis, queue email |
+| `/api/v1/auth/verify-reset-otp` | POST | — | Verify Redis OTP, reset password |
 
 ### Core CRUD
 | Endpoint | Methods | Description |
 |---|---|---|
 | `/api/v1/farmers` | GET, POST, PATCH | Farmer CRUD. GET supports `?profileId=` to resolve userId → farmerId |
 | `/api/v1/buyers` | GET, POST, PATCH | Buyer CRUD |
-| `/api/v1/products` | GET, POST | Product list + create |
-| `/api/v1/products/[id]` | GET, PATCH, DELETE | Single product |
+| `/api/v1/products` | GET, POST | GET: cached 60 s. POST: rate-limited 10/hr/farmer, invalidates cache |
+| `/api/v1/products/[id]` | GET, PATCH, DELETE | Single product. GET cached 120 s, mutations invalidate cache |
 | `/api/v1/user/update` | PATCH | Update user profile fields |
 | `/api/v1/user/photo` | PATCH | Upload avatar to Supabase |
 
 ### Orders
-| Endpoint | Methods | Description |
-|---|---|---|
-| `/api/v1/orders/[id]` | GET, PATCH | Fetch / update buyer order. PATCH creates `DeliveryEarning` on `"delivered"` |
-| `/api/v1/orders/[id]/split` | POST | Split order into per-farmer SubOrders |
-| `/api/v1/farmers/dashboard/orders` | GET | Buyer orders filtered by `items.farmerId` |
-| `/api/v1/farmers/orders/[id]` | GET, PATCH | Single farmer-view order detail + per-item updates |
+| Endpoint | Methods | Rate limit | Description |
+|---|---|---|---|
+| `/api/v1/orders/[id]` | GET | 20/min/IP | Fetch buyer order |
+| `/api/v1/orders/[id]` | PATCH | — | Update status; on `delivered` creates `DeliveryEarning` + queues jobs |
+| `/api/v1/orders/[id]/split` | POST | — | Split order into per-farmer SubOrders |
+| `/api/v1/farmers/dashboard/orders` | GET | — | Buyer orders filtered by `items.farmerId` |
+| `/api/v1/farmers/orders/[id]` | GET, PATCH | — | Single farmer-view order |
 
 ### Harvests
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/harvests` | GET, POST | List open harvests (with crop/status/farmerId filters) + create |
-| `/api/v1/harvests/[id]` | GET, PATCH, DELETE | Get detail, update fields/status, soft-delete (sets `cancelled`) |
-| `/api/v1/harvests/[id]/prebook` | POST | Atomic pre-book — validates open status, checks remainingQty, `$inc totalPreBooked` |
-| `/api/v1/harvests/[id]/prebookings` | GET, PATCH | List prebookings for a harvest (farmer view) + update per-booking status |
-| `/api/v1/prebookings` | GET | All prebookings for a buyer (`?buyerId=` or `?buyerPhone=`) |
+| `/api/v1/harvests` | GET, POST | List open harvests + create |
+| `/api/v1/harvests/[id]` | GET, PATCH, DELETE | Detail, update, soft-delete |
+| `/api/v1/harvests/[id]/prebook` | POST | Atomic pre-book — `$inc totalPreBooked`, auto-marks `fully_booked` |
+| `/api/v1/harvests/[id]/prebookings` | GET, PATCH | Farmer view of pre-bookings + status update |
+| `/api/v1/prebookings` | GET | Buyer's pre-bookings (`?buyerId=` or `?buyerPhone=`) |
 
 ### Community
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/community` | GET, POST | List groups (filter by pincode/location) + create |
-| `/api/v1/community/[id]` | GET, PATCH | Group detail + update |
-| `/api/v1/community/[id]/join` | POST | Join group with joinCode |
-| `/api/v1/community/[id]/orders` | GET, POST | List group orders + create new group order |
+| `/api/v1/community` | GET, POST | List + create groups |
+| `/api/v1/community/[id]` | GET, PATCH, DELETE | Group detail / update / deactivate |
+| `/api/v1/community/[id]/join` | POST, DELETE | Join group with joinCode / leave |
+| `/api/v1/community/[id]/orders` | GET, POST, PATCH | List group orders + create + add quantity |
+| `/api/v1/community/[id]/orders/[orderId]` | GET, PATCH, DELETE | Individual group order get/edit/delete |
 
 ### Delivery
 | Endpoint | Methods | Description |
 |---|---|---|
 | `/api/v1/delivery/orders` | GET | Deliverable orders with pagination |
-| `/api/v1/delivery/earnings` | GET, POST | GET aggregated stats + history. POST create manual record |
+| `/api/v1/delivery/earnings` | GET, POST | Aggregated stats + history / manual record |
 
 ### Admin
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/admin/stats` | GET | Platform overview — totalUsers, totalFarmers, totalOrders, GMV, pendingKYC, ordersByStatus |
-| `/api/v1/admin/farmers` | GET | All farmers with KYC status filter |
-| `/api/v1/admin/farmers/[id]` | GET, PATCH | Farmer detail + KYC review (sets `kycStatus`, auto-syncs `verified`) |
+| `/api/v1/admin/stats` | GET | Platform overview — totalUsers, GMV, pendingKYC, ordersByStatus |
+| `/api/v1/admin/farmers/[id]` | GET, PATCH | Farmer detail + KYC review |
 | `/api/v1/admin/orders` | GET | Platform orders list |
-| `/api/v1/admin/orders/[id]` | GET, PATCH | Order detail + status override |
-| `/api/v1/admin/products` | GET | All products |
-| `/api/v1/admin/users` | GET | All users |
 | `/api/v1/admin/users/[id]` | GET, PATCH | User detail + role management |
 
 ### Analytics
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/analytics/admin` | GET | 11 parallel aggregations — revenue, orders, GMV, top farmers, top products, by status, by period (7d/30d/90d/all) |
-| `/api/v1/analytics/farmer` | GET | Per-farmer — revenue, orders, top products (all filtered by `items.farmerId`) |
+| `/api/v1/analytics/admin` | GET | 11 parallel aggregations — revenue, GMV, top farmers, top products, by period |
+| `/api/v1/analytics/farmer` | GET | Per-farmer — revenue, orders, top products |
 
 ### Growth
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/wallet` | GET, POST, PATCH | GET balance + transactions. POST top-up. PATCH debit (atomic, guards negative balance) |
-| `/api/v1/wallet/transactions` | GET | Transaction history |
-| `/api/v1/referral` | GET, POST, PATCH | GET stats. POST record referral. PATCH reward (auto-credits ₹100 to wallet) |
-| `/api/v1/badges` | GET, POST | GET user badges. POST award badge (idempotent via compound unique index) |
-| `/api/v1/subscription` | GET, POST | GET subscription status. POST subscribe (monthly ₹199 / annual ₹1,499) |
-| `/api/v1/farmers/kyc` | POST, PATCH | Submit KYC documents (farmer), update KYC status (admin) |
+| `/api/v1/wallet` | GET, POST, PATCH | Balance + transactions / top-up / atomic debit |
+| `/api/v1/referral` | GET, POST, PATCH | Stats / record / reward (auto-credits ₹100) |
+| `/api/v1/badges` | GET, POST | User badges / award (idempotent) |
+| `/api/v1/subscription` | GET, POST | Status / subscribe (monthly ₹199 / annual ₹1,499) |
+| `/api/v1/farmers/kyc` | POST, PATCH | Submit KYC documents / update status |
 
 ### Helpers
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/helper/by-profile/[userId]` | GET | Resolve auth `user.id` → `farmerId` (Mongoose `_id`) |
+| `/api/v1/helper/by-profile/[userId]` | GET | Resolve auth `user.id` → `farmerId` |
 
 ---
 
-## 8) Data Models
+## 9) Data Models
 
 All models: `shared/models/mongodb/`. Each uses `mongoose.models.X || mongoose.model(...)`.
 
@@ -309,60 +387,49 @@ All models: `shared/models/mongodb/`. Each uses `mongoose.models.X || mongoose.m
 | `ProductModel` | `products/products.tsx` | `farmerId`, `name`, `price`, `stockQty`, `category` |
 | `OrderModel` | `orders/buyerOrders.tsx` | `buyerId`, `items[]`, `subtotal`, `total`, `deliveryPersonId`, `deliveryEarning`, `deliveredAt` |
 | `FarmerOrderModel` | `orders/farmerOrders.tsx` | `farmerId`, `customerName/Phone/Address`, `items[]`, `source` |
-| `SubOrderModel` | `orders/subOrder.tsx` | `orderId`, `farmerId`, `items[]`, `subtotal`, `status` — per-farmer split of a BuyerOrder |
+| `SubOrderModel` | `orders/subOrder.tsx` | `orderId`, `farmerId`, `items[]`, `subtotal`, `status` |
 | `DeliveryEarningModel` | `delivery/deliveryEarning.ts` | `deliveryPersonId`, `orderId` (unique), `earning`, `deliveredAt` |
-| `HarvestModel` | `harvests/harvest.tsx` | `farmerId`, `crop`, `expectedQty`, `totalPreBooked`, `harvestDate`, `status`, `estimatedPrice` |
+| `HarvestModel` | `harvests/harvest.tsx` | `farmerId`, `crop`, `expectedQty`, `totalPreBooked`, `harvestDate`, `status` |
 | `PreBookModel` | `harvests/preBook.tsx` | `harvestId`, `farmerId`, `buyerId`, `buyerPhone`, `qty`, `estimatedTotal`, `status` |
 | `CommunityGroupModel` | `community/communityGroup.tsx` | `name`, `type`, `location`, `joinCode` (unique), `adminUserId`, `members[]` |
 | `GroupOrderModel` | `community/groupOrder.tsx` | `communityGroupId`, `items[]`, `deadline`, `status` |
 | `WalletModel` | `wallet/wallet.tsx` | `userId` (unique), `balance` (min 0) |
 | `WalletTransactionModel` | `wallet/walletTransaction.tsx` | `userId`, `type`, `amount`, `description`, `balanceAfter` |
-| `UserBadgeModel` | `gamification/userBadge.tsx` | `userId`, `badgeId` — compound unique index prevents duplicates |
+| `UserBadgeModel` | `gamification/userBadge.tsx` | `userId`, `badgeId` — compound unique index |
 | `AdaptModel` | `adapt.tsx` | `buyerId`, `farmerId` |
-| `ResetTokenModel` | `resetToken.tsx` | OTP-based password reset tokens |
 
-### Harvest status flow
-```
-draft → open → fully_booked → harvested | cancelled
-```
+> `ResetTokenModel` is no longer used for OTP storage — OTP data now lives in Redis with a 10-minute TTL.
 
-### PreBook status flow
+### Status flows
 ```
-pending → confirmed → fulfilled | cancelled
-```
-
-### Community group types
-```
-"village" | "apartment" | "fpo" | "workplace" | "cooperative"
-```
-
-### Gamification badge IDs
-```
-"first_order" | "five_orders" | "loyal_buyer" | "big_spender" |
-"early_adopter" | "referral_champion" | "harvest_explorer" | "community_member"
+Harvest:    draft → open → fully_booked → harvested | cancelled
+PreBook:    pending → confirmed → fulfilled | cancelled
+Order:      pending → confirmed → packed → picked_up → in_transit → out_for_delivery → delivered | cancelled
+GroupOrder: open → closed → submitted → delivered | cancelled
 ```
 
 ---
 
-## 9) Delivery Earning Flow
+## 10) Key Flows
 
-1. Driver taps **Mark Delivered** on `/delivery/[id]`
-2. UI calls `PATCH /api/v1/orders/[id]` with `{ status: "delivered", deliveryPersonId, deliveryPersonName, deliveryEarning }`
-3. Route updates Order document + `findOneAndUpdate` (upsert) on `DeliveryEarning`
-4. `/delivery/earnings` queries the dedicated `DeliveryEarning` collection
+### Delivery Earning
+1. Driver taps **Mark Delivered** → `PATCH /api/v1/orders/[id]` `{ status: "delivered" }`
+2. Route updates Order doc + upserts `DeliveryEarning`
+3. Queues: `order.delivered`, `delivery.earning.created`, `email.deliveryConfirmation`, `notify.buyer`
+4. Workers process jobs asynchronously
 
 Earning = `deliveryFee > 0 ? deliveryFee : 30` (minimum ₹30).
 
----
+### Harvest Pre-booking
+1. Farmer creates harvest → `POST /api/v1/harvests`
+2. Buyer finds it at `/harvests` → `POST /api/v1/harvests/[id]/prebook`
+3. Atomic: `findOneAndUpdate({ _id, status: "open" }, { $inc: { totalPreBooked: qty } })`
+4. Auto-marks `fully_booked` when `totalPreBooked >= expectedQty`
 
-## 10) Harvest Pre-booking Flow
-
-1. Farmer creates harvest at `/farmers/harvests/new` → `POST /api/v1/harvests`
-2. Buyer finds it at `/harvests` marketplace → clicks → `/harvests/[id]`
-3. Buyer fills pre-book form → `POST /api/v1/harvests/[id]/prebook`
-4. API atomically: `findOneAndUpdate({ _id, status: "open" }, { $inc: { totalPreBooked: qty } })` — prevents overselling
-5. Auto-marks `fully_booked` when `totalPreBooked >= expectedQty`
-6. Farmer manages pre-bookings at `/farmers/harvests/[id]` — can confirm/fulfill/cancel each
+### Password Reset (Redis OTP)
+1. `POST /api/v1/auth/send-reset-otp` → generates OTP → stores SHA-256 hash in Redis (10 min TTL) → queues `email.passwordResetOtp`
+2. Email worker sends OTP via Nodemailer (Zoho → Brevo SMTP → Brevo API fallback)
+3. `POST /api/v1/auth/verify-reset-otp` → verifies hash from Redis → deletes key → resets password
 
 ---
 
@@ -433,6 +500,18 @@ new Schema<MyType>({ farmerId: { type: Schema.Types.ObjectId } })
 new Schema({ farmerId: { type: Schema.Types.ObjectId } })
 ```
 
+### SSR / client hydration mismatch (auth-conditional UI)
+```tsx
+// WRONG — useUser() reads localStorage (null on server) → mismatch
+{currentUser?.id ? <ProfileButton /> : <LoginLink />}
+
+// CORRECT — always render Login during SSR, swap after mount
+const [mounted, setMounted] = useState(false);
+useEffect(() => { setMounted(true); }, []);
+
+{!mounted || !currentUser?.id ? <LoginLink /> : <ProfileButton />}
+```
+
 ---
 
 ## 13) Project Structure
@@ -442,81 +521,75 @@ farmers-republic/
 ├── app/
 │   ├── (auth)/                    # login, forgot-password, reset-password
 │   ├── admin/                     # Admin panel (sidebar layout)
-│   │   ├── layout.tsx             # AdminSidebarLayout wrapper
-│   │   ├── page.tsx               # Overview + stats
-│   │   ├── analytics/             # BI dashboard with period filter
-│   │   ├── farmers/               # KYC review workflow
-│   │   ├── orders/                # Platform order management
-│   │   ├── products/              # Product moderation
-│   │   └── users/                 # User management
 │   ├── api/v1/
 │   │   ├── admin/                 # stats, farmers, orders, products, users
 │   │   ├── analytics/             # admin + farmer analytics
 │   │   ├── auth/                  # register, login, logout, me, OTP reset
-│   │   ├── badges/                # Gamification badges
-│   │   ├── buyers/                # Buyer CRUD
-│   │   ├── community/             # Community groups + group orders + join
+│   │   ├── badges/                # gamification badges
+│   │   ├── buyers/                # buyer CRUD
+│   │   ├── community/             # groups + join + group orders + [orderId]
 │   │   ├── delivery/              # orders + earnings
-│   │   ├── farmers/               # CRUD, dashboard/orders, orders/[id], kyc, adapted
+│   │   ├── farmers/               # CRUD, dashboard/orders, orders/[id], kyc
 │   │   ├── harvests/              # CRUD + [id]/prebook + [id]/prebookings
 │   │   ├── orders/                # buyer orders [id] + [id]/split
-│   │   ├── prebookings/           # Buyer pre-bookings list
-│   │   ├── products/              # Product CRUD
-│   │   ├── referral/              # Referral programme
+│   │   ├── prebookings/           # buyer pre-bookings list
+│   │   ├── products/              # product CRUD (cached GET, rate-limited POST)
+│   │   ├── referral/              # referral programme
 │   │   ├── subscription/          # FR3SH Plus
-│   │   ├── user/                  # Profile update + photo
-│   │   ├── wallet/                # Wallet + transactions
+│   │   ├── user/                  # profile update + photo
+│   │   ├── wallet/                # wallet + transactions
 │   │   └── utils/                 # responses, verifyToken
 │   ├── cart/
-│   ├── community/                 # List + new + [id] detail
-│   ├── delivery/                  # Dashboard, [id], earnings
+│   ├── community/                 # list + new + [id]
+│   ├── delivery/                  # dashboard, [id], earnings
 │   ├── farmers/
-│   │   ├── analytics/             # Farmer analytics dashboard
-│   │   ├── edit/[id]/             # Edit profile (redesigned)
-│   │   ├── harvests/              # Dashboard, new, [id] manage
-│   │   ├── kyc/                   # KYC document submission
-│   │   └── orders/                # List + [id] detail
 │   ├── fpos/
-│   ├── frsh-plus/                 # Subscription page
-│   ├── harvests/                  # Marketplace + [id] detail
-│   ├── orders/                    # Buyer orders + voice + farmerOrders
-│   ├── products/                  # List, [id], [id]/edit, create
+│   ├── frsh-plus/
+│   ├── harvests/
+│   ├── orders/
+│   ├── products/
 │   ├── profile/
-│   │   ├── badges/                # Gamification badges
-│   │   └── prebookings/           # Buyer pre-bookings
+│   │   ├── badges/
+│   │   └── prebookings/
 │   ├── referral/
 │   ├── shop/
 │   ├── wallet/
-│   ├── globals.css                # Design tokens + Tailwind base
-│   ├── layout.tsx                 # Root layout + providers
-│   └── page.tsx                   # Homepage
+│   ├── globals.css                # design tokens + Tailwind base
+│   ├── layout.tsx                 # root layout + providers
+│   └── page.tsx                   # homepage
 │
 ├── shared/
 │   ├── components/
 │   │   ├── layouts/
-│   │   │   └── AdminSidebarLayout.tsx  # Fixed sidebar + mobile hamburger
+│   │   │   └── AdminSidebarLayout.tsx
 │   │   ├── templates/             # navbar, bottomNav, productCard, productDetail
 │   │   └── molecules/             # FarmerCard, ProductGridClient, etc.
 │   ├── context/                   # UserContext, CartContext
 │   ├── interfaces/mongodb/
-│   │   ├── community/             # communityGroup, groupOrder
-│   │   ├── delivery/              # deliveryEarning
-│   │   ├── gamification/          # badge (BADGE_DEFINITIONS constant)
-│   │   ├── harvests/              # harvest, preBook
-│   │   ├── orders/                # buyerOrders, farmerOrders, subOrder
-│   │   └── wallet/                # wallet, walletTransaction
-│   ├── lib/                       # mongo.tsx, supabase/client.tsx, utils.tsx
-│   └── models/mongodb/
-│       ├── community/             # CommunityGroupModel, GroupOrderModel
-│       ├── delivery/              # DeliveryEarningModel
-│       ├── gamification/          # UserBadgeModel
-│       ├── harvests/              # HarvestModel, PreBookModel
-│       ├── orders/                # OrderModel, FarmerOrderModel, SubOrderModel
-│       └── wallet/                # WalletModel, WalletTransactionModel
+│   ├── lib/
+│   │   ├── db/mongo.tsx           # mongoDB() singleton
+│   │   ├── supabase/client.tsx    # Supabase client
+│   │   ├── redis.ts               # BullMQ connection (ioredis RedisOptions)
+│   │   ├── upstashRedis.ts        # @upstash/redis HTTP client singleton
+│   │   ├── rateLimit.ts           # 5 pre-configured limiters + checkRateLimit()
+│   │   ├── otp.ts                 # storeOtp() / verifyOtp() → Redis
+│   │   ├── cache.ts               # cacheGet/Set/Del, CacheKeys, CacheTTL
+│   │   ├── mailer.ts              # sendMail() — Zoho → Brevo SMTP → Brevo API
+│   │   └── utils.tsx              # cx() className combiner
+│   ├── models/mongodb/
+│   └── queues/
+│       ├── emailQueue.ts          # BullMQ email queue
+│       ├── notificationQueue.ts   # BullMQ notification queue
+│       └── orderQueue.ts          # BullMQ order lifecycle queue
 │
-├── public/                        # Static assets
-├── instructions.md                # AI agent reference document
-└── README.md                      # This file
+├── workers/
+│   ├── emailWorker.ts             # npm run worker:email
+│   ├── notificationWorker.ts      # npm run worker:notification
+│   └── orderWorker.ts             # npm run worker:order
+│
+├── next.config.ts                 # serverExternalPackages: [ioredis, bullmq]
+├── instructions.md
+└── README.md
 ```
 
 ---
@@ -525,38 +598,57 @@ farmers-republic/
 
 ```bash
 npm install
-npm run dev     # http://localhost:3000 (Turbopack)
+npm run dev         # http://localhost:3000 (Turbopack)
+npm run workers     # start all BullMQ workers in separate terminal
 npm run build
 npm run start
 ```
 
-Copy `info.env.txt` → `.env.local` and populate all secrets.
-
 ### Required environment variables
 
 ```env
+# MongoDB
 MONGODB_URI=
+
+# Auth
 JWT_SECRET=
 JWT_EXPIRES_IN=7d
 BCRYPT_SALT_ROUNDS=12
 
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_SUPABASE_SUPABASE_BUCKET=avatars
 
+# OpenAI
 OPENAI_API_KEY=
 
-BREVO_HOST=
-BREVO_PORT=
-BREVO_USER=
-BREVO_PASS=
-
+# Email (Nodemailer)
+EMAIL_FROM=
+ZOHO_HOST=smtp.zoho.com
+ZOHO_PORT=587
 ZOHO_USER=
 ZOHO_PASS=
+BREVO_HOST=smtp-relay.brevo.com
+BREVO_PORT=587
+BREVO_USER=
+BREVO_PASS=
+BREVO_API_KEY=
 
+# Redis (Upstash) — never prefix with NEXT_PUBLIC_
+REDIS_URL=rediss://default:<password>@<host>:6379
+UPSTASH_REDIS_REST_URL=https://<host>.upstash.io
+UPSTASH_REDIS_REST_TOKEN=<token>
+
+# OTP
+OTP_EXPIRY_SECONDS=600
+
+# App
 NEXT_PUBLIC_APP_NAME=FR3SH
 ```
+
+> **Security**: `REDIS_URL`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` must **never** be prefixed with `NEXT_PUBLIC_`. They are server-only variables and must not be exposed to the browser bundle.
 
 ---
 
@@ -565,7 +657,9 @@ NEXT_PUBLIC_APP_NAME=FR3SH
 1. Read `instructions.md` for the full agent/developer reference.
 2. Open `app/globals.css` to understand the color token system before touching any styles.
 3. Start with `app/layout.tsx` to understand global providers.
-4. Trace one vertical flow end-to-end — recommended:
-   - Harvest flow: `/farmers/harvests/new` → `POST /api/v1/harvests` → `/harvests` → `POST /api/v1/harvests/[id]/prebook` → `/farmers/harvests/[id]`
-   - Delivery flow: `/delivery/[id]` → `PATCH /api/v1/orders/[id]` → `DeliveryEarningModel` → `GET /api/v1/delivery/earnings`
-5. Before adding any color, check the token table in `instructions.md` — never hardcode hex values or raw Tailwind palette classes.
+4. Run `npm run workers` in a second terminal to start all BullMQ workers.
+5. Trace one vertical flow end-to-end — recommended:
+   - Harvest flow: `/farmers/harvests/new` → `POST /api/v1/harvests` → `/harvests` → `POST /api/v1/harvests/[id]/prebook`
+   - Delivery flow: `/delivery/[id]` → `PATCH /api/v1/orders/[id]` → `DeliveryEarningModel` + queue jobs → workers
+   - OTP flow: `send-reset-otp` → Redis store → email worker → `verify-reset-otp` → Redis verify
+6. Before adding any color, check the token table in `instructions.md` — never hardcode hex values or raw Tailwind palette classes.
