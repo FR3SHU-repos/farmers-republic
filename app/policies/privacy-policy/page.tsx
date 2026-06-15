@@ -1,296 +1,196 @@
-// app/policies/privacy-policy/page.tsx
+import Link from "next/link";
+import { LegalList, LegalPage, LegalSection } from "@/shared/components/legal/LegalPage";
 
 export const metadata = {
-  title: "Privacy Policy | fr3sh.in",
+  title: "Privacy Policy | FR3SH",
+  description:
+    "Privacy policy for the FR3SH and Farmers Republic organic produce marketplace.",
 };
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-3xl px-4 py-10">
-        <header className="space-y-2 mb-8">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Privacy Policy
-          </h1>
-          <p className="text-sm text-gray-500">
-            Last updated: 26 November 2025
-          </p>
-        </header>
+    <LegalPage
+      title="Privacy Policy"
+      description="This policy explains how FR3SH / Farmers Republic collects, uses, stores, and shares information when customers, farmers, vendors, delivery partners, and visitors use our website, mobile app, marketplace, and support channels."
+      updated="16 June 2026"
+    >
+      <LegalSection title="Who We Are">
+        <p>
+          FR3SH and Farmers Republic are operated by Varmtech, with registered
+          office at Door No 405, Revenue Ward 5, Narayana Sanidhi Madhurawada,
+          Madhurawada, Vishakhapatnam, India. In this policy, "FR3SH", "Farmers
+          Republic", "we", "us", and "our" refer to the marketplace available at{" "}
+          <a className="text-emerald-800 underline" href="https://fr3sh.in">
+            https://fr3sh.in
+          </a>
+          , the FR3SH mobile app, and related services.
+        </p>
+        <p>
+          The service is focused on India and helps customers discover farmers,
+          farmer producer organisations, natural and organic products, harvests,
+          orders, wallets, subscriptions, referrals, and community group buying.
+        </p>
+      </LegalSection>
 
-        <div className="space-y-8 text-sm leading-relaxed">
-          {/* Introduction */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Introduction</h2>
-            <p>
-              This Privacy Policy describes how Varmtech and its affiliates
-              (collectively &quot;Varmtech, we, our, us&quot;) collect, use,
-              share, protect or otherwise process your information/personal data
-              through our website{" "}
-              <a
-                href="https://fr3sh.in/"
-                className="text-blue-600 underline"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                https://fr3sh.in/
-              </a>{" "}
-              (hereinafter referred to as &quot;Platform&quot;). Please note
-              that you may be able to browse certain sections of the Platform
-              without registering with us.
-            </p>
-            <p>
-              We do not offer any product/service under this Platform outside
-              India and your personal data will primarily be stored and
-              processed in India. By visiting this Platform, providing your
-              information or availing any product/service offered on the
-              Platform, you expressly agree to be bound by the terms and
-              conditions of this Privacy Policy, the Terms of Use and the
-              applicable service/product terms and conditions, and agree to be
-              governed by the laws of India including but not limited to the
-              laws applicable to data protection and privacy. If you do not
-              agree please do not use or access our Platform.
-            </p>
-          </section>
+      <LegalSection title="Information We Collect">
+        <LegalList
+          items={[
+            <>
+              <strong>Account and contact details:</strong> name, email address,
+              mobile number, account role, login tokens, verification status,
+              and hashed password or OTP verification records where applicable.
+            </>,
+            <>
+              <strong>OTP and authentication data:</strong> one-time password
+              delivery and verification records used to secure sign-in, password
+              reset, mobile/email verification, and abuse prevention.
+            </>,
+            <>
+              <strong>Customer and order details:</strong> cart contents,
+              products ordered, delivery address, city, pincode, order notes,
+              order status, payment method, totals, invoices, refunds, wallet
+              activity, referrals, and subscription status.
+            </>,
+            <>
+              <strong>Farmer, vendor, and delivery partner details:</strong>{" "}
+              profile information, phone number, email, farm or business name,
+              village, district, pickup location, crops, harvests, product
+              listings, pricing, availability, KYC or verification details if
+              submitted, and order fulfilment information.
+            </>,
+            <>
+              <strong>Product, farm, and profile content:</strong> photos,
+              product descriptions, certifications, community group details,
+              support attachments, and other content that users or authorised
+              team members upload to the platform.
+            </>,
+            <>
+              <strong>Payment and transaction records:</strong> payment status,
+              payment reference, selected payment mode, wallet transactions, and
+              records needed for order fulfilment and accounting. We do not
+              intentionally store full card numbers, banking passwords, UPI PINs,
+              or similar sensitive payment credentials.
+            </>,
+            <>
+              <strong>Support and communications:</strong> emails, support
+              requests, data deletion requests, intellectual property reports,
+              order issue reports, and messages we send for OTPs, account
+              activity, order updates, and service notices.
+            </>,
+            <>
+              <strong>Technical and security data:</strong> IP address, browser
+              or app version, device type, server logs, error logs, rate-limit
+              signals, cookie/local storage data on the web, and AsyncStorage
+              data on the mobile app such as auth tokens, saved user profile,
+              and cart data.
+            </>,
+            <>
+              <strong>Voice order data on the web, when used:</strong> spoken or
+              typed order text may be transcribed and processed to convert a
+              natural-language order into structured order items.
+            </>,
+          ]}
+        />
+      </LegalSection>
 
-          {/* Collection */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Collection</h2>
-            <p>
-              We collect your personal data when you use our Platform, services
-              or otherwise interact with us during the course of our
-              relationship and related information provided from time to time.
-            </p>
-            <p>
-              Some of the information that we may collect includes but is not
-              limited to personal data/information provided to us during
-              sign-up/registering or using our Platform such as name, date of
-              birth, address, telephone/mobile number, email ID and/or any such
-              information shared as proof of identity or address.
-            </p>
-            <p>
-              Some of the sensitive personal data may be collected with your
-              consent, such as your bank account or credit or debit card or
-              other payment instrument information or biometric information such
-              as your facial features or physiological information (in order to
-              enable use of certain features when opted for, available on the
-              Platform) etc., all of the above being in accordance with
-              applicable law(s). You always have the option to not provide
-              information, by choosing not to use a particular service or
-              feature on the Platform.
-            </p>
-            <p>
-              We may track your behaviour, preferences, and other information
-              that you choose to provide on our Platform. This information is
-              compiled and analysed on an aggregated basis. We will also collect
-              your information related to your transactions on the Platform and
-              such third-party business partner platforms.
-            </p>
-            <p>
-              When such a third-party business partner collects your personal
-              data directly from you, you will be governed by their privacy
-              policies. We shall not be responsible for the third-party business
-              partner&apos;s privacy practices or the content of their privacy
-              policies, and we request you to read their privacy policies prior
-              to disclosing any information.
-            </p>
-            <p>
-              If you receive an email or a call from a person/association
-              claiming to be Varmtech seeking any personal data like
-              debit/credit card PIN, net-banking or mobile banking password, we
-              request you to never provide such information. If you have already
-              revealed such information, report it immediately to an appropriate
-              law enforcement agency.
-            </p>
-          </section>
+      <LegalSection title="How We Use Information">
+        <LegalList
+          items={[
+            "Create and manage customer, farmer, vendor, delivery, and admin accounts.",
+            "Verify users with OTPs, maintain sessions, reset passwords, and prevent unauthorised access.",
+            "Display farmer profiles, product listings, harvests, FPOs, community groups, and marketplace content.",
+            "Process carts, orders, payments, wallet transactions, subscriptions, referrals, prebookings, delivery tracking, cancellations, and refunds.",
+            "Share order and delivery information with farmers, vendors, delivery partners, payment partners, and support teams as needed to complete a transaction.",
+            "Send transactional messages such as OTPs, order confirmations, order status updates, support replies, and service notices.",
+            "Operate analytics, dashboards, reporting, fraud prevention, rate limiting, debugging, security monitoring, and legal compliance.",
+            "Improve marketplace quality, product availability, farmer discovery, customer support, and platform reliability.",
+          ]}
+        />
+      </LegalSection>
 
-          {/* Usage */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Usage</h2>
-            <p>
-              We use personal data to provide the services you request. To the
-              extent we use your personal data to market to you, we will provide
-              you the ability to opt out of such uses.
-            </p>
-            <p>
-              We use your personal data to assist sellers and business partners
-              in handling and fulfilling orders; enhancing customer experience;
-              to resolve disputes; troubleshoot problems; inform you about online
-              and offline offers, products, services, and updates; customise
-              your experience; detect and protect us against error, fraud and
-              other criminal activity; enforce our terms and conditions; conduct
-              marketing research, analysis and surveys; and as otherwise
-              described to you at the time of collection of information.
-            </p>
-            <p>
-              You understand that your access to these products/services may be
-              affected in the event permission is not provided to us.
-            </p>
-          </section>
+      <LegalSection title="How We Share Information">
+        <p>
+          We share information only as needed to operate the marketplace, comply
+          with law, protect users, or provide requested services. Examples
+          include:
+        </p>
+        <LegalList
+          items={[
+            "Farmers, vendors, FPOs, delivery partners, and fulfilment partners who need order, pickup, delivery, or customer contact details to complete a transaction.",
+            "Payment service providers and financial partners that process payments, refunds, wallet activity, and transaction verification.",
+            "Cloud hosting, database, storage, email, queue, security, logging, and infrastructure providers that help us run FR3SH.",
+            "AI or transcription service providers when a user chooses voice order features that require parsing speech or order text.",
+            "Professional advisors, authorities, or courts where required to comply with applicable law, enforce our terms, respond to lawful requests, or protect rights and safety.",
+          ]}
+        />
+        <p>
+          We do not sell personal information to data brokers and we do not use
+          IDFA or third-party advertising tracking in the current FR3SH mobile
+          app.
+        </p>
+      </LegalSection>
 
-          {/* Sharing */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Sharing</h2>
-            <p>
-              We may share your personal data internally within our group
-              entities, our other corporate entities, and affiliates to provide
-              you access to the services and products offered by them. These
-              entities and affiliates may market to you as a result of such
-              sharing unless you explicitly opt out.
-            </p>
-            <p>
-              We may disclose personal data to third parties such as sellers,
-              business partners, third-party service providers including
-              logistics partners, prepaid payment instrument issuers,
-              third-party reward programs and other payment options opted by
-              you. These disclosures may be required for us to provide you
-              access to our services and products offered to you, to comply with
-              our legal obligations, to enforce our user agreement, to
-              facilitate our marketing and advertising activities, to prevent,
-              detect, mitigate, and investigate fraudulent or illegal activities
-              related to our services.
-            </p>
-            <p>
-              We may disclose personal and sensitive personal data to government
-              agencies or other authorised law enforcement agencies if required
-              to do so by law or in the good faith belief that such disclosure
-              is reasonably necessary to respond to subpoenas, court orders, or
-              other legal process.
-            </p>
-            <p>
-              We may disclose personal data to law enforcement offices, third
-              party rights owners, or others in the good faith belief that such
-              disclosure is reasonably necessary to: enforce our Terms of Use or
-              Privacy Policy; respond to claims that an advertisement, posting
-              or other content violates the rights of a third party; or protect
-              the rights, property or personal safety of our users or the
-              general public.
-            </p>
-          </section>
+      <LegalSection title="Storage, Security, and Retention">
+        <p>
+          We use reasonable technical and organisational safeguards, including
+          HTTPS in transit, access controls, hashed OTPs, rate limits, and
+          restricted operational access. No internet service can be guaranteed
+          to be completely secure, so users should protect their devices, email,
+          mobile number, and login credentials.
+        </p>
+        <p>
+          We keep account data while the account is active, order and payment
+          records for business, tax, audit, dispute, and legal requirements, and
+          security logs for a limited period needed to protect the service. OTP
+          records are short-lived. We may retain anonymised or aggregated data
+          that no longer identifies a user.
+        </p>
+      </LegalSection>
 
-          {/* Security Precautions */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Security Precautions</h2>
-            <p>
-              To protect your personal data from unauthorised access or
-              disclosure, loss or misuse we adopt reasonable security practices
-              and procedures. Once your information is in our possession or
-              whenever you access your account information, we adhere to our
-              security guidelines to protect it against unauthorised access and
-              offer the use of a secure server.
-            </p>
-            <p>
-              However, the transmission of information is not completely secure
-              for reasons beyond our control. By using the Platform, the users
-              accept the security implications of data transmission over the
-              internet and the World Wide Web which cannot always be guaranteed
-              as completely secure, and therefore, there would always remain
-              certain inherent risks regarding use of the Platform. Users are
-              responsible for ensuring the protection of login and password
-              records for their account.
-            </p>
-          </section>
+      <LegalSection title="Your Choices and Rights">
+        <p>
+          You may update account information in the app or website where the
+          feature is available. You can request access, correction, deletion, or
+          withdrawal of consent by contacting{" "}
+          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
+            support@fr3sh.in
+          </a>
+          . You can also use our{" "}
+          <Link className="text-emerald-800 underline" href="/data-deletion">
+            Data Deletion Request
+          </Link>{" "}
+          page.
+        </p>
+        <p>
+          Deleting an account may remove profile access and marketplace
+          features. We may retain records that are required for completed
+          orders, payments, refunds, tax, fraud prevention, disputes, safety, or
+          legal compliance.
+        </p>
+      </LegalSection>
 
-          {/* Data Deletion and Retention */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">
-              Data Deletion and Retention
-            </h2>
-            <p>
-              You have an option to delete your account by visiting your profile
-              and settings on our Platform. This action would result in you
-              losing all information related to your account. You may also write
-              to us at the contact information provided below to assist you with
-              these requests.
-            </p>
-            <p>
-              We may, in the event of any pending grievance, claims, pending
-              shipments or any other services, refuse or delay deletion of the
-              account. Once the account is deleted, you will lose access to the
-              account.
-            </p>
-            <p>
-              We retain your personal data information for a period no longer
-              than is required for the purpose for which it was collected or as
-              required under any applicable law. However, we may retain data
-              related to you if we believe it may be necessary to prevent fraud
-              or future abuse or for other legitimate purposes. We may continue
-              to retain your data in anonymised form for analytical and research
-              purposes.
-            </p>
-          </section>
+      <LegalSection title="Children">
+        <p>
+          FR3SH is an organic and natural products marketplace and is not
+          directed to children under 13. Users who cannot legally enter into
+          marketplace transactions should use FR3SH only with the involvement of
+          a parent or guardian.
+        </p>
+      </LegalSection>
 
-          {/* Your Rights */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Your Rights</h2>
-            <p>
-              You may access, rectify, and update your personal data directly
-              through the functionalities provided on the Platform.
-            </p>
-          </section>
-
-          {/* Consent */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Consent</h2>
-            <p>
-              By visiting our Platform or by providing your information, you
-              consent to the collection, use, storage, disclosure and otherwise
-              processing of your information on the Platform in accordance with
-              this Privacy Policy. If you disclose to us any personal data
-              relating to other people, you represent that you have the
-              authority to do so and permit us to use the information in
-              accordance with this Privacy Policy.
-            </p>
-            <p>
-              You, while providing your personal data over the Platform or any
-              partner platforms or establishments, consent to us (including our
-              other corporate entities, affiliates, lending partners, technology
-              partners, marketing channels, business partners and other third
-              parties) to contact you through SMS, instant messaging apps, call
-              and/or e-mail for the purposes specified in this Privacy Policy.
-            </p>
-            <p>
-              You have an option to withdraw your consent that you have already
-              provided by writing to the Grievance Officer at the contact
-              information provided below. Please mention &quot;Withdrawal of
-              consent for processing personal data&quot; in your subject line of
-              your communication. We may verify such requests before acting on
-              your request.
-            </p>
-            <p>
-              However, please note that your withdrawal of consent will not be
-              retrospective and will be in accordance with the Terms of Use,
-              this Privacy Policy, and applicable laws. In the event you
-              withdraw consent given to us under this Privacy Policy, we reserve
-              the right to restrict or deny the provision of our services for
-              which we consider such information to be necessary.
-            </p>
-          </section>
-
-          {/* Changes to this Privacy Policy */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">
-              Changes to this Privacy Policy
-            </h2>
-            <p>
-              Please check our Privacy Policy periodically for changes. We may
-              update this Privacy Policy to reflect changes to our information
-              practices. We may alert/notify you about the significant changes
-              to the Privacy Policy, in the manner as may be required under
-              applicable laws.
-            </p>
-          </section>
-
-          {/* Grievance Officer */}
-          <section className="space-y-3">
-            <h2 className="text-lg font-semibold">Grievance Officer</h2>
-            <p>Insert Name of the Officer:V Priyatham Varma</p>
-            <p>Designation:Founder</p>
-            <p>Insert Name and Address of the Company:Varmtech, 405, Narayana Sannidhi, Madhurawada, Vizag</p>
-            <p>Contact us:7330810209</p>
-            <p>Phone: Time: Monday - Friday (9:00 - 18:00)</p>
-          </section>
-        </div>
-      </div>
-    </main>
+      <LegalSection title="Changes and Contact">
+        <p>
+          We may update this policy as our services, partners, or legal
+          obligations change. The latest version will be posted on this page
+          with the updated date.
+        </p>
+        <p>
+          Privacy contact:{" "}
+          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
+            support@fr3sh.in
+          </a>
+        </p>
+      </LegalSection>
+    </LegalPage>
   );
 }

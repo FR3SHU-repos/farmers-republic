@@ -49,24 +49,24 @@ farmers-republic/
 │   │   ├── products/
 │   │   └── users/
 │   ├── api/v1/
-│   │   ├── admin/                 # stats, farmers/[id], orders/[id], products, users/[id]
+│   │   ├── admin/                 # stats, farmers (list + [id]), orders (list + [id]), products, users/[id]
 │   │   ├── analytics/             # admin + farmer aggregations
 │   │   ├── auth/                  # login, logout, register, me, send-reset-otp, verify-reset-otp
 │   │   ├── badges/                # gamification badge award + list
 │   │   ├── buyers/                # buyer CRUD
 │   │   ├── community/             # group CRUD + join + group orders + [orderId]
 │   │   ├── delivery/              # orders (deliverable list) + earnings
-│   │   ├── farmers/               # CRUD, dashboard/orders, orders/[id], kyc, adapted
+│   │   ├── farmers/               # CRUD, dashboard/orders, orders/[id], orders/voice/*, kyc, adapted
 │   │   ├── harvests/              # CRUD + [id]/prebook + [id]/prebookings
-│   │   ├── helper/by-profile/     # resolve userId → farmerId
+│   │   ├── helper/by-profile/     # resolve userId → farmerId (route param is [id])
 │   │   ├── orders/                # buyer orders [id] + [id]/split (SubOrders)
 │   │   ├── prebookings/           # buyer pre-bookings list (?buyerId=)
-│   │   ├── products/              # product CRUD (GET cached, POST rate-limited)
+│   │   ├── products/              # product CRUD (GET cached, POST rate-limited) + by-farmer/[id]
 │   │   ├── referral/              # referral stats, record, reward
 │   │   ├── subscription/          # FR3SH Plus
 │   │   ├── user/                  # profile update + photo upload
-│   │   ├── wallet/                # balance, debit, credit, transactions
-│   │   └── utils/                 # responses(), verifyToken()
+│   │   ├── wallet/                # balance, debit, credit + /transactions
+│   │   └── utils/                 # responses(), verifyToken(), errors()
 │   ├── cart/
 │   ├── community/                 # group list + new + [id]
 │   ├── delivery/                  # dashboard + [id] + earnings
@@ -96,14 +96,18 @@ farmers-republic/
 │   │   ├── layouts/
 │   │   │   └── AdminSidebarLayout.tsx
 │   │   ├── mainTemplate.tsx
-│   │   ├── molecules/             # FarmerCard, ProductGridClient, etc.
+│   │   ├── molecules/             # FarmerCard, FarmerProfile, FarmerProductCard, AdaptButton, ProductGridClient, icons
+│   │   │   └── productCards/      # tab sub-cards for product create/edit (pricing, qty, health, logistics, category)
 │   │   └── templates/
 │   │       ├── navbar.tsx         # desktop nav: 4 primary pills + Browse mega-menu
-│   │       └── bottomNav.tsx      # mobile: bottom bar + More popover
+│   │       ├── bottomNav.tsx      # mobile: bottom bar + More popover
+│   │       ├── productCard.tsx    # reusable product card tile
+│   │       ├── productDetail.tsx  # full product detail view component
+│   │       └── farmerSection.tsx  # farmer highlight section (homepage/shop)
 │   ├── context/
 │   │   ├── UserContext.tsx        # useUser() → { user, login, logout, loading }
 │   │   └── CartContext.tsx        # useCart() → { cart, addToCart, ... }
-│   ├── data/                      # static seed/mock data, categoriesList
+│   ├── data/                      # static seed/mock data — category.tsx, farmers.tsx, fpos.tsx, product.tsx
 │   ├── hooks/
 │   │   └── useSpeechToText.tsx    # Web Speech API hook (lang: en-IN)
 │   ├── interfaces/mongodb/
@@ -112,6 +116,7 @@ farmers-republic/
 │   │   ├── gamification/          # BadgeId, BADGE_DEFINITIONS (8 badges)
 │   │   ├── harvests/
 │   │   ├── orders/
+│   │   ├── referral/
 │   │   └── wallet/
 │   ├── language/
 │   │   └── telugu.tsx
@@ -131,6 +136,7 @@ farmers-republic/
 │   │   ├── gamification/
 │   │   ├── harvests/
 │   │   ├── orders/
+│   │   ├── referral/
 │   │   └── wallet/
 │   └── queues/
 │       ├── emailQueue.ts          # BullMQ "email" queue — producers import this
@@ -254,9 +260,10 @@ All models use `mongoose.models.X || mongoose.model(...)` to avoid re-registrati
 | `WalletModel` | `wallet/wallet.tsx` | `userId` (unique), `balance` (min 0) |
 | `WalletTransactionModel` | `wallet/walletTransaction.tsx` | `userId`, `type`, `amount`, `description`, `balanceAfter` |
 | `UserBadgeModel` | `gamification/userBadge.tsx` | `userId`, `badgeId` — compound unique index |
+| `ReferralModel` | `referral/referral.tsx` | `referrerId`, `referredUserId`, `rewardCredited`, `createdAt` |
 | `AdaptModel` | `adapt.tsx` | `buyerId`, `farmerId` |
 
-> `ResetTokenModel` is **no longer used** — OTP storage moved to Redis (`reset_otp:{email}` key, 10-min TTL, SHA-256 hash).
+> `ResetTokenModel` (`shared/models/mongodb/resetToken.tsx`) still exists in the codebase but is **no longer used** — OTP storage moved to Redis (`reset_otp:{email}` key, 10-min TTL, SHA-256 hash). Do not use it for new features.
 
 ### Status flows
 
@@ -534,6 +541,24 @@ npm run workers               # all three in parallel (concurrently)
 // Rate limited:
 { success: false, message: "Too many requests…" }    // HTTP 429
 ```
+
+### Additional API utilities
+
+- `app/api/v1/utils/responses.tsx` — `success()` / `failure()` helpers
+- `app/api/v1/utils/verifyToken.tsx` — JWT cookie verification
+- `app/api/v1/utils/errors.tsx` — shared error handler / error-response factory
+
+### Notable endpoints not in the main flow descriptions
+
+| Endpoint | Description |
+|---|---|
+| `GET /api/v1/products/by-farmer/[id]` | All products for a given `farmerId` — used on farmer public profile pages |
+| `GET /api/v1/wallet/transactions` | Wallet transaction history for a user (`?userId=`) |
+| `GET /api/v1/admin/farmers` | Admin: paginated list of all farmers |
+| `GET /api/v1/admin/orders/[id]` | Admin: single order detail |
+| `GET/POST /api/v1/farmers/orders/voice` | Voice order entry — receive transcribed text, parse into order |
+| `GET/POST /api/v1/farmers/orders/voice/buyerOrders` | Voice capture → BuyerOrder creation |
+| `GET/POST /api/v1/farmers/orders/voice/farmerOrders` | Voice capture → FarmerOrder creation |
 
 ### Route file pattern
 ```ts

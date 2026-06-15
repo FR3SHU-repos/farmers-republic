@@ -349,8 +349,12 @@ Rate-limited endpoints return `{ success: false, message: "Too many requests…"
 | Endpoint | Methods | Description |
 |---|---|---|
 | `/api/v1/admin/stats` | GET | Platform overview — totalUsers, GMV, pendingKYC, ordersByStatus |
-| `/api/v1/admin/farmers/[id]` | GET, PATCH | Farmer detail + KYC review |
+| `/api/v1/admin/farmers` | GET | Paginated list of all farmers |
+| `/api/v1/admin/farmers/[id]` | GET, PATCH | Farmer detail + KYC review (PATCH `kycStatus:"verified"` auto-sets `verified:true`) |
 | `/api/v1/admin/orders` | GET | Platform orders list |
+| `/api/v1/admin/orders/[id]` | GET, PATCH | Admin: single order detail + status update |
+| `/api/v1/admin/products` | GET | All products (admin view) |
+| `/api/v1/admin/users` | GET | All users list |
 | `/api/v1/admin/users/[id]` | GET, PATCH | User detail + role management |
 
 ### Analytics
@@ -368,10 +372,19 @@ Rate-limited endpoints return `{ success: false, message: "Too many requests…"
 | `/api/v1/subscription` | GET, POST | Status / subscribe (monthly ₹199 / annual ₹1,499) |
 | `/api/v1/farmers/kyc` | POST, PATCH | Submit KYC documents / update status |
 
+### Voice Orders
+| Endpoint | Methods | Description |
+|---|---|---|
+| `/api/v1/farmers/orders/voice` | GET, POST | Receive transcribed voice text, parse into order intent |
+| `/api/v1/farmers/orders/voice/buyerOrders` | GET, POST | Voice-captured order → create BuyerOrder |
+| `/api/v1/farmers/orders/voice/farmerOrders` | GET, POST | Voice-captured order → create FarmerOrder |
+
 ### Helpers
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/helper/by-profile/[userId]` | GET | Resolve auth `user.id` → `farmerId` |
+| `/api/v1/helper/by-profile/[id]` | GET | Resolve auth `user.id` → `farmerId` (route param name is `id`) |
+| `/api/v1/products/by-farmer/[id]` | GET | All products for a given farmer — used on farmer public profile |
+| `/api/v1/wallet/transactions` | GET | Wallet transaction history for a user (`?userId=`) |
 
 ---
 
@@ -396,9 +409,10 @@ All models: `shared/models/mongodb/`. Each uses `mongoose.models.X || mongoose.m
 | `WalletModel` | `wallet/wallet.tsx` | `userId` (unique), `balance` (min 0) |
 | `WalletTransactionModel` | `wallet/walletTransaction.tsx` | `userId`, `type`, `amount`, `description`, `balanceAfter` |
 | `UserBadgeModel` | `gamification/userBadge.tsx` | `userId`, `badgeId` — compound unique index |
+| `ReferralModel` | `referral/referral.tsx` | `referrerId`, `referredUserId`, `rewardCredited`, `createdAt` |
 | `AdaptModel` | `adapt.tsx` | `buyerId`, `farmerId` |
 
-> `ResetTokenModel` is no longer used for OTP storage — OTP data now lives in Redis with a 10-minute TTL.
+> `ResetTokenModel` (`shared/models/mongodb/resetToken.tsx`) still exists in the codebase but is no longer used for OTP storage — OTP data now lives in Redis with a 10-minute TTL. Do not use it for new features.
 
 ### Status flows
 ```
@@ -562,10 +576,23 @@ farmers-republic/
 │   ├── components/
 │   │   ├── layouts/
 │   │   │   └── AdminSidebarLayout.tsx
-│   │   ├── templates/             # navbar, bottomNav, productCard, productDetail
-│   │   └── molecules/             # FarmerCard, ProductGridClient, etc.
+│   │   ├── templates/
+│   │   │   ├── navbar.tsx         # desktop nav (4 pills + Browse mega-menu)
+│   │   │   ├── bottomNav.tsx      # mobile bottom bar + More popover
+│   │   │   ├── productCard.tsx    # reusable product card tile
+│   │   │   ├── productDetail.tsx  # full product detail view
+│   │   │   └── farmerSection.tsx  # farmer highlight section (homepage/shop)
+│   │   └── molecules/
+│   │       ├── FarmerCard.tsx
+│   │       ├── FarmerProfile.tsx
+│   │       ├── FarmerProductCard.tsx
+│   │       ├── AdaptButton.tsx
+│   │       ├── ProductGridClient.tsx
+│   │       ├── icons.tsx
+│   │       └── productCards/      # tab sub-cards for product create/edit form
 │   ├── context/                   # UserContext, CartContext
-│   ├── interfaces/mongodb/
+│   ├── data/                      # static arrays — category, farmers, fpos, product
+│   ├── interfaces/mongodb/        # TS interfaces per model domain (incl. referral/)
 │   ├── lib/
 │   │   ├── db/mongo.tsx           # mongoDB() singleton
 │   │   ├── supabase/client.tsx    # Supabase client
@@ -576,7 +603,7 @@ farmers-republic/
 │   │   ├── cache.ts               # cacheGet/Set/Del, CacheKeys, CacheTTL
 │   │   ├── mailer.ts              # sendMail() — Zoho → Brevo SMTP → Brevo API
 │   │   └── utils.tsx              # cx() className combiner
-│   ├── models/mongodb/
+│   ├── models/mongodb/            # Mongoose models (incl. referral/ and wallet/)
 │   └── queues/
 │       ├── emailQueue.ts          # BullMQ email queue
 │       ├── notificationQueue.ts   # BullMQ notification queue

@@ -7,7 +7,7 @@ import BottomNav from "@/shared/components/templates/bottomNav";
 import { cx } from "@/shared/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Mail, MapPin, Sprout } from "lucide-react";
+import { ArrowRight, LifeBuoy, Mail, MapPin, ShieldCheck, Sprout } from "lucide-react";
 
 /**
  * Shell: client wrapper used inside app/layout.tsx
@@ -72,7 +72,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
 
       {/* Footer */}
       <footer className="hidden md:block mt-12 border-t border-emerald-900/10 bg-[#10241c] text-emerald-50">
-        <div className="mx-auto grid max-w-6xl grid-cols-[1.2fr_0.8fr_0.8fr] gap-10 px-6 py-10 lg:px-8">
+        <div className="mx-auto grid max-w-6xl grid-cols-[1.2fr_0.7fr_0.8fr_0.9fr] gap-10 px-6 py-10 lg:px-8">
           <div>
             <Link href="/" className="inline-flex items-center gap-3">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white shadow-sm">
@@ -127,12 +127,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <h4 className="text-sm font-semibold text-white">Contact</h4>
             <div className="mt-4 grid gap-3 text-sm text-emerald-50/70">
               <a
-                href="mailto:hello@farmers-republic.com"
+                href="mailto:support@fr3sh.in"
                 className="inline-flex items-center gap-2 hover:text-lime-200"
               >
                 <Mail className="h-4 w-4" />
-                hello@farmers-republic.com
+                support@fr3sh.in
               </a>
+              <Link href="/support" className="inline-flex items-center gap-2 hover:text-lime-200">
+                <LifeBuoy className="h-4 w-4" />
+                Support center
+              </Link>
               <span className="inline-flex items-center gap-2">
                 <MapPin className="h-4 w-4" />
                 Local farms, local tables
@@ -143,10 +147,29 @@ export default function Shell({ children }: { children: React.ReactNode }) {
               </span>
             </div>
           </div>
+
+          <div>
+            <h4 className="text-sm font-semibold text-white">Legal</h4>
+            <div className="mt-4 grid gap-3 text-sm text-emerald-50/70">
+              <Link href="/privacy" className="inline-flex items-center gap-2 hover:text-lime-200">
+                <ShieldCheck className="h-4 w-4" />
+                Privacy Policy
+              </Link>
+              <Link href="/terms" className="hover:text-lime-200">
+                Terms & Conditions
+              </Link>
+              <Link href="/data-deletion" className="hover:text-lime-200">
+                Data Deletion
+              </Link>
+              <Link href="/content-rights" className="hover:text-lime-200">
+                Content Rights
+              </Link>
+            </div>
+          </div>
         </div>
 
         <div className="border-t border-white/10 px-6 py-4 text-center text-xs text-emerald-50/60">
-          &copy; {new Date().getFullYear()} Farmers Republic. All rights reserved.
+          &copy; {new Date().getFullYear()} FR3SH / Farmers Republic. All rights reserved.
         </div>
       </footer>
 

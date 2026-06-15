@@ -380,8 +380,10 @@ export async function GET(req: NextRequest) {
       .limit(limit)
       .select(
         // Keep response light but useful
-        "profileId name farmName farmArea category avatar about " +
-          "village district state phone delivery rating reviewsCount",
+        "profileId name farmName farmArea totalLandArea category subCategories seasonalCrops perennialCrops " +
+          "avatar photoPath farmImages about village mandal district state pincode phone whatsappNumber email " +
+          "delivery deliveryRadiusKm deliveryPinCodes pickupLocation organicCertified rating reviewsCount " +
+          "last30daysSales verified kycStatus active availableForOrders",
       )
       .lean()
       .exec();
@@ -393,23 +395,43 @@ export async function GET(req: NextRequest) {
         {
           items: farmers.map((f: any) => ({
             id: String(f._id ?? f.id),
+            _id: String(f._id ?? f.id),
             profileId: f.profileId,
             name: f.name,
             farmName: f.farmName,
             farmArea: f.farmArea,
+            totalLandArea: f.totalLandArea,
             category: f.category || "",
+            subCategories: f.subCategories ?? [],
+            seasonalCrops: f.seasonalCrops ?? [],
+            perennialCrops: f.perennialCrops ?? [],
             avatar: f.avatar,
+            photoPath: f.photoPath,
+            farmImages: f.farmImages ?? [],
             about: f.about,
             place:
               [f.village, f.district, f.state].filter(Boolean).join(", ") ||
               undefined,
             village: f.village,
+            mandal: f.mandal,
             district: f.district,
             state: f.state,
+            pincode: f.pincode,
             phone: f.phone,
+            whatsappNumber: f.whatsappNumber,
+            email: f.email,
             delivery: !!f.delivery,
+            deliveryRadiusKm: f.deliveryRadiusKm,
+            deliveryPinCodes: f.deliveryPinCodes ?? [],
+            pickupLocation: f.pickupLocation,
+            organicCertified: !!f.organicCertified,
             rating: f.rating ?? 0,
             reviewsCount: f.reviewsCount ?? 0,
+            last30daysSales: f.last30daysSales ?? 0,
+            verified: !!f.verified,
+            kycStatus: f.kycStatus,
+            active: f.active,
+            availableForOrders: f.availableForOrders,
           })),
           meta: {
             total,
