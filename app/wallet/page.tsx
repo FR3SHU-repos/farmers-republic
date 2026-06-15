@@ -168,7 +168,7 @@ export default function WalletPage() {
   const hasMore = meta ? page < meta.totalPages : false;
 
   return (
-    <main className="min-h-screen bg-surface px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-surface px-4 py-8 pb-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-2xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">

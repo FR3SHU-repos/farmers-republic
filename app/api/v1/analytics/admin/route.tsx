@@ -4,6 +4,7 @@ import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
 import UserModel from "@/shared/models/mongodb/user";
 import FarmerModel from "@/shared/models/mongodb/farmer";
 import { success, failure } from "@/app/api/v1/utils/responses";
+import { cacheGet, cacheSet, CacheKeys, CacheTTL } from "@/shared/lib/cache";
 
 type Period = "7d" | "30d" | "90d" | "all";
 
@@ -17,10 +18,15 @@ function getStartDate(period: Period): Date {
 
 export async function GET(req: NextRequest) {
   try {
-    await mongoDB();
-
     const url = new URL(req.url);
     const period = (url.searchParams.get("period") ?? "30d") as Period;
+
+    const cacheKey = CacheKeys.analyticsAdmin(period);
+    const cached = await cacheGet<ReturnType<typeof success>>(cacheKey);
+    if (cached) return NextResponse.json(cached);
+
+    await mongoDB();
+
     const startDate = getStartDate(period);
 
     const [
@@ -180,8 +186,7 @@ export async function GET(req: NextRequest) {
 
     const rc = repeatCustomers[0] ?? { total: 0, repeat: 0 };
 
-    return NextResponse.json(
-      success({
+    const responseBody = success({
         period,
         core: {
           totalOrders: core.totalOrders ?? 0,
@@ -220,8 +225,10 @@ export async function GET(req: NextRequest) {
         totalUsers,
         totalFarmers,
         verifiedFarmers,
-      }),
-    );
+      });
+
+    await cacheSet(cacheKey, responseBody, CacheTTL.analyticsAdmin);
+    return NextResponse.json(responseBody);
   } catch (err: any) {
     console.error("Admin analytics error:", err);
     return NextResponse.json(

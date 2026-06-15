@@ -21,7 +21,7 @@ Brand tagline: *"Pick fresh. Eat fresh."*
 | Styling | Tailwind CSS v4 |
 | Database | MongoDB Atlas via Mongoose 8 |
 | File Storage | Supabase (avatars bucket, product-images bucket) |
-| Auth | JWT (httpOnly cookies) + bcryptjs |
+| Auth | JWT + bcryptjs — cookie (`httpOnly`) for web, Bearer token in response body for native mobile |
 | Email | Zoho SMTP (primary) → Brevo SMTP → Brevo HTTP API, via Nodemailer |
 | Redis (serverless) | `@upstash/redis` — HTTP REST client for rate limiting, OTP, caching |
 | Redis (workers) | `ioredis` — TCP client for BullMQ queues and workers |
@@ -127,7 +127,7 @@ farmers-republic/
 │   │   ├── upstashRedis.ts        # upstash — @upstash/redis HTTP client singleton
 │   │   ├── rateLimit.ts           # 5 limiters + checkRateLimit() + getIP()
 │   │   ├── otp.ts                 # storeOtp() / verifyOtp() backed by Redis
-│   │   ├── cache.ts               # CacheKeys, CacheTTL, invalidateProductListCache()
+│   │   ├── cache.ts               # CacheKeys, CacheTTL, cacheGet/Set/Del, invalidateProductListCache()
 │   │   ├── mailer.ts              # sendMail() — Zoho → Brevo SMTP → Brevo API
 │   │   └── utils.tsx              # cx() className combiner
 │   ├── models/mongodb/
@@ -265,6 +265,24 @@ All models use `mongoose.models.X || mongoose.model(...)` to avoid re-registrati
 
 > `ResetTokenModel` (`shared/models/mongodb/resetToken.tsx`) still exists in the codebase but is **no longer used** — OTP storage moved to Redis (`reset_otp:{email}` key, 10-min TTL, SHA-256 hash). Do not use it for new features.
 
+### Compound indexes
+
+These are declared at the bottom of each model file (after the schema, before `mongoose.model()`). Do not remove them — they are critical for query performance.
+
+| Model | Index | Serves |
+|---|---|---|
+| `OrderModel` | `{ "items.farmerId": 1, createdAt: -1 }` | Farmer dashboard orders list |
+| `OrderModel` | `{ buyerId: 1, createdAt: -1 }` | Buyer order history |
+| `OrderModel` | `{ status: 1, createdAt: -1 }` | Admin + delivery status filters |
+| `OrderModel` | `{ deliveryPersonId: 1, status: 1 }` | Delivery person queue |
+| `ProductModel` | `{ farmerId: 1, status: 1 }` | Farmer's own product list |
+| `ProductModel` | `{ category: 1, inStock: 1 }` | Shop browse by category |
+| `HarvestModel` | `{ status: 1, harvestDate: 1 }` | Public marketplace (open + future date) |
+| `HarvestModel` | `{ farmerId: 1, status: 1 }` | Farmer harvest dashboard |
+| `DeliveryEarningModel` | `{ deliveryPersonId: 1, deliveredAt: -1 }` | Earnings history |
+
+> When deploying to a new MongoDB Atlas cluster with existing data, build these indexes manually in Atlas or via `db.collection.createIndex()` before going live. Mongoose creates them automatically on fresh collections.
+
 ### Status flows
 
 ```
@@ -368,13 +386,30 @@ Earning = `deliveryFee > 0 ? deliveryFee : 30` (minimum ₹30)
 ```
 GET /api/v1/products?category=X&page=2
   → queryHash(params) → "products:list:{hash}"
-  → upstash.get(key)         if hit → return cached JSON (60 s TTL)
-  → MongoDB query            if miss → upstash.set(key, result, 60)
+  → cacheGet(key)        if hit → return cached JSON (60 s TTL)
+  → MongoDB query        if miss → cacheSet(key, result, 60)
 
-POST/PATCH/DELETE /api/v1/products
+GET /api/v1/products/[id]
+  → cacheGet("products:detail:{id}")   if hit → return (120 s TTL)
+  → MongoDB findById                   if miss → cacheSet(key, result, 120)
+
+POST /api/v1/products
   → invalidateProductListCache()   # deletes all products:list:* keys
-  → upstash.del("products:detail:{id}")
+
+PATCH /api/v1/products/[id]
+  → cacheDel("products:detail:{id}")   # invalidate this product's detail
+  → invalidateProductListCache()       # invalidate all list pages
 ```
+
+### Admin Analytics Caching
+
+```
+GET /api/v1/analytics/admin?period=30d
+  → cacheGet("analytics:admin:30d")   if hit → return (300 s TTL)
+  → 11 MongoDB aggregations           if miss → cacheSet(key, result, 300)
+```
+
+One key per period (`7d`, `30d`, `90d`, `all`). Cache is NOT invalidated on order mutations — 5-minute staleness is acceptable for a dashboard.
 
 ### Community Group Order
 
@@ -414,12 +449,33 @@ WalletModel.findOneAndUpdate(
 
 ## Authentication
 
-- **Registration**: `POST /api/v1/auth/register` (rate-limited: 3/min/IP) — hashes password, stores User document.
-- **Login**: `POST /api/v1/auth/login` (rate-limited: 5/min/IP) — issues JWT in `httpOnly` cookie `token` (7-day expiry).
-- **Session**: `UserContext` checks `localStorage` first, then `GET /api/v1/auth/me`.
+- **Registration**: `POST /api/v1/auth/register` (rate-limited: 3/min/IP) — hashes password, stores User document. Email normalized to lowercase before lookup and storage.
+- **Login**: `POST /api/v1/auth/login` (rate-limited: 5/min/IP) — issues JWT two ways:
+  - Sets `httpOnly` cookie `token` (7-day expiry) — used by the web app.
+  - Also returns the raw JWT and user object in the response body (`{ token, user, ...success(...) }`) — used by native mobile clients.
+- **Session (web)**: `UserContext` checks `localStorage` first, then `GET /api/v1/auth/me`.
+- **Session (mobile/native)**: Store the `token` from the login response body. Send it as `Authorization: Bearer <token>` on subsequent requests.
+- **`GET /api/v1/auth/me`**: Accepts auth from two sources — cookie `token` OR `Authorization: Bearer <token>` header. Cookie takes priority; Bearer is the fallback. This makes the endpoint work for both web and native mobile clients.
 - **Logout**: `POST /api/v1/auth/logout` + `UserContext.logout()`.
 - **Password reset**: OTP stored in Redis (not MongoDB). Flow: `send-reset-otp` → `verify-reset-otp` → `reset-password`.
 - **Token verification**: `import { verifyToken } from "@/app/api/v1/utils/verifyToken"`.
+
+### Mobile auth pattern
+
+```ts
+// 1. Login — store the token from the response body
+const res = await fetch("/api/v1/auth/login", {
+  method: "POST",
+  body: JSON.stringify({ email, password }),
+});
+const { token, user } = await res.json();
+await AsyncStorage.setItem("token", token); // or SecureStore on Expo
+
+// 2. Authenticated requests — send as Bearer header
+const meRes = await fetch("/api/v1/auth/me", {
+  headers: { Authorization: `Bearer ${token}` },
+});
+```
 
 ---
 

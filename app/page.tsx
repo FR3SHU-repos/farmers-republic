@@ -153,7 +153,7 @@ const FarmersHomePage = () => {
   ];
 
   return (
-    <div className="min-h-screen overflow-hidden bg-[#f8faf5] text-stone-900">
+    <div className="min-h-screen overflow-hidden bg-[#f8faf5] pb-24 text-stone-900">
       <main>
         <header className="relative border-b border-emerald-900/10 bg-[#eff6e8]">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(132,204,22,0.24),transparent_28%),radial-gradient(circle_at_88%_5%,rgba(20,184,166,0.18),transparent_24%)]" />

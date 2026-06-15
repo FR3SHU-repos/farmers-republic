@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(which chromium-cli *)",
+      "Read(//Applications/**)",
+      "Bash(npx playwright *)",
+      "Bash(npx --yes @playwright/test --version)",
+      "Bash(wait)",
+      "Read(//tmp/**)",
+      "Read(//private/tmp/**)"
+    ]
+  }
+}

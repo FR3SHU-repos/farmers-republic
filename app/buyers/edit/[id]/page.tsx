@@ -159,9 +159,9 @@ export default function EditBuyerPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100">
-        <div className="text-center space-y-3">
-          <div className="w-10 h-10 border-[3px] border-green-600 border-t-transparent rounded-full animate-spin mx-auto" />
+      <main className="flex min-h-screen items-center justify-center bg-surface">
+        <div className="space-y-3 text-center">
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-[3px] border-primary border-t-transparent" />
           <p className="text-sm text-stone-600 font-medium">
             Loading buyer profile…
           </p>
@@ -171,8 +171,8 @@ export default function EditBuyerPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-green-50 to-green-100 flex items-center justify-center px-4 py-8">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl p-6 sm:p-8">
+    <main className="min-h-screen bg-surface flex items-center justify-center px-4 py-8 pb-24">
+      <div className="w-full max-w-xl rounded-2xl border border-border bg-surface-card p-6 shadow-sm sm:p-8">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl sm:text-2xl font-bold text-stone-900">
             Edit Buyer Profile

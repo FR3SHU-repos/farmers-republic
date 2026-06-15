@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import ProductModel from "@/shared/models/mongodb/products/products";
 import { success, failure } from "@/app/api/v1/utils/responses";
+import { cacheGet, cacheSet, cacheDel, CacheKeys, CacheTTL, invalidateProductListCache } from "@/shared/lib/cache";
 import mongoose from "mongoose";
 
 function toStringArray(value: any): string[] {
@@ -16,7 +17,7 @@ function toStringArray(value: any): string[] {
     .filter(Boolean);
 }
 
-// ---------- GET BY ID (you already have this, just keeping same logic) ----------
+// ---------- GET BY ID ----------
 export async function GET(
   _req: NextRequest,
   context: { params: Promise<{ id: string }> },
@@ -28,13 +29,19 @@ export async function GET(
       return NextResponse.json(failure("Invalid product id"), { status: 400 });
     }
 
+    const cacheKey = CacheKeys.productDetail(id);
+    const cached = await cacheGet<ReturnType<typeof success>>(cacheKey);
+    if (cached) return NextResponse.json(cached);
+
     await mongoDB();
 
     const product = await ProductModel.findById(id).lean().select("-__v");
     if (!product)
       return NextResponse.json(failure("Not found"), { status: 404 });
 
-    return NextResponse.json(success(product));
+    const body = success(product);
+    await cacheSet(cacheKey, body, CacheTTL.productDetail);
+    return NextResponse.json(body);
   } catch (err: any) {
     console.error("Error in GET /api/v1/products/[id]:", err);
     return NextResponse.json(
@@ -226,6 +233,11 @@ export async function PATCH(
 
     if (!updated)
       return NextResponse.json(failure("Not found"), { status: 404 });
+
+    await Promise.all([
+      cacheDel(CacheKeys.productDetail(id)),
+      invalidateProductListCache(),
+    ]);
 
     return NextResponse.json(success(updated));
   } catch (err: any) {

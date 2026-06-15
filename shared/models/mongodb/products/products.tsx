@@ -126,6 +126,10 @@ const ProductSchema = new Schema<Product>(
   },
 );
 
+// Compound indexes for the most common query patterns
+ProductSchema.index({ farmerId: 1, status: 1 });    // farmer's own product list
+ProductSchema.index({ category: 1, inStock: 1 });   // shop browse by category
+
 const ProductModel =
   (models.Product as mongoose.Model<Product>) || model<Product>("Product", ProductSchema);
 

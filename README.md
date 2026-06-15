@@ -15,7 +15,7 @@ Brand tagline: *"Pick fresh. Eat fresh."*
 
 ### Backend & Data
 - **MongoDB + Mongoose 8** for persistent domain data.
-- **JWT + bcryptjs** for auth/session primitives (httpOnly cookie, 7-day expiry).
+- **JWT + bcryptjs** for auth/session. Login sets an `httpOnly` cookie (web) **and** returns the raw JWT in the response body (native mobile). `/auth/me` accepts both cookie and `Authorization: Bearer <token>`.
 - **Supabase Storage** for media upload/storage (avatars bucket, product-images bucket).
 
 ### Redis & Background Jobs
@@ -120,13 +120,15 @@ workers/ (separate long-running Node.js processes)
 | Product list cache | `@upstash/redis` | 60 s |
 | Product detail cache | `@upstash/redis` | 120 s |
 | Categories cache | `@upstash/redis` | 1 hr |
+| Admin analytics cache | `@upstash/redis` | 5 min (per period key) |
 | BullMQ queue backend | `ioredis` | persistent |
 
 ### Cache key layout
 ```
-products:list:{queryHash}     # 60 s TTL — invalidated on product mutation
-products:detail:{id}          # 120 s TTL
+products:list:{queryHash}     # 60 s TTL — invalidated on POST/PATCH/DELETE product
+products:detail:{id}          # 120 s TTL — invalidated on PATCH /products/[id]
 categories:all                # 1 hr TTL
+analytics:admin:{period}      # 5 min TTL — one key per period (7d/30d/90d/all)
 reset_otp:{email}             # 10 min TTL (SHA-256 hash, not raw OTP)
 reset_otp_attempts:{email}    # 10 min TTL
 ```
@@ -295,10 +297,10 @@ Rate-limited endpoints return `{ success: false, message: "Too many requests…"
 ### Auth
 | Endpoint | Methods | Rate limit | Description |
 |---|---|---|---|
-| `/api/v1/auth/register` | POST | 3/min/IP | Create user account |
-| `/api/v1/auth/login` | POST | 5/min/IP | Issue JWT cookie |
+| `/api/v1/auth/register` | POST | 3/min/IP | Create user account. Email normalized to lowercase. |
+| `/api/v1/auth/login` | POST | 5/min/IP | Sets `httpOnly` cookie **and** returns `{ token, user }` in body for native mobile clients |
 | `/api/v1/auth/logout` | POST | — | Clear JWT cookie |
-| `/api/v1/auth/me` | GET | — | Return current user from cookie |
+| `/api/v1/auth/me` | GET | — | Returns current user. Accepts cookie **or** `Authorization: Bearer <token>` header |
 | `/api/v1/auth/send-reset-otp` | POST | 3/10min/IP | Store OTP in Redis, queue email |
 | `/api/v1/auth/verify-reset-otp` | POST | — | Verify Redis OTP, reset password |
 
@@ -307,8 +309,8 @@ Rate-limited endpoints return `{ success: false, message: "Too many requests…"
 |---|---|---|
 | `/api/v1/farmers` | GET, POST, PATCH | Farmer CRUD. GET supports `?profileId=` to resolve userId → farmerId |
 | `/api/v1/buyers` | GET, POST, PATCH | Buyer CRUD |
-| `/api/v1/products` | GET, POST | GET: cached 60 s. POST: rate-limited 10/hr/farmer, invalidates cache |
-| `/api/v1/products/[id]` | GET, PATCH, DELETE | Single product. GET cached 120 s, mutations invalidate cache |
+| `/api/v1/products` | GET, POST | GET: cached 60 s. POST: rate-limited 10/hr/farmer, invalidates list cache |
+| `/api/v1/products/[id]` | GET, PATCH | GET cached 120 s. PATCH invalidates both detail cache and full list cache |
 | `/api/v1/user/update` | PATCH | Update user profile fields |
 | `/api/v1/user/photo` | PATCH | Upload avatar to Supabase |
 
@@ -360,7 +362,7 @@ Rate-limited endpoints return `{ success: false, message: "Too many requests…"
 ### Analytics
 | Endpoint | Methods | Description |
 |---|---|---|
-| `/api/v1/analytics/admin` | GET | 11 parallel aggregations — revenue, GMV, top farmers, top products, by period |
+| `/api/v1/analytics/admin` | GET | 11 parallel aggregations — revenue, GMV, top farmers, top products, by period. Cached 5 min per period in Redis |
 | `/api/v1/analytics/farmer` | GET | Per-farmer — revenue, orders, top products |
 
 ### Growth

@@ -160,8 +160,8 @@ export default function BuyerProfilePage() {
   };
 
   return (
-    <div className="min-h-screen p-6 bg-green-50">
-      <div className="max-w-3xl mx-auto bg-white p-6 rounded-xl shadow">
+    <div className="min-h-screen bg-surface px-4 py-6 pb-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-surface-card p-6 shadow-sm">
         <h1 className="text-xl font-semibold text-green-700 mb-4">
           Buyer Profile
         </h1>

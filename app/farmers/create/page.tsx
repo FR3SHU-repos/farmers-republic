@@ -451,8 +451,8 @@ export default function FarmerProfilePage() {
     ].join(" ");
 
   return (
-    <div className="min-h-screen p-6 bg-green-50">
-      <div className="max-w-5xl mx-auto bg-white p-6 rounded-xl shadow">
+    <div className="min-h-screen bg-surface px-4 py-6 pb-24 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl rounded-2xl border border-border bg-surface-card p-6 shadow-sm">
         {/* Header + Tabs */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
           <h1 className="text-xl font-semibold text-green-700">

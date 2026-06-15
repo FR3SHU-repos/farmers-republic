@@ -196,6 +196,12 @@ const orderSchema = new Schema<Order>(
   { timestamps: true }
 );
 
+// Compound indexes for the most common query patterns
+orderSchema.index({ "items.farmerId": 1, createdAt: -1 }); // farmer dashboard orders
+orderSchema.index({ buyerId: 1, createdAt: -1 });           // buyer order history
+orderSchema.index({ status: 1, createdAt: -1 });            // admin + delivery filters
+orderSchema.index({ deliveryPersonId: 1, status: 1 });      // delivery person queue
+
 const OrderModel =
   mongoose.models.Order || mongoose.model<Order>("Order", orderSchema);
 

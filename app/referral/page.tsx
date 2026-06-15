@@ -113,7 +113,7 @@ export default function ReferralPage() {
   const stats = data?.stats;
 
   return (
-    <main className="min-h-screen bg-surface px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-surface px-4 py-8 pb-24 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-2xl space-y-6">
         {/* Hero */}
         <div className="rounded-2xl border border-border bg-surface-card p-8 text-center shadow-sm">

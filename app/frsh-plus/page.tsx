@@ -156,7 +156,7 @@ export default function FrshPlusPage() {
   const isActive = subData?.isActive ?? false;
 
   return (
-    <main className="min-h-screen bg-surface">
+    <main className="min-h-screen bg-surface pb-24">
       {/* Hero */}
       <div className="bg-primary px-4 py-14 text-center sm:px-6 lg:px-8">
         <div className="mx-auto max-w-2xl">

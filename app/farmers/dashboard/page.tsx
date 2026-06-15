@@ -134,27 +134,27 @@ export default function FarmerOrdersDashboardPage() {
   const statusBadgeClass = (status: string) => {
     switch (status) {
       case "pending":
-        return "bg-yellow-50 text-yellow-700 border-yellow-200";
+        return "bg-status-warning-surface text-status-warning border-status-warning/30";
       case "confirmed":
       case "out_for_delivery":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-status-info-surface text-status-info border-status-info/30";
       case "delivered":
-        return "bg-green-50 text-green-700 border-green-200";
+        return "bg-status-success-surface text-status-success border-status-success/30";
       case "cancelled":
-        return "bg-red-50 text-red-700 border-red-200";
+        return "bg-status-danger-surface text-status-danger border-status-danger/30";
       default:
-        return "bg-stone-50 text-stone-700 border-stone-200";
+        return "bg-surface text-foreground-muted border-border";
     }
   };
 
   const paymentBadgeClass = (status: string) => {
     switch (status) {
       case "paid":
-        return "bg-emerald-50 text-emerald-700 border-emerald-200";
+        return "bg-status-success-surface text-status-success border-status-success/30";
       case "unpaid":
-        return "bg-rose-50 text-rose-700 border-rose-200";
+        return "bg-status-danger-surface text-status-danger border-status-danger/30";
       default:
-        return "bg-stone-50 text-stone-700 border-stone-200";
+        return "bg-surface text-foreground-muted border-border";
     }
   };
 
@@ -170,48 +170,42 @@ export default function FarmerOrdersDashboardPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-800 pb-20">
+    <div className="min-h-screen bg-background pb-24">
       <main className="py-8">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="flex items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-stone-900">
+              <h1 className="text-2xl font-bold text-foreground-heading sm:text-3xl">
                 My Orders Dashboard
               </h1>
-              <p className="text-sm text-stone-500 mt-1">
+              <p className="mt-1 text-sm text-foreground-muted">
                 Track all orders placed with you, their status and payments.
               </p>
             </div>
-            <div className="hidden sm:flex flex-col items-end text-right text-xs text-stone-500">
-              <span>Farmer</span>
-              <span className="font-semibold text-stone-800">{user.name}</span>
+            <div className="hidden flex-col items-end text-right sm:flex">
+              <span className="text-xs text-foreground-muted">Farmer</span>
+              <span className="text-xs font-semibold text-foreground-heading">{user.name}</span>
             </div>
           </div>
 
           {/* Summary cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-xl border border-stone-100 p-3 sm:p-4">
-              <p className="text-xs text-stone-500">Total Orders</p>
-              <p className="text-xl font-bold mt-1">{stats.totalOrders}</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-2xl border border-border bg-surface-card p-3 sm:p-4">
+              <p className="text-xs text-foreground-muted">Total Orders</p>
+              <p className="mt-1 text-xl font-bold text-foreground-heading">{stats.totalOrders}</p>
             </div>
-            <div className="bg-white rounded-xl border border-yellow-100 p-3 sm:p-4">
-              <p className="text-xs text-yellow-700">Pending</p>
-              <p className="text-xl font-bold mt-1 text-yellow-800">
-                {stats.pending}
-              </p>
+            <div className="rounded-2xl border border-status-warning/30 bg-status-warning-surface p-3 sm:p-4">
+              <p className="text-xs text-status-warning">Pending</p>
+              <p className="mt-1 text-xl font-bold text-status-warning">{stats.pending}</p>
             </div>
-            <div className="bg-white rounded-xl border border-green-100 p-3 sm:p-4">
-              <p className="text-xs text-green-700">Delivered</p>
-              <p className="text-xl font-bold mt-1 text-green-800">
-                {stats.delivered}
-              </p>
+            <div className="rounded-2xl border border-status-success/30 bg-status-success-surface p-3 sm:p-4">
+              <p className="text-xs text-status-success">Delivered</p>
+              <p className="mt-1 text-xl font-bold text-status-success">{stats.delivered}</p>
             </div>
-            <div className="bg-white rounded-xl border border-blue-100 p-3 sm:p-4">
-              <p className="text-xs text-blue-700">Total Revenue (₹)</p>
-              <p className="text-xl font-bold mt-1 text-blue-800">
-                {stats.revenue.toFixed(0)}
-              </p>
+            <div className="rounded-2xl border border-status-info/30 bg-status-info-surface p-3 sm:p-4">
+              <p className="text-xs text-status-info">Revenue (₹)</p>
+              <p className="mt-1 text-xl font-bold text-status-info">{stats.revenue.toFixed(0)}</p>
             </div>
           </div>
 
@@ -223,10 +217,10 @@ export default function FarmerOrdersDashboardPage() {
                   key={s}
                   type="button"
                   onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
                     statusFilter === s
-                      ? "bg-green-600 text-white border-green-600"
-                      : "bg-white text-stone-700 border-stone-200 hover:bg-stone-50"
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-surface-card text-foreground-body hover:bg-surface"
                   }`}
                 >
                   {s === "all"
@@ -239,38 +233,88 @@ export default function FarmerOrdersDashboardPage() {
               ))}
             </div>
 
-            <div className="text-xs text-stone-500">
+            <div className="text-xs text-foreground-muted">
               Showing{" "}
               <span className="font-semibold">{filteredOrders.length}</span> of{" "}
               <span className="font-semibold">{orders.length}</span> orders
             </div>
           </div>
 
-          {/* Table */}
-          <div className="bg-white rounded-2xl shadow-sm border border-stone-100 overflow-hidden">
+          {/* Mobile card list — shown below sm */}
+          <div className="sm:hidden space-y-3">
+            {loading && (
+              <div className="flex justify-center py-10">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              </div>
+            )}
+            {!loading && error && (
+              <p className="text-center text-xs text-status-danger py-6">{error}</p>
+            )}
+            {!loading && !error && filteredOrders.length === 0 && (
+              <p className="text-center text-xs text-foreground-muted py-6">No orders found for this filter.</p>
+            )}
+            {!loading && !error && filteredOrders.map((o) => (
+              <div
+                key={o.id}
+                onClick={() => handleRowClick(o.id)}
+                className="cursor-pointer rounded-2xl border border-border bg-surface-card p-4 transition hover:shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-xs font-semibold text-foreground-muted">
+                      #{shortId(o.id)}
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-foreground-heading">
+                      {o.customerName || "—"}
+                    </p>
+                    {o.customerPhone && (
+                      <p className="text-xs text-foreground-muted">{o.customerPhone}</p>
+                    )}
+                  </div>
+                  <p className="text-base font-bold text-foreground-heading">
+                    ₹{(o.total ?? 0).toFixed(2)}
+                  </p>
+                </div>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] ${statusBadgeClass(o.status)}`}>
+                    {o.status ? o.status.split("_").map((p) => p[0].toUpperCase() + p.slice(1)).join(" ") : "Unknown"}
+                  </span>
+                  <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] ${paymentBadgeClass(o.paymentStatus)}`}>
+                    {o.paymentStatus ? o.paymentStatus[0].toUpperCase() + o.paymentStatus.slice(1) : "Unknown"}
+                  </span>
+                  <span className="text-[11px] text-foreground-muted">
+                    {o.itemsCount} item{o.itemsCount !== 1 ? "s" : ""} · {o.createdAt ? formatDate(o.createdAt) : "—"}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table — hidden on mobile */}
+          <div className="hidden sm:block rounded-2xl border border-border bg-surface-card overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full text-sm">
-                <thead className="bg-stone-50 border-b border-stone-100">
+                <thead className="border-b border-border bg-surface">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground-muted">
                       Order
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground-muted">
                       Customer
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground-muted">
                       Items
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold text-stone-500">
+                    <th className="px-4 py-3 text-right text-xs font-semibold text-foreground-muted">
                       Total (₹)
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground-muted">
                       Status
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground-muted">
                       Payment
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-stone-500">
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-foreground-muted">
                       Created
                     </th>
                   </tr>
@@ -278,10 +322,7 @@ export default function FarmerOrdersDashboardPage() {
                 <tbody>
                   {loading && (
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-6 text-center text-xs text-stone-400"
-                      >
+                      <td colSpan={7} className="px-4 py-6 text-center text-xs text-foreground-muted">
                         Loading orders…
                       </td>
                     </tr>
@@ -289,10 +330,7 @@ export default function FarmerOrdersDashboardPage() {
 
                   {!loading && error && (
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-6 text-center text-xs text-red-500"
-                      >
+                      <td colSpan={7} className="px-4 py-6 text-center text-xs text-status-danger">
                         {error}
                       </td>
                     </tr>
@@ -300,10 +338,7 @@ export default function FarmerOrdersDashboardPage() {
 
                   {!loading && !error && filteredOrders.length === 0 && (
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-4 py-6 text-center text-xs text-stone-400"
-                      >
+                      <td colSpan={7} className="px-4 py-6 text-center text-xs text-foreground-muted">
                         No orders found for this filter.
                       </td>
                     </tr>
@@ -315,13 +350,13 @@ export default function FarmerOrdersDashboardPage() {
                       <tr
                         key={o.id}
                         onClick={() => handleRowClick(o.id)}
-                        className="border-t border-stone-100 hover:bg-stone-50/70 transition cursor-pointer"
+                        className="cursor-pointer border-t border-border transition hover:bg-surface/60"
                       >
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="font-mono text-xs text-stone-600">
+                          <div className="font-mono text-xs font-semibold text-foreground-muted">
                             #{shortId(o.id)}
                           </div>
-                          <div className="text-[11px] text-stone-400">
+                          <div className="text-[11px] text-foreground-muted">
                             {o.source === "voice"
                               ? "Voice"
                               : o.source === "app"
@@ -330,46 +365,34 @@ export default function FarmerOrdersDashboardPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="text-sm font-medium text-stone-800">
+                          <div className="text-sm font-medium text-foreground-heading">
                             {o.customerName || "—"}
                           </div>
-                          <div className="text-xs text-stone-500">
+                          <div className="text-xs text-foreground-muted">
                             {o.customerPhone || "No phone"}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-stone-700">
+                        <td className="px-4 py-3 text-sm text-foreground-body">
                           {o.itemsCount} item{o.itemsCount !== 1 ? "s" : ""}
                         </td>
-                        <td className="px-4 py-3 text-right text-sm font-semibold text-stone-900">
+                        <td className="px-4 py-3 text-right text-sm font-semibold text-foreground-heading">
                           ₹{(o.total ?? 0).toFixed(2)}
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border ${statusBadgeClass(
-                              o.status,
-                            )}`}
-                          >
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] ${statusBadgeClass(o.status)}`}>
                             {o.status
-                              ? o.status
-                                  .split("_")
-                                  .map((p) => p[0].toUpperCase() + p.slice(1))
-                                  .join(" ")
+                              ? o.status.split("_").map((p) => p[0].toUpperCase() + p.slice(1)).join(" ")
                               : "Unknown"}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] border ${paymentBadgeClass(
-                              o.paymentStatus,
-                            )}`}
-                          >
+                          <span className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] ${paymentBadgeClass(o.paymentStatus)}`}>
                             {o.paymentStatus
-                              ? o.paymentStatus[0].toUpperCase() +
-                                o.paymentStatus.slice(1)
+                              ? o.paymentStatus[0].toUpperCase() + o.paymentStatus.slice(1)
                               : "Unknown"}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap text-xs text-foreground-muted">
                           {o.createdAt ? formatDate(o.createdAt) : "—"}
                         </td>
                       </tr>

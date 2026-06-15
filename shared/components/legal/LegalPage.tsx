@@ -10,7 +10,7 @@ type LegalPageProps = {
 
 export function LegalPage({ title, description, updated, children }: LegalPageProps) {
   return (
-    <main className="min-h-screen bg-[#f8faf5]">
+    <main className="min-h-screen bg-[#f8faf5] pb-24">
       <section className="border-b border-emerald-900/10 bg-gradient-to-b from-white to-lime-50/70">
         <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
           <Link

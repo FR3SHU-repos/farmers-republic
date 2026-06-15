@@ -303,7 +303,7 @@ export default function FarmerKycPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface py-8 px-4">
+    <div className="min-h-screen bg-surface px-4 py-8 pb-24">
       <div className="mx-auto max-w-2xl space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground-heading">KYC Verification</h1>

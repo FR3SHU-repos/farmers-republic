@@ -72,14 +72,14 @@ export default function BuyerProfilePage({
   // -------- Loading state --------
   if (loading) {
     return (
-      <main className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <div className="bg-white border border-stone-200 rounded-2xl px-6 py-5 shadow-sm flex items-center gap-3">
-          <div className="h-8 w-8 rounded-full bg-stone-200 animate-pulse" />
+      <main className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex items-center gap-3 rounded-2xl border border-border bg-surface-card px-6 py-5 shadow-sm">
+          <div className="h-8 w-8 animate-pulse rounded-full bg-surface" />
           <div>
-            <p className="text-sm font-medium text-stone-700">
+            <p className="text-sm font-medium text-foreground-heading">
               Loading buyer profile…
             </p>
-            <p className="text-xs text-stone-400 mt-0.5">
+            <p className="mt-0.5 text-xs text-foreground-muted">
               Please wait a moment.
             </p>
           </div>
@@ -91,18 +91,18 @@ export default function BuyerProfilePage({
   // -------- Error / not found --------
   if (error || !buyer) {
     return (
-      <main className="min-h-screen bg-stone-50 flex items-center justify-center px-4">
-        <div className="bg-white border border-red-100 rounded-2xl px-6 py-5 shadow-sm max-w-md w-full">
-          <p className="text-sm font-semibold text-red-600 mb-1">
+      <main className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md rounded-2xl border border-status-danger/20 bg-status-danger-surface px-6 py-5 shadow-sm">
+          <p className="mb-1 text-sm font-semibold text-status-danger">
             {error || "Buyer not found"}
           </p>
-          <p className="text-xs text-stone-500 mb-4">
+          <p className="mb-4 text-xs text-foreground-muted">
             The buyer profile could not be loaded. The link may be invalid, or
             the profile might have been removed.
           </p>
           <Link
             href="/farmers/dashboard"
-            className="inline-flex items-center gap-2 text-xs font-medium text-stone-700 hover:text-stone-900"
+            className="inline-flex items-center gap-2 text-xs font-medium text-foreground-body hover:text-foreground-heading"
           >
             <ArrowLeft className="w-3 h-3" />
             Back to orders dashboard
@@ -115,7 +115,7 @@ export default function BuyerProfilePage({
   const addr = buyer.address;
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-stone-50 via-stone-50 to-white text-stone-800">
+    <main className="min-h-screen bg-background pb-24 text-foreground-body">
       {/* Top bar / breadcrumb-ish */}
       <div className="border-b border-stone-100 bg-white/80 backdrop-blur">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">

@@ -14,15 +14,17 @@ import crypto from "crypto";
 import { upstash } from "./upstashRedis";
 
 export const CacheTTL = {
-  productList:   60,
-  productDetail: 120,
-  categories:    3600,
+  productList:    60,
+  productDetail:  120,
+  categories:     3600,
+  analyticsAdmin: 300, // 5 min — aggregations are expensive, staleness is acceptable
 } as const;
 
 export const CacheKeys = {
-  productList:   (hash: string) => `products:list:${hash}`,
-  productDetail: (id: string)   => `products:detail:${id}`,
-  categoriesAll: "categories:all",
+  productList:    (hash: string)   => `products:list:${hash}`,
+  productDetail:  (id: string)     => `products:detail:${id}`,
+  analyticsAdmin: (period: string) => `analytics:admin:${period}`,
+  categoriesAll:  "categories:all",
 } as const;
 
 /** Stable hash of a query-params object for use as a cache key suffix. */

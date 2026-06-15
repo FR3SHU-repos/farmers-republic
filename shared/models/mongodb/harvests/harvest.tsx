@@ -34,6 +34,10 @@ const harvestSchema = new Schema<UpcomingHarvest>(
   { timestamps: true },
 );
 
+// Compound index for the public marketplace query: status=open + future harvestDate
+harvestSchema.index({ status: 1, harvestDate: 1 });
+harvestSchema.index({ farmerId: 1, status: 1 });
+
 export const HarvestModel =
   mongoose.models.Harvest ||
   mongoose.model<UpcomingHarvest>("Harvest", harvestSchema);
