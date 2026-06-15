@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
   try {
     await mongoDB();
 
-    const token = req.cookies.get("token")?.value;
+    const bearerToken = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
+    const token = req.cookies.get("token")?.value || bearerToken;
     if (!token) return NextResponse.json(failure("Not authenticated"), { status: 401 });
 
     const decoded = jwt.verify(token, JWT_SECRET) as { sub: string };

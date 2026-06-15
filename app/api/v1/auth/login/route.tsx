@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(failure("Email and password are required."), { status: 400 });
     }
 
-    const existingUser = await UserModel.findOne({ email });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existingUser = await UserModel.findOne({ email: normalizedEmail });
     if (!existingUser) {
       return NextResponse.json(failure("User does not exist."), { status: 404 });
     }
@@ -45,18 +46,19 @@ export async function POST(req: NextRequest) {
     const options: SignOptions = { expiresIn };
     const token = jwt.sign(payload, JWT_SECRET as jwt.Secret, options);
 
-    const res = NextResponse.json(
-      success(
-        {
-          id:          existingUser._id,
-          name:        existingUser.name,
-          email:       existingUser.email,
-          phoneNumber: existingUser.phoneNumber,
-          type:        existingUser.type,
-        },
-        `Welcome back, ${existingUser.name || "User"}!`,
-      ),
-    );
+    const user = {
+      id:          existingUser._id.toString(),
+      name:        existingUser.name,
+      email:       existingUser.email,
+      phoneNumber: existingUser.phoneNumber,
+      type:        existingUser.type,
+    };
+
+    const res = NextResponse.json({
+      ...success(user, `Welcome back, ${existingUser.name || "User"}!`),
+      user,
+      token,
+    });
 
     res.cookies.set({
       name:     "token",
