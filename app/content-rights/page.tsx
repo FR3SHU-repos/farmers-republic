@@ -60,8 +60,8 @@ export default function ContentRightsPage() {
         <p>
           Rights owners can report trademark, copyright, listing, image, or
           brand misuse concerns by emailing{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com">
+            hello@farmers-republic.com
           </a>
           .
         </p>

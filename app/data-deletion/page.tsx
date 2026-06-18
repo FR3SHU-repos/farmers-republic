@@ -16,8 +16,8 @@ export default function DataDeletionPage() {
       <LegalSection title="How to Request Deletion">
         <p>
           Email{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in?subject=FR3SH%20Data%20Deletion%20Request">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com?subject=FR3SH%20Data%20Deletion%20Request">
+            hello@farmers-republic.com
           </a>{" "}
           with the subject "FR3SH Data Deletion Request". You can also start
           the request from the FR3SH mobile app by opening Settings and choosing
@@ -69,8 +69,8 @@ export default function DataDeletionPage() {
           This page can be used as the public App Store Connect privacy choices
           or data deletion URL for the FR3SH iOS app. Privacy questions can also
           be sent to{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com">
+            hello@farmers-republic.com
           </a>
           .
         </p>

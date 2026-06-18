@@ -63,8 +63,8 @@ export function LegalPage({ title, description, updated, children }: LegalPagePr
             <div className="mt-5 rounded-lg bg-lime-50 p-4 text-xs leading-6 text-emerald-950">
               For privacy, account, order, or intellectual property requests,
               email{" "}
-              <a className="font-semibold underline" href="mailto:support@fr3sh.in">
-                support@fr3sh.in
+              <a className="font-semibold underline" href="mailto:hello@farmers-republic.com">
+                hello@farmers-republic.com
               </a>
               .
             </div>

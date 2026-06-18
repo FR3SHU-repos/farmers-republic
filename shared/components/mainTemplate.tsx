@@ -127,11 +127,11 @@ export default function Shell({ children }: { children: React.ReactNode }) {
             <h4 className="text-sm font-semibold text-white">Contact</h4>
             <div className="mt-4 grid gap-3 text-sm text-emerald-50/70">
               <a
-                href="mailto:support@fr3sh.in"
+                href="mailto:hello@farmers-republic.com"
                 className="inline-flex items-center gap-2 hover:text-lime-200"
               >
                 <Mail className="h-4 w-4" />
-                support@fr3sh.in
+                hello@farmers-republic.com
               </a>
               <Link href="/support" className="inline-flex items-center gap-2 hover:text-lime-200">
                 <LifeBuoy className="h-4 w-4" />

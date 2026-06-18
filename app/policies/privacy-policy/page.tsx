@@ -152,8 +152,8 @@ export default function PrivacyPolicyPage() {
           You may update account information in the app or website where the
           feature is available. You can request access, correction, deletion, or
           withdrawal of consent by contacting{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com">
+            hello@farmers-republic.com
           </a>
           . You can also use our{" "}
           <Link className="text-emerald-800 underline" href="/data-deletion">
@@ -186,8 +186,8 @@ export default function PrivacyPolicyPage() {
         </p>
         <p>
           Privacy contact:{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com">
+            hello@farmers-republic.com
           </a>
         </p>
       </LegalSection>

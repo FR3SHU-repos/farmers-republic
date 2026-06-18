@@ -16,8 +16,8 @@ export default function SupportPage() {
       <LegalSection title="Primary Support Contact">
         <p>
           Email{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com">
+            hello@farmers-republic.com
           </a>{" "}
           for customer, farmer, vendor, delivery, privacy, payment, or account
           support.
@@ -66,8 +66,8 @@ export default function SupportPage() {
           Report unsafe listings, misleading organic or natural claims,
           inappropriate community content, suspected fraud, impersonation,
           rights violations, or account abuse to{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in?subject=FR3SH%20Safety%20or%20Content%20Report">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com?subject=FR3SH%20Safety%20or%20Content%20Report">
+            hello@farmers-republic.com
           </a>
           . We review reports and may remove content, restrict accounts, or
           request more information.
@@ -77,8 +77,8 @@ export default function SupportPage() {
       <LegalSection title="App Store Review Access">
         <p>
           If Apple App Review needs assistance, use{" "}
-          <a className="text-emerald-800 underline" href="mailto:support@fr3sh.in">
-            support@fr3sh.in
+          <a className="text-emerald-800 underline" href="mailto:hello@farmers-republic.com">
+            hello@farmers-republic.com
           </a>{" "}
           as the support contact and provide a working demo account in App Store
           Connect if any reviewed feature requires sign-in.

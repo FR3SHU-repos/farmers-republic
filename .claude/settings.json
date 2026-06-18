@@ -7,7 +7,11 @@
       "Bash(npx --yes @playwright/test --version)",
       "Bash(wait)",
       "Read(//tmp/**)",
-      "Read(//private/tmp/**)"
+      "Read(//private/tmp/**)",
+      "Bash(sed -i '' 's/support@fr3sh\\\\.in/hello@farmers-republic.com/g' \\\\ *)"
+    ],
+    "additionalDirectories": [
+      "/Users/priyatham-varma/Desktop/FR3SH/farmers-republic/app/policies/terms-and-conditions"
     ]
   }
 }
