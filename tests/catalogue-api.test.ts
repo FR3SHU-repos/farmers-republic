@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { CatalogueAPIError, catalogueAPI } from "../shared/lib/api/catalogue";
+import { apiURL } from "../shared/lib/api/url";
+
+test("catalogue URL joining prevents duplicated API prefixes and slashes", () => {
+  assert.equal(apiURL("https://api.example.com/", "/products"), "https://api.example.com/api/v1/products");
+  assert.equal(apiURL("https://api.example.com/api/v1", "products"), "https://api.example.com/api/v1/products");
+});
 
 test("catalogue list maps canonical ids and pagination", async () => {
   const original = globalThis.fetch;

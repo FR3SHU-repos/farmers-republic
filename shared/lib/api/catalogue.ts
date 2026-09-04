@@ -1,6 +1,7 @@
 import type { Product } from "@/shared/interfaces/mongodb/products/product";
+import { apiBase, apiURL } from "./url";
 
-const BASE = (process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "");
+const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL);
 const DEFAULT_TIMEOUT_MS = 8_000;
 
 type Envelope<T> = { success: boolean; message?: string; data: T };
@@ -48,7 +49,7 @@ async function get<T>(path: string, cache: RequestCache = "no-store"): Promise<T
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), DEFAULT_TIMEOUT_MS);
   try {
-    const response = await fetch(`${BASE}/api/v1${path}`, {
+    const response = await fetch(apiURL(BASE, path), {
       method: "GET",
       headers: { Accept: "application/json" },
       cache,

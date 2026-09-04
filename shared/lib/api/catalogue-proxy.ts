@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BASE = (process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL ?? "http://localhost:8080").replace(/\/$/, "");
+import { apiBase, apiURL } from "./url";
+const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL);
 
 /** Temporary compatibility path for callers still using the marketplace origin. */
 export async function proxyCatalogueGET(request: NextRequest, path: string): Promise<NextResponse> {
-  const target = new URL(`${BASE}/api/v1${path}`);
+  const target = new URL(apiURL(BASE, path));
   request.nextUrl.searchParams.forEach((value, key) => target.searchParams.append(key, value));
   try {
     const upstream = await fetch(target, {
@@ -23,7 +24,7 @@ export async function proxyCatalogueGET(request: NextRequest, path: string): Pro
 }
 
 export async function proxyCatalogueMutation(request: NextRequest, path: string): Promise<NextResponse> {
-  const target = `${BASE}/api/v1${path}`;
+  const target = apiURL(BASE, path);
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": request.headers.get("content-type") ?? "application/json",
