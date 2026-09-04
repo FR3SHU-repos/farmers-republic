@@ -1,6 +1,6 @@
 import { apiBase, apiURL } from "./url";
 
-const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL);
+const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL);
 const TIMEOUT_MS = 15_000;
 export type PublicFarmer = { id:string;name:string;farmName?:string;farmArea?:string;totalLandArea?:string;category?:string;subCategories:string[];seasonalCrops:string[];perennialCrops:string[];avatar?:string;farmImages:string[];about?:string;experienceDescription?:string;awards:string[];place?:string;district?:string;state?:string;irrigationType?:string;soilType?:string;waterSource?:string;farmingExperienceYears?:string;organicCertified:boolean;delivery:boolean;deliveryRadiusKm?:number;rating:number;reviewsCount:number;last30daysSales:number;verified:boolean;availableForOrders:boolean;createdAt?:string };
 export type FarmerPage={items:PublicFarmer[];meta:{page:number;limit:number;total:number;totalPages:number}};

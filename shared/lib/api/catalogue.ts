@@ -1,7 +1,7 @@
 import type { Product } from "@/shared/interfaces/mongodb/products/product";
 import { apiBase, apiURL } from "./url";
 
-const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL);
+const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL);
 const DEFAULT_TIMEOUT_MS = 8_000;
 
 type Envelope<T> = { success: boolean; message?: string; data: T };

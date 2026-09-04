@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { apiBase, apiURL } from "./url";
-const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL);
+const BASE = apiBase(process.env.NEXT_PUBLIC_CATALOGUE_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL);
 
 /** Temporary compatibility path for callers still using the marketplace origin. */
 export async function proxyCatalogueGET(request: NextRequest, path: string): Promise<NextResponse> {
