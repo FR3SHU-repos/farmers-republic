@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
-import FarmerModel from "@/shared/models/mongodb/farmer";
+import { goAPIData } from "@/shared/lib/api/server";
 import { success, failure } from "@/app/api/v1/utils/responses";
 
 type Period = "7d" | "30d" | "90d" | "all";
@@ -114,9 +114,10 @@ export async function GET(req: NextRequest) {
         },
       ]),
 
-      FarmerModel.findById(farmerId)
-        .select("name farmName village district state rating")
-        .lean(),
+      goAPIData<{ name: string; farmName?: string; place?: string; rating?: number }>(
+        req,
+        `/farmers/${encodeURIComponent(farmerId)}`,
+      ).catch(() => null),
     ]);
 
     const rev = revenueAgg[0] ?? { totalRevenue: 0, orders: [], totalUnitsSold: 0 };
@@ -130,13 +131,7 @@ export async function GET(req: NextRequest) {
           ? {
               name: (farmer as any).name,
               farmName: (farmer as any).farmName,
-              location: [
-                (farmer as any).village,
-                (farmer as any).district,
-                (farmer as any).state,
-              ]
-                .filter(Boolean)
-                .join(", "),
+              location: farmer.place ?? "",
               rating: (farmer as any).rating ?? 0,
             }
           : null,

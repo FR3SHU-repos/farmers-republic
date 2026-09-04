@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
 import UserModel from "@/shared/models/mongodb/user";
-import FarmerModel from "@/shared/models/mongodb/farmer";
+import { goAPIData } from "@/shared/lib/api/server";
 import { success, failure } from "@/app/api/v1/utils/responses";
 import { cacheGet, cacheSet, CacheKeys, CacheTTL } from "@/shared/lib/cache";
 
@@ -39,8 +39,7 @@ export async function GET(req: NextRequest) {
       paymentModes,
       repeatCustomers,
       totalUsers,
-      totalFarmers,
-      verifiedFarmers,
+	  farmerStats,
     ] = await Promise.all([
       OrderModel.aggregate([
         { $match: { createdAt: { $gte: startDate } } },
@@ -171,8 +170,7 @@ export async function GET(req: NextRequest) {
       ]),
 
       UserModel.countDocuments(),
-      FarmerModel.countDocuments(),
-      FarmerModel.countDocuments({ verified: true }),
+	  goAPIData<{ total: number; verified: number }>(req, "/admin/farmers/stats"),
     ]);
 
     const core = coreStats[0] ?? {
@@ -223,8 +221,8 @@ export async function GET(req: NextRequest) {
               : 0,
         },
         totalUsers,
-        totalFarmers,
-        verifiedFarmers,
+		totalFarmers: farmerStats.total,
+		verifiedFarmers: farmerStats.verified,
       });
 
     await cacheSet(cacheKey, responseBody, CacheTTL.analyticsAdmin);

@@ -1,30 +1,28 @@
 import { NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import UserModel from "@/shared/models/mongodb/user";
-import FarmerModel from "@/shared/models/mongodb/farmer";
+import { goAPIData } from "@/shared/lib/api/server";
 import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
 import ProductModel from "@/shared/models/mongodb/products/products";
 import { success, failure } from "@/app/api/v1/utils/responses";
 
-export async function GET() {
+export async function GET(req: import("next/server").NextRequest) {
   try {
     await mongoDB();
 
     const [
       totalUsers,
-      totalFarmers,
+	  farmerStats,
       totalOrders,
       totalProducts,
-      pendingKYC,
       recentOrders,
       ordersByStatus,
       gmvResult,
     ] = await Promise.all([
       UserModel.countDocuments(),
-      FarmerModel.countDocuments(),
+	  goAPIData<{ total: number; pendingKYC: number }>(req, "/admin/farmers/stats"),
       OrderModel.countDocuments(),
       ProductModel.countDocuments(),
-      FarmerModel.countDocuments({ kycStatus: "submitted" }),
       OrderModel.find().sort({ createdAt: -1 }).limit(5).lean(),
       OrderModel.aggregate([
         { $group: { _id: "$status", count: { $sum: 1 } } },
@@ -56,10 +54,10 @@ export async function GET() {
         {
           stats: {
             totalUsers,
-            totalFarmers,
+			totalFarmers: farmerStats.total,
             totalOrders,
             totalProducts,
-            pendingKYC,
+			pendingKYC: farmerStats.pendingKYC,
             gmv,
             aov,
           },

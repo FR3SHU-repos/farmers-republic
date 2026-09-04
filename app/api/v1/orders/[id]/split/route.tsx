@@ -3,11 +3,11 @@ import mongoose from "mongoose";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
 import { SubOrderModel } from "@/shared/models/mongodb/orders/subOrder";
-import FarmerModel from "@/shared/models/mongodb/farmer";
+import { goAPIData } from "@/shared/lib/api/server";
 import { success, failure } from "@/app/api/v1/utils/responses";
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -42,7 +42,7 @@ export async function POST(
 
         if (farmerId !== "__unknown__" && mongoose.isValidObjectId(farmerId)) {
           if (!farmerNameCache[farmerId]) {
-            const farmer = await FarmerModel.findById(farmerId).select("name").lean() as any;
+            const farmer = await goAPIData<{ name?: string }>(req, `/farmers/${encodeURIComponent(farmerId)}`).catch(() => null);
             farmerNameCache[farmerId] = farmer?.name ?? "";
           }
           farmerName = farmerNameCache[farmerId];

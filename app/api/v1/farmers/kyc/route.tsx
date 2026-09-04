@@ -1,85 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { mongoDB } from "@/shared/lib/db/mongo";
-import FarmerModel from "@/shared/models/mongodb/farmer";
-import { success, failure } from "@/app/api/v1/utils/responses";
-
-export async function GET(req: NextRequest) {
-  try {
-    await mongoDB();
-
-    const url = new URL(req.url);
-    const farmerId = url.searchParams.get("farmerId")?.trim();
-
-    if (!farmerId) {
-      return NextResponse.json(failure("farmerId is required"), { status: 400 });
-    }
-
-    const farmer = await FarmerModel.findById(farmerId)
-      .select(
-        "aadhaarNumber aadhaarDocUrl panNumber panDocUrl bankAccountHolderName bankAccountNumber bankIFSC bankName fssaiLicense fssaiDocUrl organicCertified kycStatus notes createdAt updatedAt",
-      )
-      .lean();
-
-    if (!farmer) {
-      return NextResponse.json(failure("Farmer not found"), { status: 404 });
-    }
-
-    return NextResponse.json(
-      success({ kyc: { ...(farmer as any), id: String((farmer as any)._id) } }, "KYC fetched"),
-    );
-  } catch (err: any) {
-    console.error("KYC GET error:", err);
-    return NextResponse.json(failure("Failed to fetch KYC", err?.message), { status: 500 });
-  }
+import { proxyCatalogueGET, proxyCatalogueMutation } from "@/shared/lib/api/catalogue-proxy";
+export function GET(req: NextRequest) {
+  const id = req.nextUrl.searchParams.get("farmerId")?.trim();
+  if (!id) return NextResponse.json({ success: false, message: "farmerId is required", code: "validation_failed" }, { status: 400 });
+  return proxyCatalogueGET(req, `/farmers/${encodeURIComponent(id)}/kyc`);
 }
-
 export async function POST(req: NextRequest) {
-  try {
-    await mongoDB();
-
-    const body = await req.json();
-    const { farmerId, ...kycFields } = body;
-
-    if (!farmerId) {
-      return NextResponse.json(failure("farmerId is required"), { status: 400 });
-    }
-
-    const allowedKycFields = [
-      "aadhaarNumber",
-      "aadhaarDocUrl",
-      "panNumber",
-      "panDocUrl",
-      "bankAccountHolderName",
-      "bankAccountNumber",
-      "bankIFSC",
-      "bankName",
-      "fssaiLicense",
-      "fssaiDocUrl",
-      "landDocUrl",
-      "organicCertified",
-    ];
-
-    const update: Record<string, unknown> = { kycStatus: "submitted" };
-    for (const field of allowedKycFields) {
-      if (kycFields[field] !== undefined) update[field] = kycFields[field];
-    }
-
-    const updated = await FarmerModel.findByIdAndUpdate(farmerId, update, { new: true })
-      .select("kycStatus updatedAt")
-      .lean();
-
-    if (!updated) {
-      return NextResponse.json(failure("Farmer not found"), { status: 404 });
-    }
-
-    return NextResponse.json(
-      success(
-        { kycStatus: "submitted", updatedAt: (updated as any).updatedAt },
-        "KYC submitted successfully",
-      ),
-    );
-  } catch (err: any) {
-    console.error("KYC POST error:", err);
-    return NextResponse.json(failure("Failed to submit KYC", err?.message), { status: 500 });
-  }
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch { return NextResponse.json({ success: false, message: "Invalid JSON body", code: "bad_request" }, { status: 400 }); }
+  const id = typeof body.farmerId === "string" ? body.farmerId.trim() : "";
+  if (!id) return NextResponse.json({ success: false, message: "farmerId is required", code: "validation_failed" }, { status: 400 });
+  delete body.farmerId;
+  const forwarded = new NextRequest(req.url, { method: "POST", headers: req.headers, body: JSON.stringify(body) });
+  return proxyCatalogueMutation(forwarded, `/farmers/${encodeURIComponent(id)}/kyc`);
 }

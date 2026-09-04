@@ -21,7 +21,7 @@ export async function proxyCatalogueGET(request: NextRequest, path: string): Pro
     response.headers.set("Link", `<${target.origin}/api/v1${path}>; rel=\"successor-version\"`);
     return response;
   } catch {
-    return NextResponse.json({ success: false, message: "Catalogue service is unavailable", code: "catalogue_unavailable" }, { status: 503 });
+    return NextResponse.json({ success: false, message: "API service is unavailable", code: "api_unavailable" }, { status: 503 });
   }
 }
 
@@ -43,10 +43,14 @@ export async function proxyCatalogueMutation(request: NextRequest, path: string)
   try {
     const upstream = await fetch(target, { method: request.method, headers, body: await request.text(), cache: "no-store", signal: AbortSignal.timeout(15_000) });
     const response = new NextResponse(await upstream.text(), { status: upstream.status, headers: { "Content-Type": upstream.headers.get("content-type") ?? "application/json" } });
+    const setCookie = upstream.headers.get("set-cookie");
+    if (setCookie) response.headers.set("Set-Cookie", setCookie);
+    const requestID = upstream.headers.get("x-request-id");
+    if (requestID) response.headers.set("X-Request-ID", requestID);
     response.headers.set("Deprecation", "true");
     response.headers.set("Link", `<${target}>; rel=\"successor-version\"`);
     return response;
   } catch {
-    return NextResponse.json({ success: false, message: "Catalogue service is unavailable", code: "catalogue_unavailable" }, { status: 503 });
+    return NextResponse.json({ success: false, message: "API service is unavailable", code: "api_unavailable" }, { status: 503 });
   }
 }
