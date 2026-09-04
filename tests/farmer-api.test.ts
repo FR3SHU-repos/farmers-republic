@@ -1,0 +1,7 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { farmerAPI, FarmerAPIError } from "../shared/lib/api/farmers";
+
+test("farmer list reads the canonical envelope",async()=>{const original=globalThis.fetch;globalThis.fetch=async(input)=>{assert.match(String(input),/\/api\/v1\/farmers\?/);return new Response(JSON.stringify({success:true,data:{items:[{id:"f1",name:"Asha",subCategories:[],seasonalCrops:[],perennialCrops:[],farmImages:[],awards:[],organicCertified:true,delivery:false,rating:0,reviewsCount:0,last30daysSales:0,verified:true,availableForOrders:true}],meta:{page:1,limit:12,total:1,totalPages:1}}}),{status:200})};try{const out=await farmerAPI.list({page:1});assert.equal(out.items[0]?.id,"f1");assert.equal(out.meta.total,1)}finally{globalThis.fetch=original}});
+test("farmer products use the farmer compatibility endpoint",async()=>{const original=globalThis.fetch;globalThis.fetch=async(input)=>{assert.match(String(input),/\/api\/v1\/farmers\/f1\/products$/);return new Response(JSON.stringify({success:true,data:{items:[{id:"p1",name:"Rice"}]}}),{status:200})};try{assert.equal((await farmerAPI.products("f1"))[0]?.id,"p1")}finally{globalThis.fetch=original}});
+test("farmer API exposes a production unavailable state",async()=>{const original=globalThis.fetch;globalThis.fetch=async()=>{throw new TypeError("offline")};try{await assert.rejects(()=>farmerAPI.list(),(e)=>e instanceof FarmerAPIError&&e.code==="unavailable"&&e.status===0)}finally{globalThis.fetch=original}});

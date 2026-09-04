@@ -7,12 +7,16 @@ import FarmerModel from "@/shared/models/mongodb/farmer";
 import { success, failure } from "@/app/api/v1/utils/responses"; // adjust path if needed
 import { ObjectId } from "mongodb";
 import mongoose from "mongoose";
+import { proxyCatalogueGET } from "@/shared/lib/api/catalogue-proxy";
 
 // Get farmer by ID
 export async function GET(
   req: NextRequest,
   context: { params: Promise<{ id: string }> } // <-- note the Promise here
 ) {
+  const { id } = await context.params;
+  return proxyCatalogueGET(req, `/farmers/${encodeURIComponent(id)}`);
+  /* Legacy direct read is unreachable pending write migration.
   try {
     // await the params promise per Next 15 requirement
     const { params } = context;
@@ -32,6 +36,7 @@ export async function GET(
     console.error("Error in GET /api/v1/farmers/[id]:", err);
     return NextResponse.json(failure("Server error", err?.message), { status: 500 });
   }
+  */
 }
 
 

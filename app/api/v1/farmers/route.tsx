@@ -5,6 +5,7 @@ import { mongoDB } from "@/shared/lib/db/mongo";
 import FarmerModel from "@/shared/models/mongodb/farmer";
 import { success, failure } from "@/app/api/v1/utils/responses";
 import { FARMERS } from "@/shared/data/farmers";
+import { proxyCatalogueGET } from "@/shared/lib/api/catalogue-proxy";
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 100;
@@ -269,6 +270,9 @@ export async function POST(req: NextRequest) {
 // ---------- LIST FARMERS (GET) ----------
 // ---------- GET FARMER(S) (GET) ----------
 export async function GET(req: NextRequest) {
+  return proxyCatalogueGET(req, "/farmers");
+  /* Legacy read implementation retained temporarily for write-route colocation;
+     it is unreachable and should be deleted when farmer writes move to Go.
   try {
     await mongoDB();
 
@@ -445,11 +449,12 @@ export async function GET(req: NextRequest) {
     );
   } catch (err: any) {
     console.warn(
-      "Using sample farmers because DB fetch failed:",
+      "Legacy farmer database read failed:",
       err?.message || err,
     );
     return fallbackFarmersResponse(req);
   }
+  */
 }
 
 

@@ -1,29 +1,19 @@
 // ✅ FIXED: app/farmers/[id]/page.tsx
 import React from "react";
 import { notFound } from "next/navigation";
-import { headers } from "next/headers";
 import FarmerProfile from "@/shared/components/molecules/FarmerProfile";
-
-async function getBaseUrl() {
-  const h = await headers();
-  const proto = h.get("x-forwarded-proto") || "http";
-  const host = h.get("x-forwarded-host") || h.get("host");
-  return `${proto}://${host}`;
-}
+import { farmerAPI, FarmerAPIError } from "@/shared/lib/api/farmers";
 
 export default async function FarmerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   // ✅ await params before using
   const { id } = await params;
   if (!id) return notFound();
 
-  const baseUrl = await getBaseUrl();
-  const res = await fetch(`${baseUrl}/api/v1/farmers/${id}`, { cache: "no-store" });
+  let farmer;
+  try { farmer = await farmerAPI.get(id); } catch (error) {
+    if (error instanceof FarmerAPIError && error.status === 404) return notFound();
+    return <main className="mx-auto max-w-3xl px-6 py-20"><div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-900"><h1 className="text-xl font-semibold">Farmer profile temporarily unavailable</h1><p className="mt-2">Please try again shortly.</p></div></main>;
+  }
 
-  if (!res.ok) return notFound();
-
-  const json = await res.json();
-  const farmer = json?.data;
-  if (!farmer) return notFound();
-
-  return <FarmerProfile farmer={farmer} farmerId={id} />;
+  return <FarmerProfile farmer={farmer as any} farmerId={id} />;
 }

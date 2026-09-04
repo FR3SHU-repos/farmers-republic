@@ -681,7 +681,9 @@ NEXT_PUBLIC_APP_NAME=FR3SH
 
 ### Centralized catalogue API
 
-Set `NEXT_PUBLIC_CATALOGUE_API_BASE_URL` to the origin of `go-api-backend` (for example, `http://localhost:8080` in local development). Product listing, detail, search/filter/sort, and farmer-product reads use `shared/lib/api/catalogue.ts`. The old marketplace-origin GET routes are temporary deprecated proxies to Go for mobile/external compatibility and no longer read products from MongoDB directly.
+Set `NEXT_PUBLIC_CATALOGUE_API_BASE_URL` to the origin of `go-api-backend` (`https://fr3shu-go-backend-api.onrender.com` in production; `http://localhost:8080` for local development). Do not append `/api/v1`. Next.js public variables are embedded during build, so change the Netlify dashboard value and redeploy.
+
+Product catalogue reads use `shared/lib/api/catalogue.ts`. Public farmer directory, detail, and farmer-product reads use `shared/lib/api/farmers.ts`. `/farmers` no longer connects from Netlify to MongoDB and never substitutes sample farmers in production; backend failure renders an unavailable state. The old marketplace-origin GET routes remain temporary deprecated proxies for URL compatibility.
 
 ---
 

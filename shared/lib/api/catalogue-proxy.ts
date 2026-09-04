@@ -8,8 +8,10 @@ export async function proxyCatalogueGET(request: NextRequest, path: string): Pro
   const target = new URL(apiURL(BASE, path));
   request.nextUrl.searchParams.forEach((value, key) => target.searchParams.append(key, value));
   try {
+    const headers: Record<string,string> = { Accept: "application/json", "X-Request-ID": request.headers.get("x-request-id") ?? crypto.randomUUID() };
+    const cookie=request.headers.get("cookie");const authorization=request.headers.get("authorization");if(cookie)headers.Cookie=cookie;if(authorization)headers.Authorization=authorization;
     const upstream = await fetch(target, {
-      headers: { Accept: "application/json", "X-Request-ID": request.headers.get("x-request-id") ?? crypto.randomUUID() },
+		headers,
       cache: "no-store",
       signal: AbortSignal.timeout(8_000),
     });

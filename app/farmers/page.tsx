@@ -2,9 +2,7 @@
 import React from "react";
 import FarmerCard from "@/shared/components/molecules/FarmerCard";
 import Link from "next/link";
-import { mongoDB } from "@/shared/lib/db/mongo";
-import FarmerModel from "@/shared/models/mongodb/farmer";
-import { FARMERS } from "@/shared/data/farmers";
+import { farmerAPI } from "@/shared/lib/api/farmers";
 import {
   AlertCircle,
   ChevronLeft,
@@ -51,138 +49,10 @@ type PagedResult<T> = {
   };
 };
 
-async function fetchFarmersFromDb({
-  page = 1,
-  limit = DEFAULT_LIMIT,
-  q = "",
-  place = "",
-  sort = "createdAt_desc",
-}: any): Promise<PagedResult<FarmerPreview>> {
-  await mongoDB();
-
-  const pageNum = Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
-  const limitNum = Number.isFinite(Number(limit)) && Number(limit) > 0 ? Math.min(Number(limit), MAX_LIMIT) : DEFAULT_LIMIT;
-  const skip = (pageNum - 1) * limitNum;
-
-  // Build filter
-  const filter: any = {};
-  if (q && String(q).trim().length > 0) {
-    const term = String(q).trim();
-    filter.$or = [
-      { name: { $regex: term, $options: "i" } },
-      { farmName: { $regex: term, $options: "i" } },
-      { about: { $regex: term, $options: "i" } },
-      { crops: { $in: [new RegExp(term, "i")] } },
-    ];
-  }
-  if (place && String(place).trim().length > 0) {
-    filter.place = { $regex: String(place).trim(), $options: "i" };
-  }
-
-  // Sort mapping
-  const [sortField, sortDir] = String(sort).split("_");
-  const dir = sortDir === "asc" ? 1 : -1;
-  const sortObj: any = {};
-  if (sortField === "last30daysSales") sortObj.last30daysSales = dir;
-  else if (sortField === "name") sortObj.name = dir;
-  else sortObj.createdAt = dir;
-
-  // Count total
-  const total = await FarmerModel.countDocuments(filter);
-
-  // Query page (only fields needed for list)
-  const docs = await FarmerModel.find(filter)
-    .sort(sortObj)
-    .skip(skip)
-    .limit(limitNum)
-    .select(
-      "name farmName avatar about place fpo category farmArea village district state last30daysSales",
-    )
-    .lean()
-    .exec();
-
-  const items = docs.map((f: any) => ({
-    id: String(f._id ?? f.id),
-    name: f.name,
-    farmName: f.farmName,
-    avatar: f.avatar,
-    about: f.about,
-    place:
-      f.place ||
-      [f.village, f.district, f.state].filter(Boolean).join(", ") ||
-      undefined,
-    fpo: f.fpo,
-    category: f.category,
-    farmArea: f.farmArea,
-    last30daysSales: f.last30daysSales ?? 0,
-  }));
-
-  const totalPages = Math.max(1, Math.ceil(total / limitNum));
-
-  return {
-    items,
-    meta: { total, page: pageNum, limit: limitNum, totalPages },
-  };
-}
-
 function getParam(params: SearchParamsValue, key: string, fallback = "") {
   const value = params[key];
   if (Array.isArray(value)) return value[0] ?? fallback;
   return value ?? fallback;
-}
-
-function fetchFallbackFarmers({
-  page = 1,
-  limit = DEFAULT_LIMIT,
-  q = "",
-  place = "",
-}: any): PagedResult<FarmerPreview> {
-  const pageNum =
-    Number.isFinite(Number(page)) && Number(page) > 0 ? Number(page) : 1;
-  const limitNum =
-    Number.isFinite(Number(limit)) && Number(limit) > 0
-      ? Math.min(Number(limit), MAX_LIMIT)
-      : DEFAULT_LIMIT;
-  const search = String(q).trim().toLowerCase();
-  const placeSearch = String(place).trim().toLowerCase();
-
-  const filtered = FARMERS.filter((farmer) => {
-    const matchesSearch =
-      !search ||
-      farmer.name.toLowerCase().includes(search) ||
-      farmer.farmName?.toLowerCase().includes(search) ||
-      farmer.about?.toLowerCase().includes(search) ||
-      farmer.crops.some((crop) => crop.toLowerCase().includes(search));
-
-    const matchesPlace =
-      !placeSearch || farmer.place?.toLowerCase().includes(placeSearch);
-
-    return matchesSearch && matchesPlace;
-  });
-
-  const start = (pageNum - 1) * limitNum;
-  const items = filtered.slice(start, start + limitNum).map((farmer) => ({
-    id: farmer.id,
-    name: farmer.name,
-    farmName: farmer.farmName,
-    avatar: farmer.avatar,
-    about: farmer.about,
-    place: farmer.place,
-    fpo: farmer.fpo,
-    category: farmer.crops[0] ?? null,
-    farmArea: farmer.farmArea ?? null,
-    last30daysSales: farmer.last30daysSales ?? 0,
-  }));
-
-  return {
-    items,
-    meta: {
-      total: filtered.length,
-      page: pageNum,
-      limit: limitNum,
-      totalPages: Math.max(1, Math.ceil(filtered.length / limitNum)),
-    },
-  };
 }
 
 export default async function FarmersPage({ searchParams }: SearchParams) {
@@ -197,15 +67,14 @@ export default async function FarmersPage({ searchParams }: SearchParams) {
     items: [],
     meta: { total: 0, page, limit, totalPages: 1 },
   };
-  let usingFallback = false;
+  let unavailable = false;
 
   try {
-    data = await fetchFarmersFromDb({ page, limit, q, place, sort });
+    data = await farmerAPI.list({ page, limit, q, place, sort });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.warn("Using sample farmers because DB load failed:", message);
-    data = fetchFallbackFarmers({ page, limit, q, place });
-    usingFallback = true;
+    console.error("Farmer API unavailable", { errorClass: err instanceof Error ? err.name : "unknown", message });
+    unavailable = true;
   }
 
   const { items, meta } = data;
@@ -243,11 +112,10 @@ export default async function FarmersPage({ searchParams }: SearchParams) {
                 full profile with contact, farm details, delivery, crops, and
                 products.
               </p>
-            {usingFallback && (
+            {unavailable && (
                 <div className="mt-5 inline-flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
                   <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0" />
-                  Showing sample farmers because the database connection is
-                  unavailable.
+                  Farmer information is temporarily unavailable. Please try again shortly.
                 </div>
             )}
             </div>
