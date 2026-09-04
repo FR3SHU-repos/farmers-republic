@@ -3,6 +3,7 @@ import React from "react";
 import Link from "next/link";
 // import the client wrapper directly (it's a "use client" file)
 import ProductGridClient from "@/shared/components/molecules/ProductGridClient";
+import { catalogueAPI } from "@/shared/lib/api/catalogue";
 
 export const metadata = {
   title: "Products",
@@ -33,23 +34,6 @@ type PagedResult<T> = {
   };
 };
 
-function getAbsoluteOrigin() {
-  // ✅ 1. Explicit origin if set
-  if (process.env.NEXT_PUBLIC_APP_ORIGIN) return process.env.NEXT_PUBLIC_APP_ORIGIN;
-
-  // ✅ 2. Vercel auto variable
-  if (process.env.NEXT_PUBLIC_VERCEL_URL) return `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`;
-  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
-
-  // ✅ 3. Netlify provides `URL` automatically (e.g. https://farmers-republic.netlify.app)
-  if (process.env.URL) return process.env.URL;
-
-  // ✅ 4. Fallback for local dev
-  const port = process.env.PORT ?? "3000";
-  return `http://localhost:${port}`;
-}
-
-
 async function fetchProductsFromApi({
   page = 1,
   limit = DEFAULT_LIMIT,
@@ -57,46 +41,7 @@ async function fetchProductsFromApi({
   category = "",
   sort = "createdAt_desc",
 }: any): Promise<PagedResult<ProductPreview>> {
-  const params = new URLSearchParams();
-  if (page) params.set("page", String(page));
-  if (limit) params.set("limit", String(limit));
-  if (q) params.set("q", String(q));
-  if (category) params.set("category", String(category));
-  if (sort) params.set("sort", String(sort));
-
-  const origin = getAbsoluteOrigin();
-  const url = `${origin}/api/v1/products?${params.toString()}`;
-
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) {
-    let body = null;
-    try { body = await res.text(); } catch (_) {}
-    throw new Error(`Failed to fetch products: ${res.status} ${res.statusText} ${String(body)}`);
-  }
-
-  const json = await res.json();
-  const data = json?.data ?? json;
-
-  const pageNum = Number(data?.page ?? page ?? 1);
-  const limitNum = Number(data?.limit ?? limit ?? DEFAULT_LIMIT);
-  const total = Number(data?.total ?? (Array.isArray(data?.products) ? data.products.length : 0));
-  const totalPages = Number(data?.totalPages ?? Math.max(1, Math.ceil(total / (limitNum || DEFAULT_LIMIT))));
-  const productsRaw: any[] = data?.products ?? [];
-
-  const items = (productsRaw || []).map((p: any) => ({
-    id: String(p._id ?? p.id ?? ""),
-    name: p.name,
-    image: (p.image ?? (Array.isArray(p.images) && p.images[0]) ?? "") || undefined,
-    price: typeof p.price === "number" ? p.price : Number(p.price || 0),
-    category: p.category || "",
-    badge: p.badge || "",
-    description: p.description || "",
-  }));
-
-  return {
-    items,
-    meta: { total, page: pageNum, limit: limitNum, totalPages },
-  };
+  return catalogueAPI.list({ page, limit, q, category, sort }) as Promise<PagedResult<ProductPreview>>;
 }
 
 export default async function ProductsPage({ searchParams }: SearchParams) {

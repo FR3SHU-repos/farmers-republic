@@ -679,6 +679,10 @@ NEXT_PUBLIC_APP_NAME=FR3SH
 
 > **Security**: `REDIS_URL`, `UPSTASH_REDIS_REST_URL`, and `UPSTASH_REDIS_REST_TOKEN` must **never** be prefixed with `NEXT_PUBLIC_`. They are server-only variables and must not be exposed to the browser bundle.
 
+### Centralized catalogue API
+
+Set `NEXT_PUBLIC_CATALOGUE_API_BASE_URL` to the origin of `go-api-backend` (for example, `http://localhost:8080` in local development). Product listing, detail, search/filter/sort, and farmer-product reads use `shared/lib/api/catalogue.ts`. The old marketplace-origin GET routes are temporary deprecated proxies to Go for mobile/external compatibility and no longer read products from MongoDB directly.
+
 ---
 
 ## 15) Developer Onboarding

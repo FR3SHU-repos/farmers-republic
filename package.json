@@ -6,6 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test tests/*.test.ts",
     "worker:email": "tsx --tsconfig tsconfig.json workers/emailWorker.ts",
     "worker:notification": "tsx --tsconfig tsconfig.json workers/notificationWorker.ts",
     "worker:order": "tsx --tsconfig tsconfig.json workers/orderWorker.ts",

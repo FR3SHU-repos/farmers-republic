@@ -90,6 +90,7 @@ export type Product = {
 
   // Category & merchandising
   category?: string;
+  categoryId?: string;
   subCategory?: string;
   tags?: string[];
   badge?: string;         // "Bestseller", "New", etc.
@@ -137,4 +138,5 @@ export type Product = {
   // Timestamps (Mongo will fill these if you enable timestamps in schema)
   createdAt?: Date;
   updatedAt?: Date;
+  revision?: number;
 };

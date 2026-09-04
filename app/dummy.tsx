@@ -6,6 +6,7 @@ import { Product } from "@/shared/interfaces/mongodb/products/product";
 //import Image from "next/image";
 import { cx } from "@/shared/lib/utils";
 import { useRouter } from "next/navigation";
+import { catalogueAPI } from "@/shared/lib/api/catalogue";
 
 function getAbsoluteOrigin() {
   // ✅ 1. Explicit origin if set
@@ -55,20 +56,8 @@ const HomePage = () => {
       setLoading(true);
       setError(null);
       try {
-       const res = await fetch(`/api/v1/products?page=1&limit=12&sort=createdAt_desc`, {
-          cache: "no-store",
-        });
-        if (!res.ok) throw new Error(`Failed to fetch products: ${res.status}`);
-        const json = await res.json();
-        const itemsRaw = json?.data?.products ?? json?.data?.items ?? [];
-
-        // ✅ Normalize IDs from _id → id
-        const items = itemsRaw.map((p: any) => ({
-          ...p,
-          id: String(p._id ?? p.id ?? ""),
-        }));
-
-        setProducts(items);
+        const page = await catalogueAPI.list({ page: 1, limit: 12, sort: "createdAt_desc" });
+        setProducts(page.items);
       } catch (err: any) {
         console.error("Error fetching products:", err);
         setError(err.message || "Failed to load products");

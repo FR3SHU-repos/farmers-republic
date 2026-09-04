@@ -5,12 +5,12 @@ import React, { useState, useEffect } from "react";
 import toast from "react-hot-toast";
 import { supabase } from "@/shared/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { categoriesList } from "@/shared/data/category";
 import type {
   ProductStatus,
   ProductType,
 } from "@/shared/interfaces/mongodb/products/product";
 import { useUser } from "@/shared/context/UserContext";
+import { catalogueAPI, type CatalogueCategory } from "@/shared/lib/api/catalogue";
 import {
   ArrowLeft,
   BadgeCheck,
@@ -241,10 +241,15 @@ export default function ProductCreatePage() {
   const [farmers, setFarmers] = useState<FarmerOption[]>([]);
   const [farmersLoading, setFarmersLoading] = useState(false);
   const [farmersError, setFarmersError] = useState<string | null>(null);
+  const [canonicalCategories, setCanonicalCategories] = useState<CatalogueCategory[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
   const MAX_FILES = 6;
   const MAX_SIZE = 6 * 1024 * 1024;
+
+  useEffect(() => {
+    catalogueAPI.categories().then(setCanonicalCategories).catch((err) => toast.error(err?.message || "Failed to load categories"));
+  }, []);
 
   useEffect(() => {
     async function loadFarmers() {
@@ -408,13 +413,11 @@ export default function ProductCreatePage() {
         gstIncludedInPrice: form.gstIncludedInPrice,
         unit: form.unit || undefined,
         unitQuantity: form.unitQuantity === "" ? undefined : Number(form.unitQuantity),
-        stockQty: form.stockQty === "" ? undefined : Number(form.stockQty),
-        inStock: form.inStock,
         minOrderQty: form.minOrderQty === "" ? undefined : Number(form.minOrderQty),
         maxOrderQty: form.maxOrderQty === "" ? undefined : Number(form.maxOrderQty),
         stepQty: form.stepQty === "" ? undefined : Number(form.stepQty),
         allowBackorder: form.allowBackorder,
-        category: form.category || undefined,
+        categoryId: form.category || undefined,
         subCategory: form.subCategory || undefined,
         tags: toArray(form.tags),
         badge: form.badge || undefined,
@@ -450,15 +453,9 @@ export default function ProductCreatePage() {
         searchKeywords: toArray(form.searchKeywords),
       };
 
-      const res = await fetch("/api/v1/products", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.message || "Failed to create product");
+      const created = await catalogueAPI.create(payload, crypto.randomUUID());
       toast.success("Product created!");
-      const newId = json?.data?.id ?? json?.id ?? null;
+      const newId = created.id ?? null;
       router.push(newId ? `/products/${String(newId)}` : "/products");
     } catch (err: any) {
       toast.error(err?.message || "Save failed");
@@ -744,8 +741,8 @@ export default function ProductCreatePage() {
                     <label className={LABEL_CLASS}>Category</label>
                     <select name="category" value={form.category} onChange={handleChange} className={SELECT_CLASS}>
                       <option value="">Select category</option>
-                      {categoriesList.map((cat) => (
-                        <option key={cat.name} value={cat.name}>{cat.name}</option>
+                      {canonicalCategories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>{cat.name}</option>
                       ))}
                     </select>
                   </div>

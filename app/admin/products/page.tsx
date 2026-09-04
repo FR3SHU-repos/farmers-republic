@@ -6,6 +6,7 @@ import { useUser } from "@/shared/context/UserContext";
 import { cx } from "@/shared/lib/utils";
 import { Search, ChevronLeft, ChevronRight, Star } from "lucide-react";
 import toast from "react-hot-toast";
+import { catalogueAPI } from "@/shared/lib/api/catalogue";
 
 type ProductItem = {
   id: string;
@@ -19,6 +20,7 @@ type ProductItem = {
   isFeatured: boolean;
   image: string | null;
   createdAt: string;
+  revision: number;
 };
 
 type Meta = { total: number; page: number; limit: number; totalPages: number };
@@ -75,16 +77,14 @@ export default function AdminProductsPage() {
   const fetchProducts = useCallback(async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page: String(page), limit: "20" });
-      if (q) params.set("q", q);
-      if (activeTab !== "all") params.set("status", activeTab);
-
-      const res = await fetch(`/api/v1/admin/products?${params}`);
-      const json = await res.json();
-      if (json.success) {
-        setProducts(json.data.items);
-        setMeta(json.data.meta);
-      }
+      const result = await catalogueAPI.list({ page, limit: 20, q, status: activeTab === "all" ? undefined : activeTab });
+      setProducts(result.items.map((product) => ({
+        id: String(product.id ?? ""), name: product.name, farmerId: String(product.farmerId ?? ""),
+        farmerName: product.farmer ?? "", price: product.price, stockQty: product.stockQty ?? 0,
+        status: product.status ?? "draft", category: product.category ?? "", isFeatured: product.isFeatured ?? false,
+        image: product.image ?? null, createdAt: String(product.createdAt ?? ""), revision: product.revision ?? 1,
+      })));
+      setMeta(result.meta);
     } catch (e) {
       console.error(e);
     } finally {
@@ -98,20 +98,11 @@ export default function AdminProductsPage() {
 
   const updateProduct = async (id: string, patch: { status?: string; isFeatured?: boolean }) => {
     try {
-      const res = await fetch("/api/v1/admin/products", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ productId: id, ...patch }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        setProducts((prev) =>
-          prev.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-        );
-        toast.success("Product updated");
-      } else {
-        toast.error(json.message || "Failed");
-      }
+      const current = products.find((product) => product.id === id);
+      if (!current) return;
+      const updated = await catalogueAPI.update(id, patch, current.revision);
+      setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch, revision: updated.revision ?? p.revision + 1 } : p)));
+      toast.success("Product updated");
     } catch {
       toast.error("Failed to update product");
     }

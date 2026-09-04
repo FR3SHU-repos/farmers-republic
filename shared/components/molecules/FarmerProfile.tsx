@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import ProductFarmerCard from "@/shared/components/molecules/FarmerProductCard";
 import { AdaptButton } from "@/shared/components/molecules/AdaptButton";
+import { catalogueAPI } from "@/shared/lib/api/catalogue";
 import { useUser } from "@/shared/context/UserContext";
 
 /**
@@ -242,9 +243,13 @@ export default function FarmerProfile({
     async function loadProducts() {
       if (!farmerId) return;
       try {
-        const res = await fetch(`/api/v1/products/by-farmer/${farmerId}`);
-        const json = await res.json();
-        setProducts((json.data?.items as Product[]) || []);
+        const items = await catalogueAPI.byFarmer(farmerId);
+        setProducts(items.map((product) => ({
+          _id: String(product.id ?? ""),
+          name: product.name,
+          price: product.price,
+          image: product.image,
+        })));
       } catch (e) {
         console.error("Error loading products for farmer:", farmerId, e);
       }

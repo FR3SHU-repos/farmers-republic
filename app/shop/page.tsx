@@ -7,6 +7,7 @@ import { useUser } from "@/shared/context/UserContext";
 import ProductGridClient, {
   ProductGridItem,
 } from "@/shared/components/molecules/ProductGridClient";
+import { catalogueAPI } from "@/shared/lib/api/catalogue";
 
 type AdaptedWithFarmer = {
   id: string;
@@ -113,14 +114,7 @@ export default function AdoptedFarmersProductsPage() {
         await Promise.all(
           farmerIds.map(async (farmerId) => {
             try {
-              const res = await fetch(
-                `/api/v1/products/by-farmer/${farmerId}`,
-              );
-              const json = await res.json();
-
-              const items: any[] =
-                json?.data?.items ??
-                (Array.isArray(json) ? json : []);
+              const items = await catalogueAPI.byFarmer(farmerId);
 
               const farmerInfo = farmerMap.get(farmerId);
 

@@ -12,12 +12,12 @@ import {
   Save,
   X,
 } from "lucide-react";
-import { categoriesList } from "@/shared/data/category";
 import type {
   ProductStatus,
   ProductType,
 } from "@/shared/interfaces/mongodb/products/product";
 import { cx } from "@/shared/lib/utils";
+import { catalogueAPI, type CatalogueCategory } from "@/shared/lib/api/catalogue";
 
 type FormState = {
   name: string;
@@ -159,13 +159,19 @@ export default function ProductEditPage({ params }: { params: Promise<{ id: stri
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [productName, setProductName] = useState<string>("");
+  const [revision, setRevision] = useState(1);
   const [farmers, setFarmers] = useState<FarmerOption[]>([]);
   const [farmersLoading, setFarmersLoading] = useState(false);
   const [farmersError, setFarmersError] = useState<string | null>(null);
+  const [canonicalCategories, setCanonicalCategories] = useState<CatalogueCategory[]>([]);
   const [activeTab, setActiveTab] = useState<TabKey>("general");
 
   const MAX_FILES = 6;
   const MAX_SIZE = 6 * 1024 * 1024;
+
+  useEffect(() => {
+    catalogueAPI.categories().then(setCanonicalCategories).catch((err) => toast.error(err?.message || "Failed to load categories"));
+  }, []);
 
   // ---------- Load farmers ----------
   useEffect(() => {
@@ -197,12 +203,10 @@ export default function ProductEditPage({ params }: { params: Promise<{ id: stri
     async function loadProduct() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/v1/products/${productId}`);
-        const json = await res.json();
-        if (!res.ok || !json?.success) throw new Error(json?.message || "Failed to load product");
-
-        const p = json.data;
+        const p = await catalogueAPI.get(productId);
+		const categoryOptions = await catalogueAPI.categories();
         setProductName(p.name ?? "");
+        setRevision(p.revision ?? 1);
 
         setForm({
           name:               p.name               ?? "",
@@ -232,7 +236,7 @@ export default function ProductEditPage({ params }: { params: Promise<{ id: stri
             ? new Date(p.expiryDate).toISOString().split("T")[0]
             : "",
           batchId:            p.batchId            ?? "",
-          category:           p.category           ?? "",
+          category:           p.categoryId ?? categoryOptions.find((c) => c.name.toLowerCase() === (p.category ?? "").toLowerCase())?.id ?? "",
           subCategory:        p.subCategory        ?? "",
           tags:               (p.tags ?? []).join(", "),
           badge:              p.badge              ?? "",
@@ -359,17 +363,11 @@ export default function ProductEditPage({ params }: { params: Promise<{ id: stri
         gstIncludedInPrice: form.gstIncludedInPrice,
         unit: form.unit || undefined,
         unitQuantity: form.unitQuantity === "" ? undefined : Number(form.unitQuantity),
-        stockQty: form.stockQty === "" ? undefined : Number(form.stockQty),
-        inStock: form.inStock,
         minOrderQty: form.minOrderQty === "" ? undefined : Number(form.minOrderQty),
         maxOrderQty: form.maxOrderQty === "" ? undefined : Number(form.maxOrderQty),
         stepQty: form.stepQty === "" ? undefined : Number(form.stepQty),
         allowBackorder: form.allowBackorder,
-        lowStockThreshold: form.lowStockThreshold === "" ? undefined : Number(form.lowStockThreshold),
-        harvestDate: form.harvestDate || undefined,
-        expiryDate:  form.expiryDate  || undefined,
-        batchId:     form.batchId     || undefined,
-        category: form.category || undefined, subCategory: form.subCategory || undefined,
+        categoryId: form.category || undefined, subCategory: form.subCategory || undefined,
         tags: toArray(form.tags), badge: form.badge || undefined, label: form.label || undefined,
         status: form.status || "draft", isFeatured: form.isFeatured,
         sortPriority: form.sortPriority === "" ? undefined : Number(form.sortPriority),
@@ -397,13 +395,8 @@ export default function ProductEditPage({ params }: { params: Promise<{ id: stri
         searchKeywords: toArray(form.searchKeywords),
       };
 
-      const res = await fetch(`/api/v1/products/${productId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
-      if (!res.ok || !json?.success) throw new Error(json?.message || "Failed to update product");
+      const updated = await catalogueAPI.update(productId, payload, revision);
+      setRevision(updated.revision ?? revision + 1);
 
       toast.success("Product saved");
       router.push(`/products/${productId}`);
@@ -647,8 +640,8 @@ export default function ProductEditPage({ params }: { params: Promise<{ id: stri
                 <select name="category" value={form.category} onChange={handleChange}
                   className={selectCls}>
                   <option value="">Select a category</option>
-                  {categoriesList.map((cat) => (
-                    <option key={cat.name} value={cat.name}>{cat.name}</option>
+                  {canonicalCategories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}
                 </select>
               </Field>
