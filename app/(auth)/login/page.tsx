@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { useUser } from "@/shared/context/UserContext";
@@ -29,13 +29,37 @@ export default function AuthPage() {
   const { login } = useUser();
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [typeOptions, setTypeOptions] = useState<
+    { type: string; label: string }[]
+  >([]);
   const [form, setForm] = useState({
     name: "",
     email: "",
     password: "",
     phoneNumber: "",
-    type: "Farmer",
+    type: "",
   });
+
+  // The registration types come from the backend so every FR3SH app renders the
+  // same shared registration options.
+  useEffect(() => {
+    fetch("/api/v1/auth/registration-options?app=marketplace")
+      .then((r) => r.json())
+      .then((d) => {
+        const opts = (d?.data?.options ?? []) as { type: string; label: string }[];
+        setTypeOptions(opts);
+        setForm((f) => ({ ...f, type: f.type || opts[0]?.type || "Buyer" }));
+      })
+      .catch(() => {
+        setTypeOptions([
+          { type: "Buyer", label: "Buyer / Customer" },
+          { type: "Farmer", label: "Farmer" },
+          { type: "FPO", label: "Farmer Producer Organisation" },
+          { type: "DeliveryPartner", label: "Delivery Partner" },
+        ]);
+        setForm((f) => ({ ...f, type: f.type || "Buyer" }));
+      });
+  }, []);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -72,6 +96,14 @@ export default function AuthPage() {
       }
 
       const u = data.data ?? data.userData ?? data;
+      if (u?.pendingApproval) {
+        toast.success(
+          data.message ||
+            "Your account was created and is awaiting admin approval."
+        );
+        setIsLogin(true);
+        return;
+      }
       login({
         id: u.id ?? u._id ?? "",
         name: u.name,
@@ -196,10 +228,11 @@ export default function AuthPage() {
                       onChange={handleChange}
                       className={INPUT_CLASS + " appearance-none pr-10"}
                     >
-                      <option value="Farmer">Farmer</option>
-                      <option value="Buyer">Buyer</option>
-                      <option value="Logistics Provider">Delivery Person</option>
-                      <option value="FPO">FPO (Farmer Producer Organisation)</option>
+                      {typeOptions.map((o) => (
+                        <option key={o.type} value={o.type}>
+                          {o.label}
+                        </option>
+                      ))}
                     </select>
                     <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground-muted" />
                   </div>
