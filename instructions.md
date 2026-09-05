@@ -12,6 +12,44 @@ Brand tagline: *"Pick fresh. Eat fresh."*
 
 ---
 
+## Unified Go backend migration — read this before trusting any route description below
+
+The rest of this file describes this app's routes as originally built: each one reads/writes
+MongoDB directly via Mongoose. That description is now **wrong for a growing subset of
+routes**. Since 2026-09-05, a sibling project, `../go-api-backend/` (Go/Gin, its own MongoDB
+driver, no Mongoose), is becoming the single authoritative backend for this and the other
+FR3SH apps. Where a route has been migrated, its file in this repo is now a **thin,
+database-free proxy** (`shared/lib/api/catalogue-proxy.ts` — no Mongoose import, no fallback
+data, no second write path) that forwards the request (cookie/Authorization/Idempotency-Key/
+If-Match headers) to the Go service and returns its response verbatim.
+
+**Migrated to Go (this file's description of these routes as direct-Mongoose is stale — read
+`../go-api-backend/docs/api-migration-map.md` for the current truth instead):** auth
+register/login/logout/me, logout-all (new), password reset, users/me profile+photo, admin
+user directory, product reads/writes/bulk, categories, canonical SKU/variant identity,
+farmers directory/profile/KYC/adapted-follows, buyers, harvests, pre-bookings, voice-order
+intake/review (`/api/v1/voice-orders`, replacing the previously-broken voice-order submit
+flow), community group directory/membership, badge/referral/wallet **reads**, admin
+dashboard/analytics + farmer analytics/order-dashboard **reads**, buyer order history/order
+detail/farmer-scoped order view/admin order search **reads**.
+
+**Still exactly as described below (real Mongoose work, unmigrated)**: checkout/order
+creation, order status transitions (`PATCH /api/v1/orders/[id]`), per-item farmer updates,
+the admin order status override, wallet **writes** (`POST /api/v1/wallet`), referral/badge
+*award* paths (which — see the Go migration map — turned out to have zero real callers
+anywhere in this codebase already, not something waiting on this migration), `GET
+/api/v1/delivery/orders`, and everything WMS/POS-inventory-shaped.
+
+**If you're about to change a route, check whether it's on the migrated list above first.**
+Editing a proxy file's Mongoose logic does nothing (there isn't any); the real logic lives in
+`go-api-backend/internal/modules/`. Full detail, evidence, and exactly which fields/DTOs
+changed: `../go-api-backend/docs/api-migration-map.md` (dated section per slice) and
+`../go-api-backend/docs/api-inventory.md` (per-route old→new table). This addendum is a
+pointer, not a replacement for those — it will itself go stale if not updated at the next
+migration slice, so prefer the source docs when in doubt.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |

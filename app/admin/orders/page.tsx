@@ -128,7 +128,7 @@ export default function AdminOrdersPage() {
     try {
       const res = await fetch(`/api/v1/admin/orders/${id}`);
       const json = await res.json();
-      if (json.success) setExpandedDetail(json.data.order);
+      if (json.success) setExpandedDetail(json.data);
     } catch {
       toast.error("Failed to load order details");
     }

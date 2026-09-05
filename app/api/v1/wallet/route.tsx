@@ -3,39 +3,13 @@ import { mongoDB } from "@/shared/lib/db/mongo";
 import WalletModel from "@/shared/models/mongodb/wallet/wallet";
 import WalletTransactionModel from "@/shared/models/mongodb/wallet/walletTransaction";
 import { success, failure } from "@/app/api/v1/utils/responses";
+import { proxyCatalogueGET } from "@/shared/lib/api/catalogue-proxy";
 
 const CREDIT_TYPES = ["credit", "refund", "referral_reward", "cashback", "subscription_refund"];
 
-export async function GET(req: NextRequest) {
-  try {
-    await mongoDB();
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json(failure("userId is required"), { status: 400 });
-    }
-
-    const wallet = await WalletModel.findOneAndUpdate(
-      { userId },
-      {},
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean();
-
-    return NextResponse.json(
-      success({
-        wallet: {
-          id: String((wallet as any)._id),
-          userId: String((wallet as any).userId),
-          balance: (wallet as any).balance,
-          currency: (wallet as any).currency,
-          createdAt: (wallet as any).createdAt,
-        },
-      }),
-    );
-  } catch (err) {
-    return NextResponse.json(failure("Failed to fetch wallet", String(err)), { status: 500 });
-  }
+/** @deprecated Compatibility route; Go owns wallet balance reads. */
+export function GET(request: NextRequest) {
+  return proxyCatalogueGET(request, "/wallet");
 }
 
 export async function POST(req: NextRequest) {

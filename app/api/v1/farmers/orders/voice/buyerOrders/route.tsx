@@ -6,49 +6,11 @@ import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
 import ProductModel from "@/shared/models/mongodb/products/products";
 import { success, failure } from "@/app/api/v1/utils/responses";
 import type { OrderItem } from "@/shared/interfaces/mongodb/orders/buyerOrders";
+import { proxyCatalogueGET } from "@/shared/lib/api/catalogue-proxy";
 
-// GET /api/v1/orders/voice/buyerOrders?buyerId=...
-export async function GET(req: NextRequest) {
-  try {
-    await mongoDB();
-
-    const url = new URL(req.url);
-    const buyerId = url.searchParams.get("buyerId");
-
-    if (!buyerId) {
-      return NextResponse.json(
-        failure("buyerId query parameter is required"),
-        { status: 400 }
-      );
-    }
-
-    const page = Number(url.searchParams.get("page") || "1");
-    const limit = Number(url.searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
-
-    const [orders, total] = await Promise.all([
-      OrderModel.find({ buyerId })
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
-      OrderModel.countDocuments({ buyerId }),
-    ]);
-
-    const totalPages = Math.max(1, Math.ceil(total / limit) || 1);
-
-    return NextResponse.json(
-      success({ orders, page, limit, total, totalPages }, "Buyer orders fetched"),
-      { status: 200 }
-    );
-  } catch (err: any) {
-    console.error("buyerOrders GET error:", err);
-    return NextResponse.json(
-      failure(err?.message || "Failed to fetch buyer orders"),
-      { status: 500 }
-    );
-  }
+/** @deprecated Compatibility route; Go owns buyer order-history reads. */
+export function GET(request: NextRequest) {
+  return proxyCatalogueGET(request, "/orders");
 }
 
 // ─── Inventory helpers ─────────────────────────────────────────────────────

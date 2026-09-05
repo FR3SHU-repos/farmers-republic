@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import OrderModel from "@/shared/models/mongodb/orders/buyerOrders";
 import { success, failure } from "@/app/api/v1/utils/responses";
+import { proxyCatalogueGET } from "@/shared/lib/api/catalogue-proxy";
 
 type MongoOrderItem = {
   productId?: string;
@@ -54,104 +55,12 @@ type ParamsContext = {
   params: { id: string } | Promise<{ id: string }>;
 };
 
-// GET – farmer-specific view of one order
+// GET – farmer-specific view of one order (deprecated compatibility route;
+// Go owns this read, resolving the caller's own farmer profile server-side
+// instead of trusting the client-supplied farmerId query param)
 export async function GET(req: NextRequest, context: ParamsContext) {
   const { id } = await Promise.resolve(context.params);
-  const orderId = id;
-
-  console.log("🚜 FARMER ORDER DETAIL API HIT (GET)", orderId);
-
-  await mongoDB();
-
-  const url = new URL(req.url);
-  const farmerId = url.searchParams.get("farmerId");
-
-  if (!farmerId) {
-    return NextResponse.json(
-      failure("farmerId query parameter is required"),
-      { status: 400 },
-    );
-  }
-
-  const orderDoc = await OrderModel.findById(orderId).lean().exec();
-  const order = orderDoc as MongoOrder | null;
-
-  if (!order) {
-    return NextResponse.json(failure("Order not found"), { status: 404 });
-  }
-
-  const allItems: MongoOrderItem[] = order.items || [];
-
-  // only this farmer's line items
-  const itemsForFarmer = allItems.filter(
-    (it) => String(it.farmerId) === String(farmerId),
-  );
-
-  const itemsCount = itemsForFarmer.reduce(
-    (sum, it) => sum + (it.qty ?? 0),
-    0,
-  );
-
-  const subtotalForFarmer = itemsForFarmer.reduce(
-    (sum, it) => sum + (it.price ?? 0) * (it.qty ?? 0),
-    0,
-  );
-
-  const chargesForFarmer = itemsForFarmer.reduce((sum, it) => {
-    const delivery = it.deliveryCharge ?? 0;
-    const extra = it.extraCharge ?? 0;
-    const service = it.serviceCharge ?? 0;
-    return sum + delivery + extra + service;
-  }, 0);
-
-  const totalForFarmer = subtotalForFarmer + chargesForFarmer;
-
-  return NextResponse.json(
-    success(
-      {
-        orderId: String(order._id),
-        farmerId,
-        buyerId: order.buyerId || "",
-        buyerName: order.buyerName || "",
-        buyerEmail: order.buyerEmail || "",
-        buyerPhone: order.buyerPhone || "",
-        status: order.status || "pending",
-        paymentStatus: order.paymentStatus || "unpaid",
-        paymentMode: order.paymentMode || "cod",
-        source: order.source || "web",
-        createdAt: order.createdAt
-          ? new Date(order.createdAt).toISOString()
-          : new Date().toISOString(),
-
-        subtotal: subtotalForFarmer,
-        total: totalForFarmer,
-        itemsCount,
-
-        // Include the full order timeline so the detail page can display it
-        timeline: (order as any).timeline || [],
-
-        items: itemsForFarmer.map((it) => ({
-          productId: it.productId || "",
-          name: it.name || "",
-          price: it.price ?? 0,
-          qty: it.qty ?? 0,
-          image: it.image || "",
-
-          // expose item-level status/charges to frontend
-          status: it.status || order.status || "pending",
-          deliveryCharge: it.deliveryCharge ?? 0,
-          extraCharge: it.extraCharge ?? 0,
-          serviceCharge: it.serviceCharge ?? 0,
-
-          // ✅ NEW: totals so discount/platform show correctly after reload
-          platformFeeTotal: it.platformFeeTotal ?? 0,
-          discountTotal: it.discountTotal ?? 0,
-        })),
-      },
-      "Farmer order detail fetched",
-    ),
-    { status: 200 },
-  );
+  return proxyCatalogueGET(req, `/farmers/orders/${encodeURIComponent(id)}`);
 }
 
 // PATCH – update one item (product) for this farmer

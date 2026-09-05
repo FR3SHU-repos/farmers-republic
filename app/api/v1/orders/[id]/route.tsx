@@ -6,10 +6,10 @@ import OrderModel              from "@/shared/models/mongodb/orders/buyerOrders"
 import ProductModel            from "@/shared/models/mongodb/products/products";
 import DeliveryEarningModel    from "@/shared/models/mongodb/delivery/deliveryEarning";
 import { success, failure }    from "@/app/api/v1/utils/responses";
-import { checkRateLimit, limiters, getIP } from "@/shared/lib/rateLimit";
 import { emailQueue }          from "@/shared/queues/emailQueue";
 import { notificationQueue }   from "@/shared/queues/notificationQueue";
 import { orderQueue }          from "@/shared/queues/orderQueue";
+import { proxyCatalogueGET }   from "@/shared/lib/api/catalogue-proxy";
 
 type ParamsContext = {
   params: { id: string } | Promise<{ id: string }>;
@@ -75,22 +75,10 @@ async function safeEnqueue(fn: () => Promise<unknown>, label: string) {
   }
 }
 
-// ─── GET ──────────────────────────────────────────────────────────────────────
+// ─── GET (deprecated compatibility route; Go owns order-detail reads) ─────────
 export async function GET(req: NextRequest, context: ParamsContext) {
-  // Rate limit: 20 requests / minute / IP
-  const limited = await checkRateLimit(limiters.orderApis, getIP(req));
-  if (limited) return limited;
-
   const { id } = await Promise.resolve(context.params);
-  try {
-    await mongoDB();
-    const orderDoc = await OrderModel.findById(id).lean().exec();
-    if (!orderDoc) return NextResponse.json(failure("Order not found"), { status: 404 });
-    return NextResponse.json(success(orderDoc, "Order fetched"), { status: 200 });
-  } catch (err: any) {
-    console.error("order GET error:", err);
-    return NextResponse.json(failure(err?.message || "Failed to fetch order"), { status: 500 });
-  }
+  return proxyCatalogueGET(req, `/orders/${encodeURIComponent(id)}`);
 }
 
 // ─── PATCH ────────────────────────────────────────────────────────────────────

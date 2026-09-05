@@ -62,7 +62,7 @@ export default function FarmerVoiceOrderPage() {
       setLoadingAgent(true);
       setAgentMessage("Got it, understanding your order…");
       try {
-        const res = await fetch("/api/v1/orders/voice/farmerOrders", {
+        const res = await fetch("/api/v1/farmers/orders/voice/farmerOrders", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -174,18 +174,14 @@ export default function FarmerVoiceOrderPage() {
       return;
     }
     try {
-      const res = await fetch("/api/v1/orders/voice/farmerOrders", {
+      const res = await fetch("/api/v1/voice-orders", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
         body: JSON.stringify({
-          farmerId: user.id,
           ...customerDetails,
           items,
           deliveryFee: typeof deliveryFee === "number" ? deliveryFee : 0,
-          source: "app",
-          paymentMode: "cod",
-          paymentStatus: "unpaid",
-          status: "pending",
+          notes: "Submitted from farmer voice-order form; this is not a confirmed order.",
         }),
       });
       const json = await res.json();
