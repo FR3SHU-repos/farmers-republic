@@ -1,4 +1,6 @@
 [build.environment]
-  # These values are public API origins intentionally embedded by Next.js.
-  # Keep secret scanning enabled for every credential-bearing variable.
-  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_API_BASE_URL,NEXT_PUBLIC_CATALOGUE_API_BASE_URL"
+  # Public, non-secret values that Next.js intentionally embeds in the client
+  # bundle: API origins, the Supabase project URL, the Supabase publishable
+  # (anon) key, and the auth feature flags. The Supabase SERVICE-ROLE key is a
+  # real secret and is never set on this app — it stays scanned.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_API_BASE_URL,NEXT_PUBLIC_CATALOGUE_API_BASE_URL,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,NEXT_PUBLIC_SUPABASE_ANON_KEY,NEXT_PUBLIC_AUTH_GOOGLE_ENABLED,NEXT_PUBLIC_AUTH_WHATSAPP_ENABLED,APP_URL"

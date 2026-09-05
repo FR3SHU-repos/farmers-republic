@@ -1,16 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import toast from "react-hot-toast";
 import { ArrowLeft, Mail, Sprout } from "lucide-react";
 
-const COOLDOWN_SECS = 60;
+import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
+import { INPUT_CLS } from "@/shared/components/auth/parts";
+
+const COOLDOWN = 60;
 
 export default function ForgotPasswordPage() {
-  const router = useRouter();
+  const supabase = createAuthBrowserClient();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
@@ -19,110 +23,86 @@ export default function ForgotPasswordPage() {
     return () => clearTimeout(t);
   }, [cooldown]);
 
-  function validateEmail(e: string) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-  }
-
-  async function sendOtp(e?: { preventDefault?: () => void }) {
-    e?.preventDefault?.();
-    if (!validateEmail(email)) {
-      toast.error("Please enter a valid email address.");
-      return;
-    }
-    if (cooldown > 0) {
-      toast.error(`Please wait ${cooldown}s before resending.`);
-      return;
-    }
-
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (loading || cooldown > 0) return;
     setLoading(true);
-    try {
-      const res = await fetch("/api/v1/auth/send-reset-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(json?.message || json?.error || "Failed to send OTP. Try again later.");
-        return;
-      }
-      toast.success("OTP sent. Check your inbox (and spam).");
-      setCooldown(COOLDOWN_SECS);
-      router.push(`/reset-password?email=${encodeURIComponent(email)}`);
-    } catch {
-      toast.error("Network error. Try again.");
-    } finally {
-      setLoading(false);
-    }
+    await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    setSent(true);
+    setCooldown(COOLDOWN);
+    // Enumeration-safe: identical response regardless of account existence.
+    toast.success("If that email has an account, a reset link is on its way.");
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-6 py-12">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-surface-card px-6 py-12">
+      <div className="mb-6 flex items-center gap-2">
+        <Sprout className="h-5 w-5 text-primary" />
+        <span className="text-lg font-semibold text-foreground-heading">
+          {process.env.NEXT_PUBLIC_APP_NAME || "Farmers Republic"}
+        </span>
+      </div>
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="mb-8 flex items-center gap-2">
-          <Sprout className="h-5 w-5 text-primary" />
-          <span className="text-lg font-semibold text-foreground-heading">
-            {process.env.NEXT_PUBLIC_APP_NAME || "Farmers Republic"}
-          </span>
-        </div>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground-heading">
+          Reset your password
+        </h2>
+        <p className="mt-1.5 text-sm text-foreground-muted">
+          Enter your email and we&apos;ll send a secure link to set a new
+          password.
+        </p>
 
-        <div className="rounded-2xl border border-border bg-surface-card p-8 shadow-sm">
-          {/* Icon */}
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary-subtle">
-            <Mail className="h-6 w-6 text-primary" />
-          </div>
-
-          <h1 className="mt-5 text-xl font-semibold tracking-tight text-foreground-heading">
-            Forgot your password?
-          </h1>
-          <p className="mt-1.5 text-sm text-foreground-muted">
-            Enter your email and we&apos;ll send a one-time code to reset your
-            password.
-          </p>
-
-          <form onSubmit={sendOtp} className="mt-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground-body">
-                Email Address
-              </label>
-              <input
-                type="email"
-                name="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                className="mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground-heading placeholder:text-foreground-muted outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10"
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading || cooldown > 0}
-              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover disabled:opacity-60"
+        <form onSubmit={onSubmit} className="mt-8 space-y-4">
+          <div>
+            <label
+              htmlFor="email"
+              className="block text-sm font-medium text-foreground-body"
             >
-              {loading
-                ? "Sending…"
-                : cooldown > 0
-                ? `Resend OTP (${cooldown}s)`
-                : "Send OTP"}
-            </button>
-          </form>
+              Email address
+            </label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="username"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className={INPUT_CLS}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading || cooldown > 0}
+            className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {loading
+              ? "Sending…"
+              : cooldown > 0
+                ? `Resend in ${cooldown}s`
+                : "Send reset link"}
+          </button>
+        </form>
 
-          <p className="mt-4 text-xs text-foreground-muted">
-            After receiving the OTP, you&apos;ll be redirected to the reset page
-            to enter the code and set a new password.
+        {sent && (
+          <p className="mt-4 flex items-start gap-2 rounded-xl bg-primary/5 p-3 text-sm text-foreground-body">
+            <Mail className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            Check your inbox for the reset link. It expires shortly for your
+            security.
           </p>
-        </div>
+        )}
 
-        <button
-          onClick={() => router.push("/login")}
-          className="mt-6 flex w-full items-center justify-center gap-1.5 text-sm text-foreground-muted transition hover:text-foreground-body"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to sign in
-        </button>
+        <div className="mt-8">
+          <Link
+            href="/login"
+            className="flex w-full items-center justify-center gap-1.5 text-xs text-foreground-muted hover:text-foreground-body"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Back to sign in
+          </Link>
+        </div>
       </div>
     </div>
   );

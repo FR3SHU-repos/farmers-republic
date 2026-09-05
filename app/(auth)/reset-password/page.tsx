@@ -1,179 +1,142 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import toast from "react-hot-toast";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, KeyRound, Sprout } from "lucide-react";
+import toast from "react-hot-toast";
+import { Sprout } from "lucide-react";
 
-const INPUT_CLASS =
-  "mt-1.5 w-full rounded-xl border border-border bg-background px-4 py-2.5 text-sm text-foreground-heading placeholder:text-foreground-muted outline-none transition focus:border-primary focus:ring-4 focus:ring-primary/10";
+import { createAuthBrowserClient } from "@/shared/lib/supabase/auth-client";
+import { ginFetch } from "@/shared/lib/auth/gin";
+import {
+  PasswordField,
+  StrengthMeter,
+  passwordScore,
+} from "@/shared/components/auth/parts";
 
-export default function ResetPasswordPage() {
+function ResetInner() {
   const router = useRouter();
+  const supabase = createAuthBrowserClient();
 
-  const [form, setForm] = useState({
-    email: "",
-    otp: "",
-    password: "",
-    confirmPassword: "",
-  });
-  const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [valid, setValid] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  // Pre-fill email from the URL query param (?email=...)
+  // @supabase/ssr detects the recovery token in the URL and emits a
+  // PASSWORD_RECOVERY event with a temporary session.
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const emailParam = params.get("email");
-    if (emailParam) setForm((f) => ({ ...f, email: emailParam }));
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
-
-  const handleSubmit = async (e: React.SyntheticEvent) => {
-    e.preventDefault();
-    if (!form.email || !form.otp || !form.password || !form.confirmPassword) {
-      toast.error("Please fill all fields");
-      return;
-    }
-    if (form.password !== form.confirmPassword) {
-      toast.error("Passwords do not match");
-      return;
-    }
-    if (form.password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const res = await fetch("/api/v1/auth/verify-reset-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: form.email.trim().toLowerCase(),
-          otp: form.otp.trim(),
-          newPassword: form.password,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data?.message || data?.error || "Failed to reset password");
-        return;
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+        setValid(true);
       }
-      toast.success("Password reset successful. Please sign in.");
-      router.push("/login");
-    } catch {
-      toast.error("Network error");
-    } finally {
-      setLoading(false);
+      setReady(true);
+    });
+    // Also check immediately in case the event already fired.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setValid(true);
+      setReady(true);
+    });
+    return () => data.subscription.unsubscribe();
+  }, [supabase]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (saving) return;
+    if (passwordScore(password).score < 1) {
+      toast.error("Choose a stronger password.");
+      return;
     }
-  };
+    if (password !== confirm) {
+      toast.error("Passwords do not match.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) {
+      setSaving(false);
+      toast.error("This reset link is invalid or has expired.");
+      return;
+    }
+    // Record the security event and sign out other sessions.
+    await ginFetch("/account/security/audit", {
+      method: "POST",
+      body: JSON.stringify({ event: "password_changed" }),
+    }).catch(() => {});
+    await ginFetch("/account/sessions/revoke-all", { method: "POST" }).catch(
+      () => {},
+    );
+    await supabase.auth.signOut();
+    toast.success("Password updated. Please sign in.");
+    router.replace("/login");
+  }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface px-6 py-12">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-surface-card px-6 py-12">
+      <div className="mb-6 flex items-center gap-2">
+        <Sprout className="h-5 w-5 text-primary" />
+        <span className="text-lg font-semibold text-foreground-heading">
+          {process.env.NEXT_PUBLIC_APP_NAME || "Farmers Republic"}
+        </span>
+      </div>
       <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="mb-8 flex items-center gap-2">
-          <Sprout className="h-5 w-5 text-primary" />
-          <span className="text-lg font-semibold text-foreground-heading">
-            {process.env.NEXT_PUBLIC_APP_NAME || "Farmers Republic"}
-          </span>
-        </div>
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground-heading">
+          Set a new password
+        </h2>
 
-        <div className="rounded-2xl border border-border bg-surface-card p-8 shadow-sm">
-          {/* Icon */}
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary-subtle">
-            <KeyRound className="h-6 w-6 text-primary" />
+        {!ready ? (
+          <p className="mt-6 text-sm text-foreground-muted">Checking your link…</p>
+        ) : !valid ? (
+          <div className="mt-6">
+            <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">
+              This password reset link is invalid or has expired. Request a new
+              one.
+            </p>
+            <button
+              type="button"
+              onClick={() => router.replace("/forgot-password")}
+              className="mt-4 w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground"
+            >
+              Request a new link
+            </button>
           </div>
-
-          <h1 className="mt-5 text-xl font-semibold tracking-tight text-foreground-heading">
-            Reset your password
-          </h1>
-          <p className="mt-1.5 text-sm text-foreground-muted">
-            Enter the OTP sent to your email and choose a new password.
-          </p>
-
-          <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        ) : (
+          <form onSubmit={onSubmit} className="mt-8 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-foreground-body">
-                Email Address
-              </label>
-              <input
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-                type="email"
-                placeholder="you@example.com"
-                className={INPUT_CLASS}
-                required
+              <PasswordField
+                label="New password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                minLength={8}
               />
+              <StrengthMeter password={password} />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground-body">
-                OTP Code
-              </label>
-              <input
-                name="otp"
-                value={form.otp}
-                onChange={handleChange}
-                type="text"
-                inputMode="numeric"
-                pattern="\d{6}"
-                placeholder="123456"
-                className={INPUT_CLASS}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground-body">
-                New Password
-              </label>
-              <input
-                name="password"
-                value={form.password}
-                onChange={handleChange}
-                type="password"
-                placeholder="Min. 8 characters"
-                className={INPUT_CLASS}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-foreground-body">
-                Confirm New Password
-              </label>
-              <input
-                name="confirmPassword"
-                value={form.confirmPassword}
-                onChange={handleChange}
-                type="password"
-                placeholder="••••••••"
-                className={INPUT_CLASS}
-                required
-              />
-            </div>
-
+            <PasswordField
+              label="Confirm new password"
+              value={confirm}
+              onChange={setConfirm}
+              autoComplete="new-password"
+              minLength={8}
+            />
             <button
               type="submit"
-              disabled={loading}
-              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition hover:bg-primary-hover disabled:opacity-60"
+              disabled={saving}
+              className="w-full rounded-full bg-primary py-3 text-sm font-semibold text-primary-foreground disabled:opacity-60"
             >
-              {loading ? "Resetting…" : "Reset Password"}
+              {saving ? "Updating…" : "Update password"}
             </button>
           </form>
-        </div>
-
-        <button
-          onClick={() => router.push("/login")}
-          className="mt-6 flex w-full items-center justify-center gap-1.5 text-sm text-foreground-muted transition hover:text-foreground-body"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to sign in
-        </button>
+        )}
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense>
+      <ResetInner />
+    </Suspense>
   );
 }

@@ -14,6 +14,7 @@
     "workers": "concurrently \"npm run worker:email\" \"npm run worker:notification\" \"npm run worker:order\""
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.6",
     "@supabase/supabase-js": "^2.58.0",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.38.0",
