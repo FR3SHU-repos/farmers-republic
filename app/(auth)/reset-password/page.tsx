@@ -57,7 +57,7 @@ export default function ResetPasswordPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data?.error || "Failed to reset password");
+        toast.error(data?.message || data?.error || "Failed to reset password");
         return;
       }
       toast.success("Password reset successful. Please sign in.");

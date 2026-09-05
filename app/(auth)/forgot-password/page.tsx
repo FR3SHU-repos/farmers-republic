@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(json?.error || "Failed to send OTP. Try again later.");
+        toast.error(json?.message || json?.error || "Failed to send OTP. Try again later.");
         return;
       }
       toast.success("OTP sent. Check your inbox (and spam).");

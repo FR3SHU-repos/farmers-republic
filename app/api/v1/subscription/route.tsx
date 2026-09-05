@@ -1,13 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { mongoDB } from "@/shared/lib/db/mongo";
 import UserModel from "@/shared/models/mongodb/user";
-import UserBadgeModel from "@/shared/models/mongodb/gamification/userBadge";
 import { success, failure } from "@/app/api/v1/utils/responses";
-
-const PLANS = {
-  monthly: { label: "Monthly", price: 199, days: 30 },
-  annual: { label: "Annual", price: 1499, days: 365 },
-} as const;
+import { rejectUnverifiedSubscriptionEntitlement } from "@/shared/lib/security/subscription-entitlement";
 
 const BENEFITS = [
   "Free delivery on every order",
@@ -62,57 +57,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    await mongoDB();
-    const { userId, plan, paymentRef } = await req.json();
-
-    if (!userId || !plan) {
-      return NextResponse.json(failure("userId and plan are required"), { status: 400 });
-    }
-
-    const planConfig = PLANS[plan as keyof typeof PLANS];
-    if (!planConfig) {
-      return NextResponse.json(failure("Invalid plan. Use 'monthly' or 'annual'"), {
-        status: 400,
-      });
-    }
-
-    const now = new Date();
-    const validUntil = new Date(now.getTime() + planConfig.days * 24 * 60 * 60 * 1000);
-
-    const user = await UserModel.findByIdAndUpdate(
-      userId,
-      { subscription: "Premium User", subscriptionValidUntil: validUntil },
-      { new: true },
-    );
-
-    if (!user) {
-      return NextResponse.json(failure("User not found"), { status: 404 });
-    }
-
-    try {
-      await UserBadgeModel.create({
-        userId,
-        badgeId: "fr3sh_plus",
-        earnedAt: now,
-      });
-    } catch {
-      // badge may already exist — ignore duplicate key error
-    }
-
-    return NextResponse.json(
-      success({
-        subscribed: true,
-        plan: planConfig.label,
-        validUntil,
-        amountPaid: planConfig.price,
-        paymentRef: paymentRef ?? null,
-      }),
-      { status: 201 },
-    );
-  } catch (err) {
-    return NextResponse.json(failure("Failed to subscribe", String(err)), { status: 500 });
-  }
+  const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
+  console.warn(JSON.stringify({
+    level: "warn",
+    event: "subscription_entitlement_rejected",
+    reason: "provider_verification_unavailable",
+    requestId,
+  }));
+  return NextResponse.json(rejectUnverifiedSubscriptionEntitlement(), {
+    status: 503,
+    headers: { "X-Request-ID": requestId, "Retry-After": "3600" },
+  });
 }
 
 export async function DELETE(req: NextRequest) {

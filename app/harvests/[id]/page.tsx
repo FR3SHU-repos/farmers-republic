@@ -127,7 +127,10 @@ export default function HarvestDetailPage({ params }: { params: Promise<{ id: st
     try {
       const res = await fetch(`/api/v1/harvests/${harvest.id}/prebook`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": crypto.randomUUID(),
+        },
         body: JSON.stringify({
           buyerName,
           buyerPhone,
